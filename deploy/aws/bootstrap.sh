@@ -38,7 +38,11 @@ chown -R ledger:ledger /opt/ledger
 
 runuser -u ledger -- python3 -m venv /opt/ledger/.venv
 runuser -u ledger -- /opt/ledger/.venv/bin/pip install --upgrade pip wheel
-runuser -u ledger -- /opt/ledger/.venv/bin/pip install -r /opt/ledger/requirements.txt
+# The backend has no GPU. Installing the CPU wheel first prevents pip from
+# pulling several gigabytes of unused CUDA libraries through Docling.
+runuser -u ledger -- /opt/ledger/.venv/bin/pip install --no-cache-dir \
+  torch torchvision --index-url https://download.pytorch.org/whl/cpu
+runuser -u ledger -- /opt/ledger/.venv/bin/pip install --no-cache-dir -r /opt/ledger/requirements.txt
 
 install -d -m 0750 -o ledger -g ledger /etc/ledger
 ADMIN_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "$TOKEN_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)"
