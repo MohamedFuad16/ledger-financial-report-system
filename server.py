@@ -418,6 +418,7 @@ def get_corpus():
         })
     return jsonify({
         **manifest,
+        "documents": documents,
         "summary": {
             "documents": len(documents),
             "companies": len({item.get("company_slug") for item in documents}),

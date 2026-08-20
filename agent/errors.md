@@ -1,5 +1,11 @@
 # Errors, gotchas & known issues
 
+## Corpus API computed output metadata but returned the original list (resolved)
+- Symptom: Report corpus omitted each PDF's output directory and stored-run count even though the server computed both fields.
+- Cause: The response spread the original manifest but did not replace its `documents` key with the enriched list.
+- Resolution: Return the enriched `documents` collection explicitly and verify the production response after restart.
+- First seen: 2026-08-21
+
 ## Corpus manifest paths must not become arbitrary file access (resolved)
 - Symptom: Reusing an already-downloaded report for extraction could tempt the API to accept a caller-supplied filesystem path.
 - Cause: The upload staging contract originally knew only temporary upload IDs, while corpus PDFs live in durable company/year folders.
