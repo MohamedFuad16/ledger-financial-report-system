@@ -58,6 +58,7 @@ chown root:ledger /etc/ledger/backend.env
 install -m 0644 /opt/ledger/deploy/aws/ledger-backend.service /etc/systemd/system/ledger-backend.service
 systemctl daemon-reload
 systemctl enable --now ledger-backend.service
+rm -rf /root/.cache/pip /tmp/awscliv2 /tmp/awscliv2.zip
 
 for _ in $(seq 1 60); do
   if curl --fail --silent http://127.0.0.1:8000/api/health >/dev/null; then
