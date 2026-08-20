@@ -6,6 +6,7 @@ exec > >(tee /var/log/ledger-bootstrap.log | logger -t ledger-bootstrap -s 2>/de
 REGION="${AWS_REGION:-ap-northeast-1}"
 REPOSITORY="${LEDGER_REPOSITORY:-https://github.com/MohamedFuad16/ledger-financial-report-system.git}"
 TOKEN_PARAMETER="${LEDGER_TOKEN_PARAMETER:-/ledger/backend/admin-token}"
+CORS_ORIGINS="${LEDGER_CORS_ALLOWED_ORIGINS:-https://ledger-financial-report-system.vercel.app}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -48,7 +49,7 @@ install -d -m 0750 -o ledger -g ledger /etc/ledger
 ADMIN_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "$TOKEN_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)"
 {
   echo "AWS_REGION=$REGION"
-  echo 'CORS_ALLOWED_ORIGINS=*'
+  echo "CORS_ALLOWED_ORIGINS=$CORS_ORIGINS"
   echo "LEDGER_ADMIN_TOKEN=$ADMIN_TOKEN"
   echo 'PYTHONUNBUFFERED=1'
 } > /etc/ledger/backend.env

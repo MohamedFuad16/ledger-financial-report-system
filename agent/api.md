@@ -4,6 +4,7 @@
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/health` | Public service/region health probe |
 | GET/POST | `/api/settings` | Read or test-and-save provider settings |
 | POST | `/api/runtime-settings` | Verify Firecrawl, then save its credential and the global adaptive request ceiling |
 | GET/POST/DELETE | `/api/prompt` | Manage the extraction system prompt |
@@ -19,6 +20,11 @@
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
+
+In hosted environments, every non-GET `/api/*` request requires the
+`X-Ledger-Admin-Token` header. Browser preflight is allowed only for configured
+`CORS_ALLOWED_ORIGINS`; local development remains unprotected when
+`LEDGER_ADMIN_TOKEN` is unset.
 
 ## External services
 

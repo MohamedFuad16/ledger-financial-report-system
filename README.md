@@ -190,6 +190,24 @@ a 4 GiB swap file before installing Docling/Torch, fetches the admin token from
 AWS Systems Manager Parameter Store, and starts the API as the unprivileged
 `ledger` user. Mutating `/api/*` requests require `X-Ledger-Admin-Token`; read-only
 dashboard and health requests remain public.
+
+Current production endpoints:
+
+- UI: `https://ledger-financial-report-system.vercel.app`
+- API health: `https://52-194-83-152.sslip.io/api/health`
+
+Retrieve the deployment access token without printing or committing it by using
+AWS Systems Manager Parameter Store in `ap-northeast-1`:
+
+```bash
+aws ssm get-parameter --region ap-northeast-1 \
+  --name /ledger/backend/admin-token --with-decryption \
+  --query Parameter.Value --output text
+```
+
+Paste that value into Settings → Backend access. For a custom API domain, point
+an A record at `52.194.83.152`, replace the hostname in Caddy, and update
+`VITE_API_BASE_URL` before the next Vercel production build.
 requests and the Vite proxy.
 
 Legacy Streamlit UI:

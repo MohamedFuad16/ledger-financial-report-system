@@ -13,6 +13,7 @@
 | ADR-0007 | Make locale and live task state first-class client concerns | Accepted |
 | ADR-0008 | Verify connector credentials before local persistence | Accepted |
 | ADR-0009 | Bound semantic contract repair to one preserved attempt | Accepted |
+| ADR-0010 | Split static UI and persistent parser backend across Vercel and EC2 | Accepted |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -76,3 +77,10 @@
 - Context: Transport retries repeated identical requests, but malformed JSON or a Pydantic contract violation ended a run even when the provider had returned a nearly correct answer. The prompt also calibrated confidence at 0.5 while accepted output uses a measured 0.80 gate.
 - Decision: Keep deterministic normalization first, then make at most one semantic repair call containing the original system/user messages, the invalid assistant response, and the exact contract error. Persist the repair request/response separately and align prompt confidence wording with the 0.80 acceptance boundary.
 - Consequences: Recoverable shape errors no longer discard a full extraction, while the single-attempt bound prevents unbounded spend and preserves both model attempts for audit. Failures after the repair still fail closed.
+
+## ADR-0010 — Split static UI and persistent parser backend across Vercel and EC2
+- Date: 2026-08-21
+- Status: Accepted
+- Context: The React bundle is a natural fit for Vercel, but the Flask pipeline needs persistent run/upload storage, long-lived SSE requests, large PDF uploads, and a native Docling/Torch environment that exceeds practical serverless function limits.
+- Decision: Publish the Vite client on Vercel and run the Flask API on a single Tokyo `t3.medium` EC2 instance behind Caddy HTTPS. Require a strong SSM Parameter Store token for every mutating API call, store that token only in the operator's browser, keep GET endpoints public, limit CORS to production UI origins, manage the instance through SSM with no SSH ingress, require IMDSv2, and use an encrypted 40 GiB gp3 volume plus CPU-only PyTorch wheels.
+- Consequences: The deployed application retains the local file-backed semantics and supports long parser calls, but it has a continuously billed VM and one availability zone. Production writes require the browser token; backups, horizontal scaling, and a custom API hostname remain separate follow-up infrastructure work.

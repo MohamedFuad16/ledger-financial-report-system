@@ -36,3 +36,16 @@ app.pipeline -> llm: "chat completion"
 app.corpus -> firecrawl: "map / search"
 app.api -> firecrawl: "credential probe"
 app.corpus -> official: "direct PDF download"
+
+deployment: "Production deployment" {
+  vercel: "Vercel · React static UI"
+  caddy: "EC2 · Caddy HTTPS"
+  gunicorn: "Gunicorn · Flask API"
+  disk: "Encrypted gp3 · uploads/runs"
+  parameter: "SSM Parameter Store · admin token"
+
+  vercel -> caddy: "cross-origin HTTP / SSE"
+  caddy -> gunicorn: "127.0.0.1:8000"
+  gunicorn -> disk: "persistent artifacts"
+  parameter -> gunicorn: "protected mutations"
+}

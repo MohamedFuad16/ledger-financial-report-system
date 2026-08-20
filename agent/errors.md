@@ -1,5 +1,23 @@
 # Errors, gotchas & known issues
 
+## Ubuntu 24.04 bootstrap could not install `awscli` from apt (resolved)
+- Symptom: The first EC2 cloud-init run stopped before creating swap, cloning the repository, or starting the API.
+- Cause: The selected Ubuntu 24.04 image has no installable `awscli` package in its configured apt repositories.
+- Resolution: Install AWS CLI v2 from AWS's signed distribution before retrieving the SSM SecureString. The same instance was reused and verified through SSM.
+- First seen: 2026-08-21
+
+## Linux parser install pulled unused CUDA wheels (resolved)
+- Symptom: A CPU-only `t3.medium` began downloading several gigabytes of NVIDIA/CUDA packages while resolving Docling's Torch dependency.
+- Cause: PyPI's default Linux Torch wheel includes GPU dependencies; the first rerun also fetched a cached pre-fix bootstrap URL.
+- Resolution: Cancel the install, execute an immutable Git commit URL, preinstall `torch` and `torchvision` from PyTorch's CPU wheel index, and clear bootstrap caches. Remote verification reports `torch 2.13.0+cpu`, CUDA false, and all parser imports successful.
+- First seen: 2026-08-21
+
+## Clean Vercel alias inherited SSO protection (resolved)
+- Symptom: The canonical `ledger-financial-report-system.vercel.app` alias redirected anonymous visitors to Vercel login although the initial production alias was public.
+- Cause: Team defaults applied `all_except_custom_domains` SSO protection to the project.
+- Resolution: Explicitly disabled project SSO protection and reverified the canonical URL anonymously in the in-app browser.
+- First seen: 2026-08-21
+
 ## Contract failures were not semantically retried (resolved)
 - Symptom: A provider could return evidence-bearing JSON with one schema defect, but the run failed immediately after deterministic normalization.
 - Cause: Existing retries covered only 429/eligible 5xx transport responses and repeated the same request; no repair turn included the invalid assistant response or Pydantic error.
