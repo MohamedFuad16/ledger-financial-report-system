@@ -6,7 +6,7 @@ exec > >(tee /var/log/ledger-bootstrap.log | logger -t ledger-bootstrap -s 2>/de
 REGION="${AWS_REGION:-ap-northeast-1}"
 REPOSITORY="${LEDGER_REPOSITORY:-https://github.com/MohamedFuad16/ledger-financial-report-system.git}"
 TOKEN_PARAMETER="${LEDGER_TOKEN_PARAMETER:-/ledger/backend/admin-token}"
-CORS_ORIGINS="${LEDGER_CORS_ALLOWED_ORIGINS:-https://ledger-financial-report-system.vercel.app}"
+CORS_ORIGINS="${LEDGER_CORS_ALLOWED_ORIGINS:-https://ledger-financial-report-system.vercel.app,https://assignment.mohamedfuad.com}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update

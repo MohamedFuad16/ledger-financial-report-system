@@ -39,7 +39,7 @@ in that browser's local storage.
 ## Production
 
 - GitHub: `https://github.com/MohamedFuad16/ledger-financial-report-system`
-- Vercel UI: `https://ledger-financial-report-system.vercel.app`
+- Public UI: `https://assignment.mohamedfuad.com` (Vercel canonical alias: `https://ledger-financial-report-system.vercel.app`)
 - AWS API: `https://52-194-83-152.sslip.io`
 - EC2: `i-01cd566c48321ea17`, `t3.medium`, `ap-northeast-1a`
 - Management: AWS Systems Manager only; security group exposes HTTP/HTTPS but no SSH.

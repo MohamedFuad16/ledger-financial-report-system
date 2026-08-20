@@ -1,5 +1,11 @@
 # Errors, gotchas & known issues
 
+## Custom Vercel domain was missing from the API CORS allowlist (resolved)
+- Symptom: `assignment.mohamedfuad.com` loaded the React bundle but showed “Failed to fetch” for API-backed data, while the canonical Vercel alias worked.
+- Cause: The EC2 environment allowed only `ledger-financial-report-system.vercel.app` as a browser origin.
+- Resolution: Add both production UI origins to the live `CORS_ALLOWED_ORIGINS` value and the repeatable EC2 bootstrap default, restart Gunicorn, and verify the custom-domain browser flow.
+- First seen: 2026-08-21
+
 ## Corpus API computed output metadata but returned the original list (resolved)
 - Symptom: Report corpus omitted each PDF's output directory and stored-run count even though the server computed both fields.
 - Cause: The response spread the original manifest but did not replace its `documents` key with the enriched list.

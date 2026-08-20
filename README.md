@@ -197,7 +197,7 @@ dashboard and health requests remain public.
 
 Current production endpoints:
 
-- UI: `https://ledger-financial-report-system.vercel.app`
+- UI: `https://assignment.mohamedfuad.com` (Vercel canonical alias: `https://ledger-financial-report-system.vercel.app`)
 - API health: `https://52-194-83-152.sslip.io/api/health`
 
 Retrieve the deployment access token without printing or committing it by using
