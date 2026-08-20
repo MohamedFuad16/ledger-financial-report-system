@@ -16,7 +16,12 @@
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
 - Bakuraku research: `research/bakuraku/customers.csv` plus a fully linked `README.md` table.
 - Provider defaults: `.env` (gitignored).
+- Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest
+  2,000 metadata events), `ledger:traffic:count`, `ledger:traffic:daily`, and
+  six-hour hashed `ledger:traffic:session:*` deduplication markers. Stored event
+  fields are access time, path, referrer, client IP, locale, time zone, viewport,
+  user agent, and event ID; connector credentials are never serialized.
 
 ## Client state
 
-The React client keeps server data in typed hooks and reserves local state for selection, filters, upload/corpus input mode, per-stage execution progress/timing, and background-corpus polling. English schema keys remain the stored contract; Japanese labels are a presentation-only mapping so persisted artifacts stay stable.
+The React client keeps server data in typed hooks and reserves local state for selection, filters, upload/corpus input mode, per-stage execution progress/timing, and background-corpus polling. A random session ID in `sessionStorage` deduplicates visit reporting per browser tab session. English schema keys remain the stored contract; Japanese labels are a presentation-only mapping so persisted artifacts stay stable.

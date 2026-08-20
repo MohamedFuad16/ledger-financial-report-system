@@ -3,6 +3,7 @@
 ## Strategy
 
 - `test_contract.py` is an offline executable suite covering schema, normalization, validation, parsing, extraction health, rate limiting, reconciliation, providers, and run layout.
+- `test_traffic.py` verifies Redis event shape, credential exclusion, session deduplication, hosted-origin enforcement, and the deliberate admin-token exemption for visit telemetry.
 - Vitest covers the typed API adapter and fragmented SSE parsing boundary.
 - Browser QA must cover the dashboard, each live strategy, uploads, settings, run detail, responsive layout, and console errors.
 
@@ -10,6 +11,7 @@
 
 ```bash
 .venv/bin/python test_contract.py
+.venv/bin/python test_traffic.py
 cd frontend && npm test -- --run && npm run build
 ```
 

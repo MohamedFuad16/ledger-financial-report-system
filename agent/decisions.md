@@ -15,6 +15,7 @@
 | ADR-0009 | Bound semantic contract repair to one preserved attempt | Accepted |
 | ADR-0010 | Split static UI and persistent parser backend across Vercel and EC2 | Accepted |
 | ADR-0011 | Reuse corpus documents through durable-reference staging | Accepted |
+| ADR-0012 | Keep visit telemetry private and backend-only | Accepted |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -92,3 +93,10 @@
 - Context: Firecrawl downloads already live in stable company/year/timestamp folders, but Strategy 1 and Strategy 2 previously accepted only new browser uploads. Copying corpus PDFs into upload storage would duplicate large reports and weaken provenance.
 - Decision: Add an Upload/Corpus input switch to both active strategies. Select corpus entries by their manifest SHA-256 ID, resolve and validate the path only on the server, then place a short-lived reference into the same staged-extraction abstraction used by uploads. Keep English canonical schema keys in artifacts and localize them only at render/export time.
 - Consequences: Single reports or batches can run through the existing SSE pipeline without moving the source PDF; outputs remain discoverable under the matching company/FY run namespace. Manifest paths outside the corpus root fail closed, while Japanese result sheets can change language without changing the stored contract.
+
+## ADR-0012 — Keep visit telemetry private and backend-only
+- Date: 2026-08-21
+- Status: Accepted
+- Context: The owner needs a timestamped notification when someone opens the public site, but exposing a Redis or email credential in a static Vite bundle would make the connector publicly reusable.
+- Decision: Let the browser submit only bounded visit metadata to an origin-restricted Flask endpoint. Deduplicate by a hashed browser-session/IP marker, retain only the newest 2,000 Upstash events plus aggregate counters, and send notifications from the EC2 role through a verified, recipient-restricted SES identity. Store connector values in SSM Parameter Store and load them only into the backend service environment.
+- Consequences: Public visitors never receive connector credentials and cannot choose the notification recipient. Telemetry remains intentionally small and private, while delivery depends on Upstash, SES, and the single EC2 service.

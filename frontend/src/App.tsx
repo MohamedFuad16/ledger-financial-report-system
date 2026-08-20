@@ -65,6 +65,26 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
+    const reportedKey = 'ledger-visit-reported'
+    if (window.sessionStorage.getItem(reportedKey)) return
+    const sessionKey = 'ledger-visit-session'
+    const sessionId = window.sessionStorage.getItem(sessionKey) || window.crypto.randomUUID()
+    window.sessionStorage.setItem(sessionKey, sessionId)
+    window.sessionStorage.setItem(reportedKey, 'pending')
+    void api.trackVisit({
+      session_id: sessionId,
+      path: `${window.location.pathname}${window.location.hash}`,
+      referrer: document.referrer,
+      locale: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      user_agent: navigator.userAgent,
+    }).then(() => window.sessionStorage.setItem(reportedKey, 'sent')).catch(() => {
+      window.sessionStorage.removeItem(reportedKey)
+    })
+  }, [])
+
+  useEffect(() => {
     localStorage.setItem('ledger-sidebar-collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
 

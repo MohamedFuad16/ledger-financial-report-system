@@ -8,12 +8,13 @@
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
 | `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
 | `server.py` | pipeline/settings/schema/corpus | browser client | Changes affect every client workflow |
+| `traffic.py` | Upstash REST, AWS SES v2 | `server.py` | Changes affect private visit persistence and owner notifications |
 | `corpus/service.py` | discovery/fetch/manifest | Flask corpus jobs, CLI worker | Changes affect large-scale source acquisition |
 | `corpus/discover.py` | Firecrawl client | corpus service | Changes affect link ranking and Firecrawl credits |
 | `corpus/client.py` | Firecrawl REST API | discovery, runtime-settings verification | Changes affect discovery calls and credential-save safety |
 | `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect local PDF trust and naming |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
-| `frontend/src/lib/api.ts` | Vite API origin, browser token storage | every client API call | Changes affect cross-origin deployment and all protected mutations |
+| `frontend/src/lib/api.ts` | Vite API origin, browser token storage | every client API call | Changes affect cross-origin deployment, visit reporting, and all protected mutations |
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
@@ -27,4 +28,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-21 after durable corpus staging, localized schema/result values, and the Upload/Corpus strategy input boundary. The architecture diagram includes corpus selection flowing through Flask validation into the shared staged extraction pipeline.
+- 2026-08-21 after adding private visit telemetry. The architecture diagram includes the origin-restricted Flask endpoint, backend-only Upstash log/counters, SES owner notification, and SSM secret boundary.

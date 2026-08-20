@@ -19,6 +19,9 @@ digraph dependencies {
   "server.py" -> "prompts";
   "server.py" -> "schema";
   "server.py" -> "settings";
+  "server.py" -> "traffic";
+  "traffic.py" -> "boto3";
+  "traffic.py" -> "urllib.request";
   "server.py" -> "socket";
   "frontend/vite.config.js" -> "vite";
   "frontend/vite.config.js" -> "@vitejs/plugin-react";

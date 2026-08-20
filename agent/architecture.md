@@ -5,7 +5,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 ## Major components
 
 - **Web client** — `frontend/` is a typed React/Vite SPA; Vercel serves the public production bundle, while Flask can still serve `frontend/dist/` locally.
-- **HTTP API** — `server.py` exposes settings, upload, extraction, streaming, run, schema, and evaluation endpoints.
+- **HTTP API** — `server.py` exposes settings, upload, extraction, streaming, run, schema, evaluation, and bounded visit-telemetry endpoints.
 - **Pipeline** — `pipeline.py` orchestrates the strategy-independent lifecycle.
 - **Extraction strategies** — `extraction.py` wraps PyPDF, PyMuPDF4LLM, Docling, and pdf-inspector behind one result type.
 - **Contract and repair** — `normalize.py`, `models.py`, and `schema.py` normalize representations and enforce the 27-row contract.
@@ -13,7 +13,8 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 - **Provider boundary** — `api_client.py`, `providers.py`, and `ratelimit.py` handle compatible LLM APIs and adaptive concurrency.
 - **Corpus boundary** — `corpus/` discovers official Annual Reports through Firecrawl, downloads directly, screens locally, and atomically updates a SHA-256 manifest. `corpus_worker.py` exposes the same service to long-lived CLI jobs.
 - **Persistence** — uploads, runs, corpus PDFs, manifests, and customer research are stored on disk with company/year/timestamp namespaces.
-- **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds the mutation token; no secret is bundled into Vercel.
+- **Private traffic boundary** — `traffic.py` writes bounded per-session metadata and counters to Upstash and uses the EC2 role to send owner-only SES notifications. Connector values are loaded from SSM and never enter Vercel.
+- **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds the mutation token and private connector values; no secret is bundled into Vercel.
 
 ## Control flow
 

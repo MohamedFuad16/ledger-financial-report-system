@@ -23,6 +23,7 @@ the model.
 | `pipeline.py` | One extraction end to end: convert → prompt → call → validate → score → persist. |
 | `api_client.py` | Provider HTTP calls and deterministic reply parsing. |
 | `server.py` | Flask API. Routes only; all work goes through `pipeline.py`. |
+| `traffic.py` | Private, server-only visit persistence in Upstash plus owner notifications through AWS SES. |
 | `corpus/` | Firecrawl discovery, direct PDF download, document screening and atomic manifest storage. |
 | `corpus_worker.py` | Standalone background corpus-job entry point for CSV/JSON company lists. |
 | `frontend/` | The React/Vite web UI. `frontend/dist/` is served by Flask. |
@@ -212,6 +213,12 @@ aws ssm get-parameter --region ap-northeast-1 \
 The token is an operator/deployment concern rather than an end-user setting.
 For a custom API domain, point an A record at `52.194.83.152`, replace the hostname in Caddy, and update
 `VITE_API_BASE_URL` before the next Vercel production build.
+
+The deployed backend also records one private traffic event per browser session.
+Upstash keeps a bounded visit log and aggregate counters; AWS SES sends the
+verified owner a message containing the access time and browser metadata. The
+Upstash values live in SSM Parameter Store under `/ledger/traffic/*`, are loaded
+only by the EC2 service, and are never compiled into or returned by the frontend.
 
 Legacy Streamlit UI:
 

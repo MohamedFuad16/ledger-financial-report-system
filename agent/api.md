@@ -5,6 +5,7 @@
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Public service/region health probe |
+| POST | `/api/traffic` | Record one deduplicated browser-session visit in private Upstash storage and queue an owner-only SES email |
 | GET/POST | `/api/settings` | Read or test-and-save provider settings |
 | POST | `/api/runtime-settings` | Verify Firecrawl, then save its credential and the global adaptive request ceiling |
 | GET/POST/DELETE | `/api/prompt` | Manage the extraction system prompt |
@@ -22,9 +23,11 @@
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
-In hosted environments, every non-GET `/api/*` request requires the
-`X-Ledger-Admin-Token` header. The public settings UI does not expose this
-deployment credential. Browser preflight is allowed only for configured
+In hosted environments, every non-GET `/api/*` request except `/api/traffic`
+requires the `X-Ledger-Admin-Token` header. The traffic endpoint is limited to
+configured browser origins, accepts a small metadata-only JSON body, and never
+returns connector details. The public settings UI does not expose the deployment
+credential. Browser preflight is allowed only for configured
 `CORS_ALLOWED_ORIGINS`; local development remains unprotected when
 `LEDGER_ADMIN_TOKEN` is unset.
 
@@ -38,3 +41,8 @@ Firecrawl v2 map/search is used only for link discovery. Candidate PDFs are
 downloaded directly, validated, hashed and screened locally; crawling never
 starts an LLM extraction automatically. Runtime credential verification uses
 `GET /v2/team/credit-usage`, which authenticates without starting a crawl.
+
+Upstash Redis stores a bounded private visit log and aggregate counters. AWS
+SES v2 sends one notification to the verified owner identity for each new
+browser session. Both connectors run only in Flask; their credentials are not
+part of the Vite environment or bundle.

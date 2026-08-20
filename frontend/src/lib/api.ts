@@ -37,6 +37,12 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  trackVisit: (body: Record<string, unknown>) =>
+    jsonRequest<{ ok: boolean; recorded: boolean; duplicate?: boolean }>('/api/traffic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
   providers: () =>
     jsonRequest<{ providers: ProviderInfo[]; reasoning_efforts: string[] }>('/api/providers'),
   settings: () => jsonRequest<SettingsData>('/api/settings'),

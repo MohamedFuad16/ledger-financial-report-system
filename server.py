@@ -40,6 +40,7 @@ from providers import PROVIDERS, REASONING_EFFORTS, get_provider
 from prompts import SYSTEM_PROMPT
 from schema import BENCHMARK_SCHEMA_METADATA, GOLDEN_ANSWERS_STORE
 from settings import current_settings, load_local_env, save_runtime_settings, save_verified_settings
+from traffic import record_visit
 
 app = Flask(__name__, static_folder="frontend/dist", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = 256 * 1024 * 1024  # a batch of annual reports
@@ -75,6 +76,8 @@ def _allowed_origin(origin: str) -> str | None:
 def protect_mutating_api_routes():
     """Require the deployment access token for actions that change state or spend credits."""
     if not request.path.startswith("/api/") or request.method in {"GET", "HEAD", "OPTIONS"}:
+        return None
+    if request.path == "/api/traffic":
         return None
     expected = os.environ.get("LEDGER_ADMIN_TOKEN", "").strip()
     if not expected:  # Local development remains frictionless unless explicitly protected.
@@ -160,6 +163,31 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"ok": True, "service": "ledger-backend", "region": os.environ.get("AWS_REGION", "local")})
+
+
+@app.route("/api/traffic", methods=["POST", "OPTIONS"])
+def track_traffic():
+    """Record one private visit event per browser session without exposing connector secrets."""
+    if request.method == "OPTIONS":
+        return "", 204
+    configured_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "").strip()
+    origin = request.headers.get("Origin", "")
+    if configured_origins and not _allowed_origin(origin):
+        return jsonify({"error": "Visit events are accepted only from the Ledger application."}), 403
+    if request.content_length and request.content_length > 16 * 1024:
+        return jsonify({"error": "Visit event is too large."}), 413
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "A JSON visit event is required."}), 400
+    forwarded = request.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+    try:
+        result = record_visit(payload, remote_ip=forwarded or request.remote_addr or "")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError:
+        app.logger.warning("Private visit tracking is temporarily unavailable.")
+        return jsonify({"ok": False, "recorded": False}), 503
+    return jsonify({"ok": True, **result}), 202
 
 
 @app.route("/api/providers", methods=["GET"])

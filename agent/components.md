@@ -19,11 +19,13 @@
 ## Delivery surfaces
 
 - `server.py` — Flask routes, SSE streaming, and static/client delivery.
-- `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, and Strategy-2-first keyboard-command coordination.
+- `traffic.py` — backend-only Upstash persistence, session deduplication, and AWS SES notification delivery.
+- `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, Strategy-2-first keyboard-command coordination, and one private visit report per browser session.
 - `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, shared interface translation, and canonical schema/result-value localization.
 - `frontend/src/pages/` — dashboard, live strategies, history, corpus, schema, settings, and research-roadmap pages.
 - `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, BeautifulUI-derived neutral execution capsules, and shared UI primitives.
 - `frontend/src/editor-theme.css` — final visual mapping from the user's Resume/editor application; loaded after the legacy stylesheet.
+- `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.
 - `frontend/src/lib/api.ts` — typed HTTP and fragmented-SSE adapter.
 - `static/` — archived legacy UI; no longer served.
 - `app.py` — legacy Streamlit wrapper.
@@ -31,6 +33,7 @@
 ## Verification
 
 - `test_contract.py` — offline contract and pipeline invariants.
+- `test_traffic.py` — private traffic storage, deduplication, credential exclusion, and origin-policy checks.
 - `frontend/src/lib/api.test.ts` — client request/SSE parsing regression tests.
 - `frontend/src/components/ExecutionPipeline.test.tsx` — live/idle task-row rendering and streamed-status regression tests.
 - `frontend/src/components/CorpusPicker.test.tsx` — corpus filtering and single/batch selection regression tests.

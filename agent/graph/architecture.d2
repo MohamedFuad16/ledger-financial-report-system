@@ -15,6 +15,7 @@ app: "Annual Report Extractor" {
   pipeline: "Pipeline"
   quality: "Contract + quality"
   corpus: "Corpus builder"
+  traffic: "Private visit reporter"
   storage: "Uploads / runs / manifest"
 
   client -> api: "HTTP / SSE"
@@ -22,6 +23,7 @@ app: "Annual Report Extractor" {
   api -> pipeline: "execute"
   api -> storage: "validate + stage durable PDF"
   api -> corpus: "background job"
+  api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
   pipeline -> storage: "persist"
   corpus -> storage: "PDF + SHA-256 manifest"
@@ -31,6 +33,8 @@ parsers: "PDF parsers" {shape: cloud}
 llm: "LLM provider" {shape: cloud}
 firecrawl: "Firecrawl discovery" {shape: cloud}
 official: "Official company sites" {shape: cloud}
+upstash: "Upstash Redis" {shape: cloud}
+ses: "AWS SES" {shape: cloud}
 
 user -> app.client: "configure / inspect"
 app.pipeline -> parsers: "extract"
@@ -38,16 +42,18 @@ app.pipeline -> llm: "chat completion"
 app.corpus -> firecrawl: "map / search"
 app.api -> firecrawl: "credential probe"
 app.corpus -> official: "direct PDF download"
+app.traffic -> upstash: "bounded log + counters"
+app.traffic -> ses: "owner-only email"
 
 deployment: "Production deployment" {
   vercel: "Vercel · React static UI"
   caddy: "EC2 · Caddy HTTPS"
   gunicorn: "Gunicorn · Flask API"
   disk: "Encrypted gp3 · corpus/uploads/runs"
-  parameter: "SSM Parameter Store · admin token"
+  parameter: "SSM Parameter Store · backend secrets"
 
   vercel -> caddy: "cross-origin HTTP / SSE"
   caddy -> gunicorn: "127.0.0.1:8000"
   gunicorn -> disk: "persistent artifacts"
-  parameter -> gunicorn: "protected mutations"
+  parameter -> gunicorn: "token + private connectors"
 }

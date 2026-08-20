@@ -8,6 +8,7 @@ python-dotenv>=1.0
 # Web UI (server.py + static/)
 flask>=3.0
 gunicorn>=23.0
+boto3>=1.35,<2
 
 # Legacy Streamlit UI (app.py) only
 streamlit>=1.40
