@@ -29,15 +29,12 @@ For client-only development, run `npm run dev` in `frontend/`; Vite proxies
 `LLM_REASONING_EFFORT`, and `LLM_TEMPERATURE`. Legacy `GLM_*` aliases remain
 supported. Values live in `.env`; names/default examples live in `.env.example`.
 
-Hosted deployment variables also include `LEDGER_ADMIN_TOKEN` and
-`CORS_ALLOWED_ORIGINS`, plus the backend-only visit variables
+Hosted deployment variables also include `CORS_ALLOWED_ORIGINS`, plus the backend-only visit variables
 `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`,
-`TRAFFIC_NOTIFY_EMAIL`, and `TRAFFIC_FROM_EMAIL`. The production token is a SecureString at
-`/ledger/backend/admin-token` in SSM Parameter Store, not a repository or Vercel
-environment variable. Visit connector values live under `/ledger/traffic/*` in
+`TRAFFIC_NOTIFY_EMAIL`, and `TRAFFIC_FROM_EMAIL`. Visit connector values live under `/ledger/traffic/*` in
 Parameter Store and are loaded into `/etc/ledger/backend.env` by the EC2 host.
 The Vite client only receives the public `VITE_API_BASE_URL`; no Upstash, SES,
-or backend credential is compiled into the frontend.
+or provider credential is compiled into the frontend.
 
 ## Production
 

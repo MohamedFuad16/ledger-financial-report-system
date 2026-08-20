@@ -74,12 +74,12 @@ export function Sidebar({
   return (
     <>
       <header className="mobile-header">
-        <button aria-label={tr('Open navigation', 'ナビゲーションを開く')} onClick={() => onOpenChange(true)}><Menu size={19} /></button>
+        <button aria-label={tr('Open navigation', 'ナビゲーションを開く')} aria-controls="primary-sidebar" aria-expanded={open} onClick={() => onOpenChange(true)}><Menu size={19} /></button>
         <Wordmark />
         <button aria-label={tr('Toggle theme', 'テーマを切り替える')} onClick={onThemeToggle}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
       </header>
       <button className={clsx('sidebar-scrim', open && 'is-open')} aria-label={tr('Close navigation', 'ナビゲーションを閉じる')} onClick={() => onOpenChange(false)} />
-      <aside className={clsx('sidebar', open && 'is-open', collapsed && 'is-collapsed')}>
+      <aside id="primary-sidebar" className={clsx('sidebar', open && 'is-open', collapsed && 'is-collapsed')}>
         <div className="sidebar-brand">
           <Wordmark />
           <button className="sidebar-collapse" aria-label={collapsed ? tr('Expand navigation', 'ナビゲーションを開く') : tr('Collapse navigation', 'ナビゲーションを閉じる')} onClick={() => onCollapsedChange(!collapsed)}>

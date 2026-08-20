@@ -14,7 +14,7 @@
 | `corpus/client.py` | Firecrawl REST API | discovery, runtime-settings verification | Changes affect discovery calls and credential-save safety |
 | `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect local PDF trust and naming |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
-| `frontend/src/lib/api.ts` | Vite API origin, browser token storage | every client API call | Changes affect cross-origin deployment, visit reporting, and all protected mutations |
+| `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
@@ -28,4 +28,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-21 after adding private visit telemetry. The architecture diagram includes the origin-restricted Flask endpoint, backend-only Upstash log/counters, SES owner notification, and SSM secret boundary.
+- 2026-08-21 via tree-sitter/heuristic fallback.

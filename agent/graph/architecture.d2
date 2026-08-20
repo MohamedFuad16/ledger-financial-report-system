@@ -55,5 +55,5 @@ deployment: "Production deployment" {
   vercel -> caddy: "cross-origin HTTP / SSE"
   caddy -> gunicorn: "127.0.0.1:8000"
   gunicorn -> disk: "persistent artifacts"
-  parameter -> gunicorn: "token + private connectors"
+  parameter -> gunicorn: "private connectors"
 }

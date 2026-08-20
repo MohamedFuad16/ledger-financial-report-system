@@ -1,5 +1,14 @@
 # Errors, gotchas & known issues
 
+## Stored corpus runs still requested a deployment token (resolved)
+
+The token form had been removed from Settings, but the shared client adapter and
+Flask mutation guard still enforced `X-Ledger-Admin-Token`, so normal visitors
+could browse the corpus but could not stage it. The guard, client storage/header,
+bootstrap loading and SSM parameter were removed together. CORS remains an origin
+policy rather than authentication; a future multi-tenant release needs a real
+identity or job-budget boundary.
+
 ## Custom Vercel domain was missing from the API CORS allowlist (resolved)
 - Symptom: `assignment.mohamedfuad.com` loaded the React bundle but showed “Failed to fetch” for API-backed data, while the canonical Vercel alias worked.
 - Cause: The EC2 environment allowed only `ledger-financial-report-system.vercel.app` as a browser origin.

@@ -3,7 +3,7 @@
 ## Index
 
 | ADR | Title | Status |
-|---|---|---|
+|-----|-------|--------|
 | ADR-0001 | Adopt the `agent/` knowledge base | Accepted |
 | ADR-0002 | Serve a typed React SPA from Flask | Accepted |
 | ADR-0003 | Preserve experiment purity and fail closed | Accepted |
@@ -16,6 +16,7 @@
 | ADR-0010 | Split static UI and persistent parser backend across Vercel and EC2 | Accepted |
 | ADR-0011 | Reuse corpus documents through durable-reference staging | Accepted |
 | ADR-0012 | Keep visit telemetry private and backend-only | Accepted |
+| ADR-0013 | Publish the assignment mutation API without a browser token | Accepted |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -100,3 +101,10 @@
 - Context: The owner needs a timestamped notification when someone opens the public site, but exposing a Redis or email credential in a static Vite bundle would make the connector publicly reusable.
 - Decision: Let the browser submit only bounded visit metadata to an origin-restricted Flask endpoint. Deduplicate by a hashed browser-session/IP marker, retain only the newest 2,000 Upstash events plus aggregate counters, and send notifications from the EC2 role through a verified, recipient-restricted SES identity. Store connector values in SSM Parameter Store and load them only into the backend service environment.
 - Consequences: Public visitors never receive connector credentials and cannot choose the notification recipient. Telemetry remains intentionally small and private, while delivery depends on Upstash, SES, and the single EC2 service.
+
+## ADR-0013 — Publish the assignment mutation API without a browser token
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Durable corpus staging and extraction from the public Vercel UI still depended on an operator-only deployment token, contradicting the requested no-access-token workflow and making available-data runs fail for normal visitors.
+- Decision: Remove the Flask mutation-token guard, client token storage/header injection, bootstrap token loading, and SSM mutation-token parameter. Keep the browser CORS allowlist, existing input/path validation, provider credential isolation, adaptive concurrency and bounded request sizes. Document explicitly that CORS is not authentication.
+- Consequences: A normal visitor can stage and run a configured extraction without a separate credential. Direct callers can also invoke mutation routes and potentially consume configured model/Firecrawl quota, so authentication or a job-budget boundary is required before this becomes a multi-tenant production service.

@@ -1,5 +1,4 @@
 import csv
-import hmac
 import json
 import os
 import queue
@@ -70,22 +69,6 @@ def _allowed_origin(origin: str) -> str | None:
         return None
     allowed = {item.strip().rstrip("/") for item in configured.split(",") if item.strip()}
     return origin if "*" in allowed or origin.rstrip("/") in allowed else None
-
-
-@app.before_request
-def protect_mutating_api_routes():
-    """Require the deployment access token for actions that change state or spend credits."""
-    if not request.path.startswith("/api/") or request.method in {"GET", "HEAD", "OPTIONS"}:
-        return None
-    if request.path == "/api/traffic":
-        return None
-    expected = os.environ.get("LEDGER_ADMIN_TOKEN", "").strip()
-    if not expected:  # Local development remains frictionless unless explicitly protected.
-        return None
-    supplied = request.headers.get("X-Ledger-Admin-Token", "").strip()
-    if not hmac.compare_digest(supplied, expected):
-        return jsonify({"error": "A valid backend access token is required for this action."}), 401
-    return None
 
 
 # --- Utility Functions ---
@@ -924,7 +907,7 @@ def no_store(response):
     origin = _allowed_origin(request.headers.get("Origin", ""))
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Ledger-Admin-Token"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
         response.headers["Vary"] = "Origin"
     return response

@@ -88,6 +88,13 @@ export default function App() {
     localStorage.setItem('ledger-sidebar-collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
 
+  useEffect(() => {
+    if (!sidebarOpen || !window.matchMedia('(max-width: 900px)').matches) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [sidebarOpen])
+
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     document.documentElement.scrollTop = 0

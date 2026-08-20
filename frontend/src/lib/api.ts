@@ -11,24 +11,9 @@ import type {
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '')
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`
-const TOKEN_STORAGE_KEY = 'ledger-backend-access-token'
-
-export const getBackendAccessToken = () => window.localStorage.getItem(TOKEN_STORAGE_KEY) || ''
-export const setBackendAccessToken = (token: string) => {
-  const normalized = token.trim()
-  if (normalized) window.localStorage.setItem(TOKEN_STORAGE_KEY, normalized)
-  else window.localStorage.removeItem(TOKEN_STORAGE_KEY)
-}
-
-function authorizedInit(init: RequestInit = {}): RequestInit {
-  const headers = new Headers(init.headers)
-  const token = getBackendAccessToken()
-  if (token) headers.set('X-Ledger-Admin-Token', token)
-  return { ...init, headers }
-}
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(url), authorizedInit(init))
+  const response = await fetch(apiUrl(url), init)
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
     throw new Error(payload.error || `Request failed with HTTP ${response.status}`)
@@ -154,10 +139,10 @@ export async function runStagedExtraction(
   body: Record<string, unknown>,
   onEvent: (event: SseEvent) => void,
 ): Promise<void> {
-  const response = await fetch(apiUrl('/api/extract/stream'), authorizedInit({
+  const response = await fetch(apiUrl('/api/extract/stream'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }))
+  })
   return consumeEventStream(response, onEvent)
 }

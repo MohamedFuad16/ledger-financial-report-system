@@ -5,7 +5,6 @@ exec > >(tee /var/log/ledger-bootstrap.log | logger -t ledger-bootstrap -s 2>/de
 
 REGION="${AWS_REGION:-ap-northeast-1}"
 REPOSITORY="${LEDGER_REPOSITORY:-https://github.com/MohamedFuad16/ledger-financial-report-system.git}"
-TOKEN_PARAMETER="${LEDGER_TOKEN_PARAMETER:-/ledger/backend/admin-token}"
 UPSTASH_URL_PARAMETER="${LEDGER_UPSTASH_URL_PARAMETER:-/ledger/traffic/upstash-rest-url}"
 UPSTASH_TOKEN_PARAMETER="${LEDGER_UPSTASH_TOKEN_PARAMETER:-/ledger/traffic/upstash-rest-token}"
 TRAFFIC_EMAIL_PARAMETER="${LEDGER_TRAFFIC_EMAIL_PARAMETER:-/ledger/traffic/notify-email}"
@@ -49,14 +48,12 @@ runuser -u ledger -- /opt/ledger/.venv/bin/pip install --no-cache-dir \
 runuser -u ledger -- /opt/ledger/.venv/bin/pip install --no-cache-dir -r /opt/ledger/requirements.txt
 
 install -d -m 0750 -o ledger -g ledger /etc/ledger
-ADMIN_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "$TOKEN_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)"
 UPSTASH_REDIS_REST_URL="$(aws ssm get-parameter --region "$REGION" --name "$UPSTASH_URL_PARAMETER" --query 'Parameter.Value' --output text)"
 UPSTASH_REDIS_REST_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "$UPSTASH_TOKEN_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)"
 TRAFFIC_NOTIFY_EMAIL="$(aws ssm get-parameter --region "$REGION" --name "$TRAFFIC_EMAIL_PARAMETER" --query 'Parameter.Value' --output text)"
 {
   echo "AWS_REGION=$REGION"
   echo "CORS_ALLOWED_ORIGINS=$CORS_ORIGINS"
-  echo "LEDGER_ADMIN_TOKEN=$ADMIN_TOKEN"
   echo "UPSTASH_REDIS_REST_URL=$UPSTASH_REDIS_REST_URL"
   echo "UPSTASH_REDIS_REST_TOKEN=$UPSTASH_REDIS_REST_TOKEN"
   echo "TRAFFIC_NOTIFY_EMAIL=$TRAFFIC_NOTIFY_EMAIL"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import logging
 import os
@@ -119,13 +120,50 @@ def _email_visit(event: dict[str, str]) -> bool:
     body = "A new browser session visited Ledger.\n\n" + "\n".join(
         f"{label}: {value}" for label, value in fields
     )
+    rows = "".join(
+        "<tr>"
+        f"<th style=\"padding:12px 16px;text-align:left;color:#667085;font-size:12px;font-weight:600;"
+        "border-bottom:1px solid #e7ebf2;vertical-align:top;white-space:nowrap\">"
+        f"{html.escape(label)}</th>"
+        f"<td style=\"padding:12px 16px;color:#111827;font-size:13px;line-height:1.55;"
+        "border-bottom:1px solid #e7ebf2;word-break:break-word\">"
+        f"{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in fields
+    )
+    html_body = f"""<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f3f6fa;font-family:Inter,Arial,sans-serif;color:#111827">
+    <div style="padding:32px 16px">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e0e6ef;border-radius:18px;overflow:hidden;box-shadow:0 12px 36px rgba(30,41,59,.08)">
+        <div style="padding:24px;background:#111827;color:#ffffff">
+          <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+            <td style="padding-right:14px"><img src="https://assignment.mohamedfuad.com/ledger-icon.png" width="46" height="46" alt="Ledger" style="display:block;border-radius:12px;background:#ffffff"></td>
+            <td><div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#a8b3c4">Visit notification</div><div style="margin-top:5px;font-size:22px;font-weight:700">Ledger</div></td>
+          </tr></table>
+        </div>
+        <div style="padding:22px 24px 8px">
+          <div style="font-size:18px;font-weight:700">A new browser session visited the workspace.</div>
+          <div style="margin-top:7px;color:#667085;font-size:13px">Recorded privately by the production telemetry service.</div>
+        </div>
+        <div style="padding:14px 24px 28px">
+          <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border:1px solid #e7ebf2;border-radius:12px;border-collapse:separate;border-spacing:0;overflow:hidden">{rows}</table>
+        </div>
+        <div style="padding:14px 24px;background:#f8fafc;color:#8a94a4;font-size:11px;text-align:center">Private operational email from Ledger</div>
+      </div>
+    </div>
+  </body>
+</html>"""
     try:
         _ses_client(region).send_email(
             FromEmailAddress=sender,
             Destination={"ToAddresses": [recipient]},
             Content={"Simple": {
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+                "Body": {
+                    "Text": {"Data": body, "Charset": "UTF-8"},
+                    "Html": {"Data": html_body, "Charset": "UTF-8"},
+                },
             }},
         )
     except ClientError as exc:

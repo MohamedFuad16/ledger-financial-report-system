@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Bot, BrainCircuit, Cable, CheckCircle2, Code2, Eye, EyeOff, ExternalLink, Flame, Gauge, KeyRound, Lock, Network, Save, Server, Sparkles } from 'lucide-react'
+import { Activity, Cable, CheckCircle2, Eye, EyeOff, ExternalLink, Flame, Gauge, KeyRound, Lock, Save, Server, Sparkles } from 'lucide-react'
 import { api } from '../lib/api'
 import type { ProviderInfo, SettingsData } from '../types'
 import { Badge, Button, Card, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
 function ProviderLogo({ providerKey }: { providerKey: string }) {
-  const icons = { openrouter: Network, openai: Bot, zai: BrainCircuit, 'zai-coding': Code2, custom: Cable }
-  const Icon = icons[providerKey as keyof typeof icons] || Cable
-  return <span className={`provider-mark provider-mark-${providerKey}`}><Icon size={18} strokeWidth={1.9} /></span>
+  const logos: Record<string, { src: string; alt: string }> = {
+    openrouter: { src: '/providers/openrouter.png', alt: 'OpenRouter' },
+    openai: { src: '/providers/openai.svg', alt: 'OpenAI' },
+    zai: { src: '/providers/zai.svg', alt: 'Z.AI' },
+    'zai-coding': { src: '/providers/zai.svg', alt: 'Z.AI' },
+  }
+  const logo = logos[providerKey]
+  return <span className={`provider-mark provider-mark-${providerKey}`}>{logo ? <img src={logo.src} alt={`${logo.alt} logo`} /> : <Cable size={18} strokeWidth={1.9} />}</span>
 }
 
 function CredentialField({ label, value, onChange, saved, masked, placeholder, icon }: { label: string; value: string; onChange: (value: string) => void; saved: boolean; masked: string; placeholder: string; icon: 'key' | 'fire' }) {

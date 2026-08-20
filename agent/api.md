@@ -23,13 +23,12 @@
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
-In hosted environments, every non-GET `/api/*` request except `/api/traffic`
-requires the `X-Ledger-Admin-Token` header. The traffic endpoint is limited to
-configured browser origins, accepts a small metadata-only JSON body, and never
-returns connector details. The public settings UI does not expose the deployment
-credential. Browser preflight is allowed only for configured
-`CORS_ALLOWED_ORIGINS`; local development remains unprotected when
-`LEDGER_ADMIN_TOKEN` is unset.
+The assignment API has no browser access-token layer. Browser preflight is
+allowed only for configured `CORS_ALLOWED_ORIGINS`, while the traffic endpoint
+also enforces the configured production origins, accepts a small metadata-only
+JSON body, and never returns connector details. CORS is not authentication:
+direct API callers can still reach mutation routes, so this boundary must be
+revisited before a multi-tenant or quota-bearing public product launch.
 
 ## External services
 

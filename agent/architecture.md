@@ -14,7 +14,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 - **Corpus boundary** — `corpus/` discovers official Annual Reports through Firecrawl, downloads directly, screens locally, and atomically updates a SHA-256 manifest. `corpus_worker.py` exposes the same service to long-lived CLI jobs.
 - **Persistence** — uploads, runs, corpus PDFs, manifests, and customer research are stored on disk with company/year/timestamp namespaces.
 - **Private traffic boundary** — `traffic.py` writes bounded per-session metadata and counters to Upstash and uses the EC2 role to send owner-only SES notifications. Connector values are loaded from SSM and never enter Vercel.
-- **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds the mutation token and private connector values; no secret is bundled into Vercel.
+- **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds private connector values; no secret is bundled into Vercel. The assignment API has no browser access token, while CORS remains limited to approved UI origins.
 
 ## Control flow
 
