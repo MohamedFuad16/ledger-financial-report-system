@@ -1,5 +1,11 @@
 # Errors, gotchas & known issues
 
+## Corpus manifest paths must not become arbitrary file access (resolved)
+- Symptom: Reusing an already-downloaded report for extraction could tempt the API to accept a caller-supplied filesystem path.
+- Cause: The upload staging contract originally knew only temporary upload IDs, while corpus PDFs live in durable company/year folders.
+- Resolution: `/api/corpus/stage` accepts manifest SHA-256 IDs only, resolves the pinned manifest entry server-side, and rejects any resolved path outside `CORPUS_ROOT` or missing on disk.
+- First seen: 2026-08-21
+
 ## Ubuntu 24.04 bootstrap could not install `awscli` from apt (resolved)
 - Symptom: The first EC2 cloud-init run stopped before creating swap, cloning the repository, or starting the API.
 - Cause: The selected Ubuntu 24.04 image has no installable `awscli` package in its configured apt repositories.

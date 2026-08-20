@@ -112,8 +112,12 @@ and written as:
 `corpus_dataset/<company>/<year>/<downloaded_at>/<company>_annual_report_<year>.pdf`
 
 The manifest is `corpus_dataset/corpus_manifest.json`. Corpus downloads are
-never passed to the LLM automatically. A long job can also be run independently
-of a browser tab:
+never passed to the LLM automatically. Strategy 1 and Strategy 2 expose an
+**Upload / Corpus** switch: the Corpus side can search by company/year and stage
+one report or a batch by manifest SHA-256. The API validates that each selected
+file remains inside `corpus_dataset/`, reuses it without copying, and writes the
+result to `runs/<company>/FY<year>/<run_id>/`. A long job can also be run
+independently of a browser tab:
 
 ```bash
 .venv/bin/python corpus_worker.py research/bakuraku/customers.csv --years 2020 2021 2022 2023 2024 2025
@@ -178,9 +182,9 @@ vercel --prod
 
 The value must be the HTTPS origin of the Flask-compatible API, without a
 trailing `/api` segment. Local development continues to use same-origin `/api`
-requests. Hosted state-changing actions additionally require the backend access
-token saved in the Settings page; it is kept in that browser's local storage
-and is never baked into the public Vite bundle.
+requests. Hosted state-changing actions remain protected by the backend
+deployment credential, which is intentionally not exposed in the public
+Settings UI and is never baked into the Vite bundle.
 
 ### AWS backend deployment
 
@@ -205,10 +209,9 @@ aws ssm get-parameter --region ap-northeast-1 \
   --query Parameter.Value --output text
 ```
 
-Paste that value into Settings → Backend access. For a custom API domain, point
-an A record at `52.194.83.152`, replace the hostname in Caddy, and update
+The token is an operator/deployment concern rather than an end-user setting.
+For a custom API domain, point an A record at `52.194.83.152`, replace the hostname in Caddy, and update
 `VITE_API_BASE_URL` before the next Vercel production build.
-requests and the Vite proxy.
 
 Legacy Streamlit UI:
 

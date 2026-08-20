@@ -18,7 +18,9 @@ app: "Annual Report Extractor" {
   storage: "Uploads / runs / manifest"
 
   client -> api: "HTTP / SSE"
+  client -> api: "select corpus SHA-256"
   api -> pipeline: "execute"
+  api -> storage: "validate + stage durable PDF"
   api -> corpus: "background job"
   pipeline -> quality: "validate / score"
   pipeline -> storage: "persist"
@@ -41,7 +43,7 @@ deployment: "Production deployment" {
   vercel: "Vercel · React static UI"
   caddy: "EC2 · Caddy HTTPS"
   gunicorn: "Gunicorn · Flask API"
-  disk: "Encrypted gp3 · uploads/runs"
+  disk: "Encrypted gp3 · corpus/uploads/runs"
   parameter: "SSM Parameter Store · admin token"
 
   vercel -> caddy: "cross-origin HTTP / SSE"

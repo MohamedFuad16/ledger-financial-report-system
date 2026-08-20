@@ -20,9 +20,9 @@
 
 - `server.py` — Flask routes, SSE streaming, and static/client delivery.
 - `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, and Strategy-2-first keyboard-command coordination.
-- `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, and shared translation helper.
+- `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, shared interface translation, and canonical schema/result-value localization.
 - `frontend/src/pages/` — dashboard, live strategies, history, corpus, schema, settings, and research-roadmap pages.
-- `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, selectable row-local run tables/result sheets, BeautifulUI-derived execution stage capsules, and shared UI primitives.
+- `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, BeautifulUI-derived neutral execution capsules, and shared UI primitives.
 - `frontend/src/editor-theme.css` — final visual mapping from the user's Resume/editor application; loaded after the legacy stylesheet.
 - `frontend/src/lib/api.ts` — typed HTTP and fragmented-SSE adapter.
 - `static/` — archived legacy UI; no longer served.
@@ -33,4 +33,6 @@
 - `test_contract.py` — offline contract and pipeline invariants.
 - `frontend/src/lib/api.test.ts` — client request/SSE parsing regression tests.
 - `frontend/src/components/ExecutionPipeline.test.tsx` — live/idle task-row rendering and streamed-status regression tests.
+- `frontend/src/components/CorpusPicker.test.tsx` — corpus filtering and single/batch selection regression tests.
+- `frontend/src/lib/i18n.test.ts` — canonical schema/result localization regression tests.
 - `runs/` — historical artifacts used for empirical comparison.

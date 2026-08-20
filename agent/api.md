@@ -17,12 +17,14 @@
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |
 | GET | `/api/corpus` | Read the pinned local corpus manifest and screening summary |
+| POST | `/api/corpus/stage` | Validate selected SHA-256 corpus entries and stage their durable PDFs for the normal extraction stream |
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
 In hosted environments, every non-GET `/api/*` request requires the
-`X-Ledger-Admin-Token` header. Browser preflight is allowed only for configured
+`X-Ledger-Admin-Token` header. The public settings UI does not expose this
+deployment credential. Browser preflight is allowed only for configured
 `CORS_ALLOWED_ORIGINS`; local development remains unprotected when
 `LEDGER_ADMIN_TOKEN` is unset.
 

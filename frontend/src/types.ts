@@ -152,6 +152,8 @@ export interface CorpusDocument {
   fiscal_year_confirmed: boolean
   official_source_verified?: boolean
   screen_reasons?: string[]
+  output_directory?: string
+  output_count?: number
 }
 
 export interface CorpusManifest {

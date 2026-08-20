@@ -87,7 +87,7 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
                         const message = pass.steps?.[step]?.message
                         return (
                           <motion.article className={`task-capsule task-capsule-${state}`} key={step} variants={{ hidden: { opacity: 0, y: 5 }, visible: { opacity: 1, y: 0 } }} layout>
-                            <span className="task-capsule-icon">{state === 'complete' ? <Check size={14} /> : state === 'failed' ? <X size={14} /> : state === 'running' ? <LoaderCircle className="spin" size={16} /> : null}</span>
+                            <span className="task-capsule-icon">{state === 'complete' ? <Check size={14} strokeWidth={3} /> : state === 'failed' ? <X size={14} strokeWidth={2.7} /> : state === 'running' ? <LoaderCircle className="spin" size={16} strokeWidth={2.4} /> : null}</span>
                             <div>
                               <strong>{labels[step]}</strong>
                               <AnimatePresence mode="wait" initial={false}>

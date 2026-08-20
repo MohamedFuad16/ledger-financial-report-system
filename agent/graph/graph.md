@@ -17,6 +17,7 @@
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
+| `frontend/src/components/CorpusPicker.tsx` | corpus manifest, locale provider | strategy pages | Changes affect stored-report search and single/batch selection |
 | `frontend/src/components/RunTable.tsx` | runs API, row-local result sheet | dashboard, history, strategy pages | Changes affect where every stored result opens |
 
 Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API boundary.
@@ -26,4 +27,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-21 after the Vercel/EC2 production split, browser-held mutation token, HTTPS reverse proxy, and final UI corrections. The full code graph was refreshed before deployment; the architecture diagram now includes the hosted runtime boundary.
+- 2026-08-21 after durable corpus staging, localized schema/result values, and the Upload/Corpus strategy input boundary. The architecture diagram includes corpus selection flowing through Flask validation into the shared staged extraction pipeline.

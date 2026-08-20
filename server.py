@@ -15,7 +15,7 @@ from flask import Flask, Response, jsonify, request, stream_with_context
 
 from api_client import GLMError, QuotaExhaustedError, test_api_key
 from corpus.client import FirecrawlClient, FirecrawlError
-from corpus.manifest import load_manifest
+from corpus.manifest import CORPUS_ROOT, load_manifest
 from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
@@ -406,7 +406,16 @@ def get_rate_limit():
 @app.route("/api/corpus", methods=["GET"])
 def get_corpus():
     manifest = load_manifest()
-    documents = manifest.get("documents", [])
+    documents = []
+    for item in manifest.get("documents", []):
+        company = safe_filename(str(item.get("company") or item.get("company_slug") or "unknown"))
+        fiscal_year = int(item.get("fiscal_year") or 0)
+        output_directory = RUNS_DIR / company / f"FY{fiscal_year}"
+        documents.append({
+            **item,
+            "output_directory": str(output_directory),
+            "output_count": len(list(output_directory.rglob("prediction.json"))) if output_directory.is_dir() else 0,
+        })
     return jsonify({
         **manifest,
         "summary": {
@@ -417,6 +426,62 @@ def get_corpus():
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
         },
     })
+
+
+@app.route("/api/corpus/stage", methods=["POST"])
+def stage_corpus_documents():
+    """Stage durable corpus PDFs through the same extraction contract as uploads."""
+    body = request.get_json(silent=True) or {}
+    document_ids = body.get("document_ids") or []
+    if not isinstance(document_ids, list) or not document_ids:
+        return jsonify({"error": "Select at least one corpus document."}), 400
+    if len(document_ids) > 50:
+        return jsonify({"error": "Stage at most 50 corpus documents at once."}), 400
+
+    manifest = load_manifest()
+    by_id = {str(item.get("sha256") or ""): item for item in manifest.get("documents", [])}
+    corpus_root = CORPUS_ROOT.resolve()
+    settings = current_settings()
+    staged = []
+    seen = set()
+    for raw_id in document_ids:
+        document_id = str(raw_id or "").strip()
+        if not document_id or document_id in seen:
+            continue
+        seen.add(document_id)
+        document = by_id.get(document_id)
+        if not document:
+            staged.append({"name": document_id, "error": "Corpus document not found."})
+            continue
+        try:
+            path = Path(str(document.get("local_path") or "")).resolve()
+            if not path.is_relative_to(corpus_root) or not path.is_file():
+                raise ValueError("The pinned PDF is missing from corpus storage.")
+            estimate = estimate_pdf_load(path)
+        except Exception as exc:  # noqa: BLE001 - report an invalid manifest entry per file
+            staged.append({"name": document.get("filename") or document_id, "error": str(exc)})
+            continue
+
+        upload_id = uuid.uuid4().hex[:12]
+        record = {
+            "id": upload_id,
+            "name": document.get("filename") or path.name,
+            "path": str(path),
+            "size_bytes": path.stat().st_size,
+            "pages": estimate["pages"],
+            "approx_tokens": estimate["approx_tokens"],
+            "estimated": True,
+            "source": "corpus",
+            "company": document.get("company"),
+            "fiscal_year": document.get("fiscal_year"),
+        }
+        with STAGED_LOCK:
+            STAGED[upload_id] = record
+        staged.append(record)
+
+    usable = [item for item in staged if "error" not in item]
+    plan = estimate_batch_plan(usable, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
+    return jsonify({"ok": bool(usable), "files": staged, "plan": plan})
 
 
 @app.route("/api/bakuraku/customers", methods=["GET"])

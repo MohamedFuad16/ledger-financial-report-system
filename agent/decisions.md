@@ -14,6 +14,7 @@
 | ADR-0008 | Verify connector credentials before local persistence | Accepted |
 | ADR-0009 | Bound semantic contract repair to one preserved attempt | Accepted |
 | ADR-0010 | Split static UI and persistent parser backend across Vercel and EC2 | Accepted |
+| ADR-0011 | Reuse corpus documents through durable-reference staging | Accepted |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -84,3 +85,10 @@
 - Context: The React bundle is a natural fit for Vercel, but the Flask pipeline needs persistent run/upload storage, long-lived SSE requests, large PDF uploads, and a native Docling/Torch environment that exceeds practical serverless function limits.
 - Decision: Publish the Vite client on Vercel and run the Flask API on a single Tokyo `t3.medium` EC2 instance behind Caddy HTTPS. Require a strong SSM Parameter Store token for every mutating API call, store that token only in the operator's browser, keep GET endpoints public, limit CORS to production UI origins, manage the instance through SSM with no SSH ingress, require IMDSv2, and use an encrypted 40 GiB gp3 volume plus CPU-only PyTorch wheels.
 - Consequences: The deployed application retains the local file-backed semantics and supports long parser calls, but it has a continuously billed VM and one availability zone. Production writes require the browser token; backups, horizontal scaling, and a custom API hostname remain separate follow-up infrastructure work.
+
+## ADR-0011 — Reuse corpus documents through durable-reference staging
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Firecrawl downloads already live in stable company/year/timestamp folders, but Strategy 1 and Strategy 2 previously accepted only new browser uploads. Copying corpus PDFs into upload storage would duplicate large reports and weaken provenance.
+- Decision: Add an Upload/Corpus input switch to both active strategies. Select corpus entries by their manifest SHA-256 ID, resolve and validate the path only on the server, then place a short-lived reference into the same staged-extraction abstraction used by uploads. Keep English canonical schema keys in artifacts and localize them only at render/export time.
+- Consequences: Single reports or batches can run through the existing SSE pipeline without moving the source PDF; outputs remain discoverable under the matching company/FY run namespace. Manifest paths outside the corpus root fail closed, while Japanese result sheets can change language without changing the stored contract.

@@ -83,6 +83,16 @@ export const api = {
     }>('/api/uploads', { method: 'POST', body })
   },
   corpus: () => jsonRequest<CorpusManifest>('/api/corpus'),
+  stageCorpusDocuments: (documentIds: string[]) =>
+    jsonRequest<{
+      ok: boolean
+      files: StagedFile[]
+      plan: { total_pages: number; total_approx_tokens: number; recommended_concurrency: number; advisories: string[] }
+    }>('/api/corpus/stage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_ids: documentIds }),
+    }),
   startCorpusJob: (body: Record<string, unknown>) =>
     jsonRequest<{ ok: boolean; job_id: string; status: string }>('/api/corpus/jobs', {
       method: 'POST',

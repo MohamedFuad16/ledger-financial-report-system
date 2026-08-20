@@ -6,11 +6,11 @@ import { Badge, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
 export function SchemaPage({ rows }: { rows: SchemaRow[] }) {
-  const { tr } = useLocale()
+  const { tr, schemaText } = useLocale()
   const years = useMemo(() => Array.from(new Set(rows.flatMap((row) => Object.keys(row.golden_answers)))).sort(), [rows])
   const [year, setYear] = useState('2022')
   const [query, setQuery] = useState('')
-  const filtered = rows.filter((row) => `${row.item} ${row.classification} ${row.subclassification} ${row.description}`.toLowerCase().includes(query.toLowerCase()))
+  const filtered = rows.filter((row) => `${row.item} ${row.classification} ${row.subclassification} ${row.description} ${schemaText(row.item)} ${schemaText(row.classification)} ${schemaText(row.subclassification)} ${schemaText(row.description)}`.toLowerCase().includes(query.toLowerCase()))
   const grouped = filtered.reduce<Record<string, SchemaRow[]>>((groups, row) => {
     ;(groups[row.classification] ||= []).push(row)
     return groups
@@ -35,9 +35,9 @@ export function SchemaPage({ rows }: { rows: SchemaRow[] }) {
           <div className="schema-groups">
             {Object.entries(grouped).map(([classification, group]) => group && (
               <section key={classification}>
-                <div className="schema-group-title"><h3>{classification}</h3><Badge>{group.length} {tr('rows', '行')}</Badge></div>
+                <div className="schema-group-title"><h3>{schemaText(classification)}</h3><Badge>{group.length} {tr('rows', '行')}</Badge></div>
                 <div className="table-wrap">
-                  <table className="schema-table"><thead><tr><th>{tr('Target item', '対象項目')}</th><th>{tr('Subclassification', '下位分類')}</th><th>{tr('Definition', '定義')}</th><th>FY{year} {tr('answer', '回答')}</th></tr></thead><tbody>{group.map((row) => <tr key={row.item}><td><strong>{row.item}</strong></td><td>{row.subclassification || '—'}</td><td>{row.description}</td><td className="numeric"><strong>{formatMoney(row.golden_answers[year])}</strong></td></tr>)}</tbody></table>
+                  <table className="schema-table"><thead><tr><th>{tr('Target item', '対象項目')}</th><th>{tr('Subclassification', '下位分類')}</th><th>{tr('Definition', '定義')}</th><th>FY{year} {tr('answer', '回答')}</th></tr></thead><tbody>{group.map((row) => <tr key={row.item}><td><strong>{schemaText(row.item)}</strong></td><td>{schemaText(row.subclassification) || '—'}</td><td>{schemaText(row.description)}</td><td className="numeric"><strong>{formatMoney(row.golden_answers[year])}</strong></td></tr>)}</tbody></table>
                 </div>
               </section>
             ))}

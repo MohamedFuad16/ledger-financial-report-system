@@ -8,10 +8,11 @@ import {
   Save,
 } from 'lucide-react'
 import { api, runStagedExtraction, type SseEvent } from '../lib/api'
-import type { ExecutionFile, RunDetail, RunSummary } from '../types'
+import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
 import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor, parserMeta } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
 import { FolderUpload } from '../components/FolderUpload'
+import { CorpusPicker, type CorpusSelectionMode } from '../components/CorpusPicker'
 import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, Disclosure, InlineStatus, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
@@ -29,9 +30,15 @@ export function StrategyPage({
   onRefreshRuns: () => Promise<void>
   onNotify: (message: string, tone: 'success' | 'error') => void
 }) {
-  const { locale, tr } = useLocale()
+  const { locale, tr, schemaText } = useLocale()
   const isS2 = kind === 's2'
   const [files, setFiles] = useState<File[]>([])
+  const [inputSource, setInputSource] = useState<'upload' | 'corpus'>('upload')
+  const [corpusDocuments, setCorpusDocuments] = useState<CorpusDocument[]>([])
+  const [corpusLoading, setCorpusLoading] = useState(false)
+  const [corpusLoaded, setCorpusLoaded] = useState(false)
+  const [corpusSelectionMode, setCorpusSelectionMode] = useState<CorpusSelectionMode>('single')
+  const [selectedCorpusIds, setSelectedCorpusIds] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const [uploadHovering, setUploadHovering] = useState(false)
   const [selectedParsers, setSelectedParsers] = useState<string[]>(isS2 ? ['s1', 's2', 's2-inspector'] : ['s1'])
@@ -47,6 +54,15 @@ export function StrategyPage({
   useEffect(() => {
     api.prompt().then((data) => { setPrompt(data.system_prompt); setDefaultPrompt(data.default_prompt) }).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    if (inputSource !== 'corpus' || corpusLoaded || corpusLoading) return
+    setCorpusLoading(true)
+    api.corpus()
+      .then((manifest) => setCorpusDocuments(manifest.documents))
+      .catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load stored reports.', '保存済みレポートを読み込めませんでした。'), 'error'))
+      .finally(() => { setCorpusLoading(false); setCorpusLoaded(true) })
+  }, [inputSource, corpusLoaded, corpusLoading, onNotify, tr])
 
   const strategyRuns = useMemo(() => runs.filter((run) => isS2 ? run.strategy.startsWith('s2') : run.strategy === 's1'), [runs, isS2])
   const acceptFiles = (incoming: File[]) => {
@@ -186,7 +202,8 @@ export function StrategyPage({
   }
 
   const startRun = async () => {
-    if (!files.length || running) return
+    const readyCount = inputSource === 'upload' ? files.length : selectedCorpusIds.length
+    if (!readyCount || running) return
     if (isS2 && !selectedParsers.length) {
       onNotify(tr('Select at least one parser for the bake-off.', '比較するパーサーを1つ以上選択してください。'), 'error')
       return
@@ -195,7 +212,9 @@ export function StrategyPage({
     setLatestDetail(null)
     successfulRunIds.current = []
     try {
-      const staged = await api.stageUploads(files)
+      const staged = inputSource === 'upload'
+        ? await api.stageUploads(files)
+        : await api.stageCorpusDocuments(selectedCorpusIds)
       const usable = staged.files.filter((file) => file.id && !file.error)
       if (!usable.length) throw new Error(staged.files[0]?.error || tr('No readable PDF could be staged.', '読み取り可能なPDFを追加できませんでした。'))
       await runStagedExtraction({
@@ -217,6 +236,7 @@ export function StrategyPage({
   }
 
   const comparison = executions.flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass }))).filter((pass) => pass.state === 'complete')
+  const selectedInputCount = inputSource === 'upload' ? files.length : selectedCorpusIds.length
 
   return (
     <div className="page strategy-page">
@@ -243,8 +263,8 @@ export function StrategyPage({
       <div className="strategy-workspace">
         <div className="strategy-controls">
           <Card>
-            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isS2 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} />
-            <div
+            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isS2 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} action={<div className="segmented-control input-source-toggle"><button className={inputSource === 'upload' ? 'is-active' : ''} onClick={() => setInputSource('upload')}>{tr('Upload', 'アップロード')}</button><button className={inputSource === 'corpus' ? 'is-active' : ''} onClick={() => setInputSource('corpus')}>{tr('Corpus', 'コーパス')}</button></div>} />
+            {inputSource === 'upload' ? <><div
               className={`upload-zone ${dragging ? 'is-dragging' : ''}`}
               onMouseEnter={() => setUploadHovering(true)}
               onMouseLeave={() => setUploadHovering(false)}
@@ -257,7 +277,7 @@ export function StrategyPage({
               <strong>{files.length ? tr(`${files.length} PDF${files.length === 1 ? '' : 's'} ready`, `${files.length}件のPDFを準備済み`) : tr('Drop Annual Reports here', '年次報告書をここにドロップ')}</strong>
               <p>{files.length ? files.map((file) => file.name).join(' · ') : tr('or click to browse from this computer', 'またはクリックして端末から選択')}</p>
             </div>
-            {!!files.length && <div className="selected-files">{files.map((file) => <div key={`${file.name}-${file.size}`}><FileText size={15} /><span><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></span><Check size={15} /></div>)}</div>}
+            {!!files.length && <div className="selected-files">{files.map((file) => <div key={`${file.name}-${file.size}`}><FileText size={15} /><span><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></span><Check size={15} strokeWidth={3} /></div>)}</div>}</> : corpusLoading ? <div className="corpus-picker-loading"><span className="button-spinner" /> {tr('Loading stored reports…', '保存済みレポートを読み込み中…')}</div> : <CorpusPicker documents={corpusDocuments} selected={selectedCorpusIds} mode={corpusSelectionMode} onModeChange={setCorpusSelectionMode} onSelectionChange={setSelectedCorpusIds} />}
 
             {isS2 && (
               <div className="parser-picker">
@@ -265,7 +285,7 @@ export function StrategyPage({
                 {allS2Parsers.map((key) => {
                   const meta = parserFor(key)
                   const selected = selectedParsers.includes(key)
-                  return <label className={`parser-option ${selected ? 'is-selected' : ''}`} style={{ '--parser-color': meta.color } as CSSProperties} key={key}><input type="checkbox" checked={selected} onChange={() => setSelectedParsers((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><i /><span><strong>{meta.short}</strong><small>{key === 's1' ? tr('Raw baseline', '生テキスト基準') : key === 's2' ? tr('Layout Markdown', 'レイアウトMarkdown') : key === 's2-inspector' ? tr('Position-aware Rust', '位置認識Rust') : tr('ML document graph', 'ML文書グラフ')}</small></span><span className="check-box"><Check size={12} /></span></label>
+                  return <label className={`parser-option ${selected ? 'is-selected' : ''}`} style={{ '--parser-color': meta.color } as CSSProperties} key={key}><input type="checkbox" checked={selected} onChange={() => setSelectedParsers((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><i /><span><strong>{meta.short}</strong><small>{key === 's1' ? tr('Raw baseline', '生テキスト基準') : key === 's2' ? tr('Layout Markdown', 'レイアウトMarkdown') : key === 's2-inspector' ? tr('Position-aware Rust', '位置認識Rust') : tr('ML document graph', 'ML文書グラフ')}</small></span><span className="check-box"><Check size={12} strokeWidth={3} /></span></label>
                 })}
               </div>
             )}
@@ -274,10 +294,10 @@ export function StrategyPage({
               <div className="reasoning-toggle"><span><strong>{tr('Model reasoning', 'モデル推論')}</strong><small>{tr('Mapped to the model’s native thinking on/off control.', 'モデル固有の思考オン／オフに対応します。')}</small></span><div><button className={!reasoningEnabled ? 'is-active' : ''} onClick={() => setReasoningEnabled(false)}>{tr('Off', 'オフ')}</button><button className={reasoningEnabled ? 'is-active' : ''} onClick={() => setReasoningEnabled(true)}>{tr('On', 'オン')}</button></div></div>
             </div>
 
-            <Button className="run-button" onClick={startRun} disabled={!files.length || running}>
-              {running ? <><span className="button-spinner" /> {tr('Running extraction', '抽出を実行中')}</> : <><Play size={15} fill="currentColor" /> {isS2 ? tr(`Run ${selectedParsers.length || ''} parser pass${selectedParsers.length === 1 ? '' : 'es'}`, `${selectedParsers.length || ''}件のパーサー処理を実行`) : files.length > 1 ? tr(`Run ${files.length}-report batch`, `${files.length}件のレポートを一括実行`) : tr('Run baseline extraction', 'ベースライン抽出を実行')}</>}
+            <Button className="run-button" onClick={startRun} disabled={!selectedInputCount || running}>
+              {running ? <><span className="button-spinner" /> {tr('Running extraction', '抽出を実行中')}</> : <><Play size={15} fill="currentColor" /> {isS2 ? tr(`Run ${selectedParsers.length || ''} parser pass${selectedParsers.length === 1 ? '' : 'es'}`, `${selectedParsers.length || ''}件のパーサー処理を実行`) : selectedInputCount > 1 ? tr(`Run ${selectedInputCount}-report batch`, `${selectedInputCount}件のレポートを一括実行`) : tr('Run baseline extraction', 'ベースライン抽出を実行')}</>}
             </Button>
-            <div className="run-footnote"><Info size={13} /> {tr('PDFs are staged locally. A model call starts only after this button is pressed.', 'PDFはローカルに準備され、このボタンを押した後にのみモデルを呼び出します。')}</div>
+            <div className="run-footnote"><Info size={13} /> {inputSource === 'corpus' ? tr('Stored corpus PDFs stay in their company/year folders. Extraction starts only after this button is pressed.', '保存済みPDFは会社・年度別フォルダーに保持され、このボタンを押した後にのみ抽出を開始します。') : tr('PDFs are staged locally. A model call starts only after this button is pressed.', 'PDFはローカルに準備され、このボタンを押した後にのみモデルを呼び出します。')}</div>
           </Card>
 
         </div>
@@ -291,14 +311,14 @@ export function StrategyPage({
       {isS2 && comparison.length > 0 && (
         <Card className="comparison-card">
           <SectionHeading eyebrow={tr('Controlled comparison', '統制比較')} title={tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={tr('Same PDF, schema, model, and prompt; only the parser differs.', 'PDF、スキーマ、モデル、プロンプトを固定し、パーサーだけを変えます。')} />
-          <div className="comparison-grid">{comparison.map((pass) => { const meta = parserFor(pass.strategy); return <article key={`${pass.file}-${pass.strategy}`}><i style={{ background: meta.color }} /><span>{meta.short}</span><strong>{formatMetric(pass.metrics?.accuracy)}</strong><small>{formatMetric(pass.metrics?.coverage)} coverage</small></article> })}</div>
+          <div className="comparison-grid">{comparison.map((pass) => { const meta = parserFor(pass.strategy); return <article key={`${pass.file}-${pass.strategy}`}><i style={{ background: meta.color }} /><span>{meta.short}</span><strong>{formatMetric(pass.metrics?.accuracy)}</strong><small>{formatMetric(pass.metrics?.coverage)} {tr('coverage', 'カバレッジ')}</small></article> })}</div>
         </Card>
       )}
 
       {latestDetail && (
         <Card className="inline-results">
           <SectionHeading eyebrow={tr('Latest completed output', '最新の完了出力')} title={tr(`FY${latestDetail.fiscal_year} extracted asset-side balance sheet`, `FY${latestDetail.fiscal_year} 抽出済み資産側貸借対照表`)} description={`${parserFor(latestDetail.strategy).label} · ${latestDetail.run_id}`} action={<div className="result-badges"><Badge tone="green">{formatMetric(latestDetail.metrics.accuracy)} {tr('accuracy', '正確度')}</Badge><Badge>{formatMetric(latestDetail.metrics.coverage)} {tr('coverage', 'カバレッジ')}</Badge></div>} />
-          <div className="result-table-wrap"><table className="result-table result-schema-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th></tr></thead><tbody>{latestDetail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{row.classification || '—'}</td><td>{row.subclassification || '—'}</td><td><strong>{row.item}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div>
+          <div className="result-table-wrap"><table className="result-table result-schema-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th></tr></thead><tbody>{latestDetail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div>
         </Card>
       )}
 

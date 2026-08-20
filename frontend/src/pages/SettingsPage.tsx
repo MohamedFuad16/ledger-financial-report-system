@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, Bot, BrainCircuit, Cable, CheckCircle2, Code2, Eye, EyeOff, ExternalLink, Flame, Gauge, KeyRound, Lock, Network, Save, Server, Sparkles } from 'lucide-react'
-import { api, getBackendAccessToken, setBackendAccessToken } from '../lib/api'
+import { api } from '../lib/api'
 import type { ProviderInfo, SettingsData } from '../types'
 import { Badge, Button, Card, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
@@ -41,7 +41,6 @@ export function SettingsPage({
   const [maxConcurrency, setMaxConcurrency] = useState(settings?.max_concurrency ?? 6)
   const [autoConcurrency, setAutoConcurrency] = useState(settings?.auto_concurrency ?? true)
   const [firecrawlKey, setFirecrawlKey] = useState('')
-  const [backendToken, setBackendToken] = useState(getBackendAccessToken())
   const provider = useMemo(() => providers.find((item) => item.key === providerKey), [providers, providerKey])
   const providerCredentialSaved = Boolean(settings?.has_key && settings.provider === providerKey && settings.base_url.replace(/\/$/, '') === baseUrl.replace(/\/$/, ''))
   const finiteRate = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback
@@ -69,16 +68,6 @@ export function SettingsPage({
     finally { setRuntimeSaving(false) }
   }
 
-  const saveBackendToken = () => {
-    setBackendAccessToken(backendToken)
-    onNotify(
-      backendToken.trim()
-        ? tr('Backend access token saved in this browser.', 'バックエンドアクセストークンをこのブラウザに保存しました。')
-        : tr('Backend access token removed from this browser.', 'バックエンドアクセストークンをこのブラウザから削除しました。'),
-      'success',
-    )
-  }
-
   const save = async () => {
     setSaving(true)
     try {
@@ -96,11 +85,6 @@ export function SettingsPage({
       <header className="page-header"><div><div className="page-kicker">{tr('Workspace configuration', 'ワークスペース設定')}</div><h1>{tr('Connections & runtime', '接続とランタイム')}</h1><p>{tr('Manage model credentials, corpus discovery, and one global adaptive request ceiling.', 'モデル認証情報、コーパス探索、グローバルな同時実行上限を管理します。')}</p></div></header>
       <div className="settings-layout">
         <div className="settings-stack">
-        <Card className="settings-main">
-          <SectionHeading eyebrow={tr('Deployment access', 'デプロイアクセス')} title={tr('Backend access', 'バックエンドアクセス')} description={tr('Required only for protected actions on the hosted AWS backend. The token stays in this browser.', 'AWS上の保護された操作にのみ必要です。トークンはこのブラウザ内に保存されます。')} />
-          <CredentialField label={tr('Backend access token', 'バックエンドアクセストークン')} value={backendToken} onChange={setBackendToken} saved={Boolean(getBackendAccessToken())} masked={getBackendAccessToken() ? '••••••••' : ''} placeholder={tr('Paste the deployment token', 'デプロイトークンを貼り付け')} icon="key" />
-          <Button className="save-settings" onClick={saveBackendToken}><Lock size={15} /> {tr('Save browser access', 'ブラウザアクセスを保存')}</Button>
-        </Card>
         <Card className="settings-main">
           <SectionHeading eyebrow={tr('Provider', 'プロバイダー')} title={tr('Model gateway', 'モデルゲートウェイ')} description={tr('Changing the destination requires re-entering the API key.', '接続先を変更する場合はAPIキーの再入力が必要です。')} />
           <div className="provider-grid">{providers.map((item) => <button className={providerKey === item.key ? 'is-selected' : ''} onClick={() => chooseProvider(item.key)} key={item.key}><ProviderLogo providerKey={item.key} /><span><strong>{item.label}</strong><small>{item.automatic_prompt_caching ? tr('Automatic prompt cache', '自動プロンプトキャッシュ') : item.reasoning_style === 'thinking' ? tr('GLM thinking mode', 'GLM思考モード') : tr('Compatible endpoint', '互換エンドポイント')}</small></span>{providerKey === item.key && <CheckCircle2 size={16} />}</button>)}</div>

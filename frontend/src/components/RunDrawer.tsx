@@ -42,11 +42,11 @@ export function RunDrawer({ detail, loading, onClose }: { detail: RunDetail | nu
 }
 
 function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => void }) {
-  const { tr } = useLocale()
+  const { tr, schemaText } = useLocale()
   const parser = parserFor(detail.strategy)
   const exportCsv = () => {
-    const header = ['Item', 'Classification', 'Subclassification', 'Value M USD', 'Confidence', 'Accepted', 'Source page', 'Source label', 'Evidence']
-    const rows = detail.rows.map((row) => [row.item, row.classification, row.subclassification, row.answer_m_usd, row.confidence, row.accepted, row.source_page, row.source_label, row.evidence])
+    const header = [tr('Classification', '分類'), tr('Subclassification', '小分類'), tr('Item', '項目'), tr('Answer (M USD)', '回答（百万USD）')]
+    const rows = detail.rows.map((row) => [schemaText(row.classification), schemaText(row.subclassification), schemaText(row.item), row.accepted ? row.answer_m_usd : null])
     download(`${detail.run_id}.csv`, [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8')
   }
   return <>
@@ -69,7 +69,7 @@ function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => vo
       </div>
       <section className="drawer-section">
         <div className="drawer-section-title"><h3>{tr('Extracted balance-sheet rows', '抽出された貸借対照表項目')}</h3><Badge tone="green">{detail.rows.filter((row) => row.accepted).length}/27 {tr('accepted', '採用')}</Badge></div>
-        {detail.rows.length ? <div className="result-table-wrap"><table className="sheet-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th></tr></thead><tbody>{detail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{row.classification || '—'}</td><td>{row.subclassification || '—'}</td><td><strong>{row.item}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div> : <EmptyState icon={<FileSearch size={20} />} title={tr('No rows', '行がありません')} description={tr('This run has no completed prediction rows.', 'この実行には完了した予測行がありません。')} />}
+        {detail.rows.length ? <div className="result-table-wrap"><table className="sheet-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th></tr></thead><tbody>{detail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div> : <EmptyState icon={<FileSearch size={20} />} title={tr('No rows', '行がありません')} description={tr('This run has no completed prediction rows.', 'この実行には完了した予測行がありません。')} />}
       </section>
     </motion.div>
   </>
