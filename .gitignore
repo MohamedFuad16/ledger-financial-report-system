@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+uploads/
+runs/
+.DS_Store
+frontend/node_modules/
+frontend/coverage/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+.vercel/
+graphify-out/
+corpus_dataset/**/*.pdf
+.vercel

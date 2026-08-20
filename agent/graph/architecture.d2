@@ -1,0 +1,38 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+    center: true
+  }
+}
+direction: down
+
+user: "Analyst" {shape: person}
+
+app: "Annual Report Extractor" {
+  client: "React client"
+  api: "Flask API"
+  pipeline: "Pipeline"
+  quality: "Contract + quality"
+  corpus: "Corpus builder"
+  storage: "Uploads / runs / manifest"
+
+  client -> api: "HTTP / SSE"
+  api -> pipeline: "execute"
+  api -> corpus: "background job"
+  pipeline -> quality: "validate / score"
+  pipeline -> storage: "persist"
+  corpus -> storage: "PDF + SHA-256 manifest"
+}
+
+parsers: "PDF parsers" {shape: cloud}
+llm: "LLM provider" {shape: cloud}
+firecrawl: "Firecrawl discovery" {shape: cloud}
+official: "Official company sites" {shape: cloud}
+
+user -> app.client: "configure / inspect"
+app.pipeline -> parsers: "extract"
+app.pipeline -> llm: "chat completion"
+app.corpus -> firecrawl: "map / search"
+app.api -> firecrawl: "credential probe"
+app.corpus -> official: "direct PDF download"

@@ -1,0 +1,18 @@
+# Core pipeline
+requests>=2.32
+pypdf>=5.0
+pymupdf4llm>=0.0.17
+pydantic>=2.7
+python-dotenv>=1.0
+
+# Web UI (server.py + static/)
+flask>=3.0
+gunicorn>=23.0
+
+# Legacy Streamlit UI (app.py) only
+streamlit>=1.40
+pandas>=2.2
+
+# Extraction technology bake-off (Strategy 2 variants)
+docling>=2.120
+pdf-inspector>=0.1
