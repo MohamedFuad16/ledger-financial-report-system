@@ -9,7 +9,16 @@ TOKEN_PARAMETER="${LEDGER_TOKEN_PARAMETER:-/ledger/backend/admin-token}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y awscli ca-certificates curl git libgl1 libglib2.0-0 python3-venv
+apt-get install -y ca-certificates curl git libgl1 libglib2.0-0 python3-venv unzip
+
+if ! command -v aws >/dev/null 2>&1; then
+  curl --fail --silent --show-error --location \
+    https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip \
+    --output /tmp/awscliv2.zip
+  rm -rf /tmp/aws /tmp/awscliv2
+  unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2
+  /tmp/awscliv2/aws/install
+fi
 
 if ! id ledger >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash ledger

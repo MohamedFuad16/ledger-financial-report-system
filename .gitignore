@@ -15,3 +15,4 @@ frontend/vite.config.d.ts
 graphify-out/
 corpus_dataset/**/*.pdf
 .vercel
+.env*
