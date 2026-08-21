@@ -9,13 +9,15 @@ export const parserMeta: Record<string, { short: string; label: string; color: s
   s2: { short: 'PyMuPDF', label: 'OCR · PyMuPDF4LLM', color: '#10b981' },
   's2-docling': { short: 'Docling', label: 'OCR · Docling', color: '#ef4444' },
   's2-inspector': { short: 'Inspector', label: 'OCR · pdf-inspector', color: '#f59e0b' },
+  s3: { short: 'Inspector Gate', label: 'Strategy 3 · pdf-inspector + intelligent scanning gate', color: '#8b5cf6' },
 }
 
-export type BenchmarkExperiment = 'no_ocr' | 'ocr'
+export type BenchmarkExperiment = 'no_ocr' | 'ocr' | 'intelligent_scan'
 
 export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
   no_ocr: ['s1', 's1-pymupdf', 's1-inspector', 's1-docling'],
   ocr: ['s2-pypdf', 's2', 's2-inspector', 's2-docling'],
+  intelligent_scan: ['s3'],
 }
 
 export function parserFor(key?: string) {

@@ -30,7 +30,7 @@ export interface RunSummary extends RunMetrics {
   strategy: string
   strategy_label?: string
   parser?: string
-  experiment?: 'no_ocr' | 'ocr' | 'legacy_no_ocr'
+  experiment?: 'no_ocr' | 'ocr' | 'intelligent_scan' | 'legacy_no_ocr'
   ocr_enabled?: boolean
   ocr_policy?: 'off' | 'adaptive' | 'force'
   company?: string

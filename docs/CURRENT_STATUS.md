@@ -32,8 +32,8 @@ The API does not use a browser/deployment access token. CORS limits which browse
 Every active parser follows the same pipeline. Only the document representation changes.
 
 1. **Stage the PDF.** A browser upload is saved under `uploads/<company>/<year>/<timestamp>/`, or a selected corpus document is referenced in place after its manifest SHA-256 and path are validated.
-2. **Extract locally.** The chosen parser converts every readable page and the backend inserts `--- PAGE n ---` markers. No LLM call has happened yet.
-3. **Build one prompt.** `prompts.build_user_prompt` combines the extraction note, parser diagnostics, the fixed 27-row schema, any detected fiscal context and the complete extracted report. The configured system prompt is sent separately as the first message.
+2. **Extract locally.** The chosen parser converts readable pages and the backend inserts `--- PAGE n ---` markers. Strategy 3 additionally replaces only pdf-inspector-routed OCR pages and selects three to five complete pages. No semantic-mapping LLM call has happened yet.
+3. **Build one prompt.** `prompts.build_user_prompt` combines the extraction note, parser diagnostics, the fixed 27-row schema, any detected fiscal context and that strategy's complete page-marked representation. The configured system prompt is sent separately as the first message.
 4. **Call the model once.** `api_client.run_extraction` sends an OpenAI-compatible `chat/completions` request with JSON-object output requested. Provider-specific reasoning controls are mapped in `providers.py`; temperature defaults to `0.1`.
 5. **Retry transport failures safely.** HTTP 429 responses reduce the shared concurrency gate and honor `Retry-After`; retryable 5xx responses use bounded backoff. Quota exhaustion fails immediately. These retries repeat the same request and are not semantic repairs.
 6. **Normalize and validate.** `normalize.py` repairs representation-only issues such as currency strings, percentages, aliases and row order, recording each repair. `models.py` then requires the exact 27-row contract. If JSON or Pydantic contract validation still fails, one bounded semantic repair request includes the original context, invalid answer and exact validation error.
@@ -83,9 +83,9 @@ PDF
 
 Per-page provenance records the decision, reason, engine, page number and render DPI. Each selected pass still produces an independent model request and run artifact.
 
-## Strategy 3: schema-guided page filtering (planned)
+## Strategy 3: pdf-inspector intelligent scanning gate (active)
 
-Strategy 3 will operate on complete page-marked Markdown pages before the existing semantic-mapping call. It will rank pages against the 27-field schema with accounting synonyms and BM25-style lexical signals, combine positive evidence patterns with explicit boilerplate reject patterns, retain the balance-sheet page and adjacent/relevant note pages, and fall back to the complete document when selector confidence is weak. It is page retrieval in the literal technical sense, but it is not vector RAG: it adds no embeddings, vector database, arbitrary token chunks, recursive search, or agentic loop. Evidence-page recall and unchanged field coverage/exact accuracy are required; token savings alone are insufficient. The full experiment contract is in `ROADMAP.md`.
+Strategy 3 uses pdf-inspector 1.15+ as the finalized parser. The verified Python API supplies document classification, confidence, encoding health, complete per-page Markdown, OCR-needed pages/reasons, table pages, column pages and complexity metadata. Ledger OCRs only parser-routed pages at 200 DPI, replaces their page bodies in the unified Markdown, scores every complete page with schema/accounting BM25-style terms plus heading/table/layout/numeric signals, and sends the top three to five pages to the configured LLM. The existing semantic JSON mapping, deterministic validation, confidence gating, reconciliation and human approval remain unchanged. Run diagnostics preserve the classification, page provenance, every selected score component and input reduction. No vector store, embeddings, token chunks, recursive retrieval or agentic loop are present.
 
 The live and historical comparison now uses a matched report cohort: a report contributes to parser averages only when every selected parser completed that report. Repeated observations are averaged within each report before reports are averaged, preventing a parser rerun or a failed pass from silently changing the comparison population. Scheduled, successful and failed pass counts remain visible, and each PDF's individual values remain in its run history.
 
@@ -181,7 +181,7 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 
 ## Current limitations
 
-- Strategy 1 and Strategy 2 are active; Strategy 3 is a planned selector experiment and has no extraction endpoint yet.
+- Strategy 1, Strategy 2 and Strategy 3 are active; Strategy 3 is one finalized pdf-inspector pass rather than a parser bake-off.
 - Strategy 1 provides compulsory or page-adaptive OCR; Strategy 2 is intentionally no-OCR.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.

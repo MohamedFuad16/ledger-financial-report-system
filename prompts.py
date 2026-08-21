@@ -93,6 +93,10 @@ _DIAGNOSTIC_LABELS = {
     "largest_tables": "Table shapes (page: rows x cols)",
     "pages_with_multiple_columns": "Pages with multiple columns",
     "pages_needing_ocr": "Pages whose text layer is unreadable",
+    "ocr_pages": "Pages replaced by OCR",
+    "selected_pages": "Pages retained by the intelligent scanning gate",
+    "selected_page_count": "Pages sent for semantic mapping",
+    "character_reduction_percent": "Markdown character reduction (%)",
     "outline": "Document outline",
     "outline_entries_total": "Outline entries in document",
 }

@@ -6,6 +6,7 @@
 |---|---|---|---|
 | `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, assignment-only gold, scoring, API, and UI |
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
+| `intelligent_scan.py` | fixed schema | Strategy 3 extraction, focused tests | Changes affect Strategy 3 page ranking, selected evidence and model input size |
 | `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
 | `server.py` | pipeline/settings/schema/corpus | browser client | Changes affect every client workflow |
 | `traffic.py` | Upstash REST, AWS SES v2 | `server.py` | Changes affect private visit persistence and owner notifications |
@@ -16,7 +17,7 @@
 | `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect PDF trust, canonical naming, and SHA-bound candidate artifacts |
 | `corpus/manifest.py` | schema, file/OS locks | corpus API, pipeline scoring | Changes affect canonical corpus identity, human approval, deletion, and exact-accuracy eligibility |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
-| `frontend/src/pages/StrategyThreePage.tsx` | route, shared UI, locale provider | dashboard/sidebar navigation | Changes affect the planned schema-guided complete-page selector contract, not active extraction execution |
+| `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |

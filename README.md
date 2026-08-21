@@ -35,7 +35,7 @@ The current assignment uses 3M reports as the initial benchmark, while the corpu
 ## Features
 
 - **Two active extraction strategies** — the same four selectable parsers with OCR (Strategy 1) and without OCR (Strategy 2).
-- **Planned Strategy 3** — schema-guided page filtering reduces the Markdown sent to the model while preserving complete page boundaries and the same 27-row semantic-mapping contract.
+- **Strategy 3 intelligent scanning gate** — pdf-inspector performs native page extraction and OCR routing, Ledger replaces only routed pages with OCR Markdown, then a deterministic gate sends the top three to five complete pages to the same 27-row semantic mapper.
 - **Four parser passes** — PyPDF, PyMuPDF4LLM, pdf-inspector and Docling can be selected individually or together.
 - **Fixed output contract** — exactly 27 canonical rows, normalized and validated before use.
 - **Truthful evaluation** — exact accuracy, field coverage and precision are separate metrics.
@@ -87,9 +87,11 @@ Each pass gets its own provider response, validation result, timing and persiste
 
 All four parsers run with OCR disabled. PyPDF calls `page.extract_text()` for every page, normalizes the text, inserts page markers and builds an in-memory prompt. PyMuPDF4LLM, pdf-inspector and Docling use their native non-OCR representations. No pass consults the answer key.
 
-### Strategy 3 · schema-guided page filtering (planned)
+### Strategy 3 · pdf-inspector intelligent scanning gate
 
-Strategy 3 will keep existing Markdown page boundaries, score complete pages against the 27-field schema with accounting synonyms and BM25-style lexical signals, apply explicit reject patterns to obvious boilerplate, and send only the retained evidence pages to the same LLM semantic-mapping pipeline. It will not use a vector store, embeddings, arbitrary token chunks, or an agentic loop. The selector must always retain the detected balance-sheet page and neighbors, keep relevant notes, and fall back to the complete document when selector confidence is weak. Evidence-page recall and unchanged exact accuracy are hard acceptance gates; token reduction alone is not success. See [ROADMAP.md](ROADMAP.md).
+Strategy 3 is active and uses pdf-inspector as the finalized parser. `detect_pdf` records document type, confidence, encoding health and OCR routing; `extract_pages_markdown` supplies complete page Markdown plus table, column, complexity and per-page OCR metadata. Pages marked for OCR are rendered at 200 DPI and replaced in place with GLM-OCR Markdown. The resulting unified page sequence is scored deterministically using BM25-style schema vocabulary, financial headings, table presence, column/layout signals, numeric density and bounded boilerplate penalties. Only the top three to five complete pages—preserving their original PDF page numbers and order—enter the existing semantic-mapping call.
+
+There is no vector store, embedding index, arbitrary token chunking, iterative search or agentic loop. PDF-Inspector decides native text versus OCR; Ledger's gate decides schema relevance; the configured LLM maps the selected evidence packet to JSON; Pydantic validation, the confidence gate and arithmetic reconciliation remain unchanged. Diagnostics store every selected page, score component, OCR provenance and Markdown-character reduction. See [ROADMAP.md](ROADMAP.md).
 
 ## Quality contract
 
@@ -154,6 +156,7 @@ corpus/                  discovery, download, screening and manifest services
 deploy/aws/              EC2 bootstrap and HTTPS configuration
 docs/CURRENT_STATUS.md   code-backed architecture and extraction report
 ROADMAP.md               Strategy 3 design and acceptance contract
+intelligent_scan.py      deterministic complete-page scoring and selection
 research/bakuraku/       evidence-backed corpus seed companies
 extraction.py            parser implementations
 prompts.py               shared prompt assembly

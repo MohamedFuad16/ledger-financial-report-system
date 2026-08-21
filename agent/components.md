@@ -4,6 +4,7 @@
 
 - `pipeline.py` — end-to-end orchestration and run persistence; depends on all contract, extraction, and provider modules.
 - `extraction.py` — parser strategy registry and text-health diagnostics.
+- `intelligent_scan.py` — Strategy 3 BM25-style complete-page scoring using the 27-field vocabulary and pdf-inspector layout metadata.
 - `api_client.py` — provider request/retry, context-preserving repair payloads, separate attempt artifacts, and reply parsing.
 - `providers.py`, `ratelimit.py` — provider-specific payloads, cache metrics, concurrency, and backoff.
 - `corpus/` — Firecrawl discovery, ranked report fallback, direct PDF download, screening, model-candidate persistence, on-demand review prefill, and manifest persistence.
@@ -22,7 +23,7 @@
 - `traffic.py` — backend-only Upstash persistence, session deduplication, and escaped text/HTML-table AWS SES notification delivery.
 - `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, Strategy-1-first keyboard-command coordination, and one private visit report per browser session.
 - `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, shared interface translation, and canonical schema/result-value localization.
-- `frontend/src/pages/` — dashboard, two live extraction strategies, the planned Strategy 3 specification, history, corpus (including confirmed deletion and a searchable embedded-PDF answer-review workspace), schema, and settings.
+- `frontend/src/pages/` — dashboard, three live extraction strategies, history, corpus (including confirmed deletion and a searchable embedded-PDF answer-review workspace), schema, and settings.
 - `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, BeautifulUI-derived neutral execution capsules, and shared UI primitives.
 - `frontend/src/editor-theme.css` — final visual mapping from the user's Resume/editor application; loaded after the legacy stylesheet.
 - `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.

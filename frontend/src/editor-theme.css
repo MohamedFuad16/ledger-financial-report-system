@@ -249,6 +249,9 @@ body {
 .strategy-prompt-row .disclosure-body { padding: 0 16px 16px; }
 .strategy-prompt-row .disclosure textarea { min-height: 260px; font-size: 13px; }
 .strategy-workspace { align-items: stretch; grid-template-columns: minmax(390px, .85fr) minmax(0, 1.15fr); }
+.strategy-three-live-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.strategy-three-live-flow .card { min-height: 72px; display: flex; align-items: center; padding: 16px; border-color: color-mix(in srgb, #8b5cf6 24%, var(--border)); }
+.strategy-three-live-flow strong { font-size: 12px; line-height: 1.45; }
 .strategy-controls { display: flex; }
 .strategy-controls > .card { width: 100%; min-height: 680px; display: flex; flex-direction: column; }
 .strategy-controls .run-button { margin-top: auto; }
@@ -307,6 +310,7 @@ body {
   .dashboard-header-actions { width: 100%; }
   .dashboard-header-actions .button { align-self: stretch; }
   .strategy-workspace { grid-template-columns: 1fr; }
+  .strategy-three-live-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .strategy-controls > .card, .pipeline-card { min-height: 560px; }
 }
 

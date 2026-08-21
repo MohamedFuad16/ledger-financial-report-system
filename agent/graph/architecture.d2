@@ -19,6 +19,7 @@ app: "Annual Report Extractor" {
   storage: "Uploads / runs / manifest"
   jobs: "Durable extraction jobs"
   cohort: "Matched parser cohort"
+  gate: "Strategy 3 intelligent scanning gate"
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
@@ -32,6 +33,8 @@ app: "Annual Report Extractor" {
   api -> pipeline: "on-demand review prefill"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
+  pipeline -> gate: "score unified complete pages"
+  gate -> pipeline: "top 3-5 source pages"
   pipeline -> storage: "persist"
   pipeline -> jobs: "phase events"
   storage -> cohort: "latest parser/report result"
@@ -40,6 +43,7 @@ app: "Annual Report Extractor" {
 }
 
 parsers: "PDF parsers" {shape: cloud}
+glmocr: "GLM-OCR" {shape: cloud}
 llm: "LLM provider" {shape: cloud}
 firecrawl: "Firecrawl discovery" {shape: cloud}
 official: "Official company sites" {shape: cloud}
@@ -48,6 +52,7 @@ ses: "AWS SES" {shape: cloud}
 
 user -> app.client: "configure / inspect"
 app.pipeline -> parsers: "extract"
+parsers -> glmocr: "OCR-routed pages only"
 app.pipeline -> llm: "chat completion"
 app.corpus -> firecrawl: "map / search"
 app.api -> firecrawl: "credential probe"

@@ -21,6 +21,8 @@ from typing import Any
 import requests
 from pypdf import PdfReader
 
+from intelligent_scan import select_evidence_pages
+
 # Characters that carry no information but do consume tokens and confuse models.
 _INVISIBLE = dict.fromkeys(
     map(ord, "\u200b\u200c\u200d\ufeff\u00ad"), None
@@ -760,6 +762,135 @@ def extract_with_pdf_inspector_ocr(
     return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive GLM-OCR", diagnostics)
 
 
+def extract_with_intelligent_scanning_gate(
+    pdf_path: Path,
+    *,
+    ocr_policy: str = "adaptive",
+    ocr_context: dict[str, Any] | None = None,
+) -> ExtractedText:
+    """Strategy 3: selective OCR, unified Markdown, then whole-page ranking.
+
+    pdf-inspector owns PDF classification, layout metadata, native Markdown,
+    and the per-page OCR decision.  GLM-OCR replaces only routed page bodies.
+    The deterministic intelligent scanning gate then sends the best three to
+    five *complete pages* to the semantic-mapping model.
+    """
+    try:
+        import pdf_inspector
+        import pymupdf
+    except ImportError as exc:  # pragma: no cover - depends on install
+        raise RuntimeError("Strategy 3 requires pdf-inspector and PyMuPDF.") from exc
+
+    context = ocr_context or {}
+    api_key = str(context.get("glm_ocr_api_key") or context.get("api_key") or "")
+    endpoint = str(
+        context.get("glm_ocr_endpoint")
+        or os.getenv("GLM_OCR_ENDPOINT")
+        or "https://api.z.ai/api/paas/v4/layout_parsing"
+    )
+    try:
+        result = pdf_inspector.extract_pages_markdown(str(pdf_path))
+        classification = pdf_inspector.detect_pdf(str(pdf_path))
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"pdf-inspector page extraction failed ({exc}).") from exc
+
+    raw_pages = list(getattr(result, "pages", result) or [])
+    aggregate_ocr_pages = {
+        int(page) for page in (getattr(result, "pages_needing_ocr", None) or [])
+        if isinstance(page, int) and not isinstance(page, bool) and page >= 1
+    }
+    aggregate_ocr_pages.update(
+        int(page) for page in (getattr(classification, "pages_needing_ocr", None) or [])
+        if isinstance(page, int) and not isinstance(page, bool) and page >= 1
+    )
+    ocr_reasons: dict[int, list[str]] = {}
+    for entry in getattr(result, "ocr_reasons_by_page", None) or []:
+        page_no = getattr(entry, "page", None)
+        if isinstance(page_no, int) and page_no >= 1:
+            ocr_reasons[page_no] = [str(reason) for reason in (getattr(entry, "reasons", None) or [])]
+
+    unified_pages: list[tuple[int, str]] = []
+    page_provenance: list[dict[str, Any]] = []
+    routed_pages: list[int] = []
+    with pymupdf.open(str(pdf_path)) as document:
+        for fallback, page in enumerate(raw_pages, start=1):
+            zero_based = getattr(page, "page", None)
+            one_based = getattr(page, "page_number", None)
+            if isinstance(one_based, int) and one_based > 0:
+                page_no = one_based
+            elif isinstance(zero_based, int) and zero_based >= 0:
+                page_no = zero_based + 1
+            else:
+                page_no = fallback
+            native_markdown = normalize_text(
+                str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
+            )
+            needs_ocr = bool(getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages)
+            if needs_ocr:
+                pixmap = document[page_no - 1].get_pixmap(
+                    matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
+                    alpha=False,
+                )
+                markdown = _glm_ocr_markdown(
+                    pixmap.tobytes("png"),
+                    api_key=api_key,
+                    endpoint=endpoint,
+                    page_no=page_no,
+                )
+                routed_pages.append(page_no)
+                source = "glm_ocr"
+            else:
+                markdown = native_markdown
+                source = "pdf_inspector_native_rust"
+            unified_pages.append((page_no, markdown))
+            page_provenance.append({
+                "page": page_no,
+                "needs_ocr": needs_ocr,
+                "ocr_reasons": ocr_reasons.get(page_no, []),
+                "source": source,
+                "render_dpi": 200 if needs_ocr else None,
+            })
+
+    table_pages = list(getattr(result, "pages_with_tables", None) or [])
+    column_pages = list(getattr(result, "pages_with_columns", None) or [])
+    selected_pages, gate = select_evidence_pages(
+        unified_pages,
+        pages_with_tables=table_pages,
+        pages_with_columns=column_pages,
+    )
+    if not selected_pages:
+        raise RuntimeError("The intelligent scanning gate found no readable Markdown pages.")
+
+    diagnostics = {
+        "source": "pdf-inspector + selective GLM-OCR + intelligent scanning gate",
+        "document_type": str(getattr(classification, "pdf_type", "") or "unknown"),
+        "type_confidence": round(float(getattr(classification, "confidence", 0.0) or 0.0), 3),
+        "has_encoding_issues": bool(getattr(classification, "has_encoding_issues", False)),
+        "ocr_policy": str(ocr_policy or "adaptive").lower(),
+        "ocr_router": "pdf-inspector per-page needs_ocr",
+        "ocr_engine": "glm-ocr",
+        "render_dpi": 200,
+        "ocr_pages": _compress_pages(routed_pages),
+        "ocr_page_count": len(routed_pages),
+        "pages_with_tables": _compress_pages(table_pages),
+        "pages_with_multiple_columns": _compress_pages(column_pages),
+        "complex_layout": bool(getattr(result, "is_complex", False)),
+        "page_provenance": page_provenance,
+        **gate,
+    }
+    extracted = _finalize(
+        selected_pages,
+        len(raw_pages),
+        "Strategy 3 intelligent scanning",
+        diagnostics,
+    )
+    extracted.warnings.append(
+        f"The intelligent scanning gate retained {len(selected_pages)} of {len(raw_pages)} complete pages "
+        f"for semantic mapping ({gate.get('character_reduction_percent', 0):.1f}% fewer Markdown characters)."
+    )
+    return extracted
+
+
 @dataclass(frozen=True)
 class Strategy:
     key: str
@@ -783,7 +914,7 @@ class Strategy:
             # OCR behavior is part of the experimental treatment, not a user
             # preference. Parsers with a real page classifier stay adaptive;
             # parsers without one OCR every page in the OCR-enabled arm.
-            if self.key == "s2-inspector":
+            if self.key in {"s2-inspector", "s3"}:
                 return self.extract(
                     pdf_path,
                     ocr_policy=self.ocr_policy,
@@ -896,6 +1027,23 @@ STRATEGIES: dict[str, Strategy] = {
         extract=extract_with_pdf_inspector_ocr,
         parser="inspector",
         experiment="ocr",
+        ocr_enabled=True,
+        ocr_policy="adaptive",
+    ),
+    "s3": Strategy(
+        key="s3",
+        run_prefix="S3",
+        label="Strategy 3 - intelligent scanning gate",
+        extraction_note=(
+            "a three-to-five-page evidence packet. pdf-inspector produced complete per-page Markdown; "
+            "only pages it marked as needing OCR were replaced by 200-DPI GLM-OCR Markdown; the unified "
+            "pages were then ranked by the deterministic intelligent scanning gate using table presence, "
+            "financial headings, the fixed 27-field vocabulary, and layout metadata. Page markers identify "
+            "the original source PDF pages."
+        ),
+        extract=extract_with_intelligent_scanning_gate,
+        parser="inspector-gate",
+        experiment="intelligent_scan",
         ocr_enabled=True,
         ocr_policy="adaptive",
     ),

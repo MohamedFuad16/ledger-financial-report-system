@@ -403,15 +403,16 @@ from extraction import STRATEGIES
 check("every strategy has a unique run-id prefix",
       len({s.run_prefix for s in STRATEGIES.values()}) == len(STRATEGIES))
 check(
-    "the matched four-by-two parser experiment is registered",
+    "the matched four-by-two arms and finalized Strategy 3 are registered",
     set(STRATEGIES) == {
         "s1", "s1-pymupdf", "s1-docling", "s1-inspector",
         "s2-pypdf", "s2", "s2-docling", "s2-inspector",
+        "s3",
     }
     and {strategy.parser for strategy in STRATEGIES.values()} == {
-        "pypdf", "pymupdf", "docling", "inspector",
+        "pypdf", "pymupdf", "docling", "inspector", "inspector-gate",
     }
-    and {strategy.experiment for strategy in STRATEGIES.values()} == {"no_ocr", "ocr"},
+    and {strategy.experiment for strategy in STRATEGIES.values()} == {"no_ocr", "ocr", "intelligent_scan"},
 )
 expect_error("unknown strategy keys do not silently run Strategy 1",
              lambda: get_strategy("s9"), "Unknown strategy")

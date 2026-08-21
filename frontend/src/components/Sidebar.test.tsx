@@ -9,7 +9,7 @@ import { Sidebar } from './Sidebar'
 afterEach(cleanup)
 
 describe('Sidebar', () => {
-  it('shows two active strategies and the planned Strategy 3 surface', () => {
+  it('shows all three active strategy surfaces', () => {
     render(
       <LocaleProvider>
         <Sidebar

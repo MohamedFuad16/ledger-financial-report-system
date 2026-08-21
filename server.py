@@ -1030,7 +1030,7 @@ def start_extraction_job():
     created_at = datetime.now(timezone.utc).isoformat()
     state = {
         "id": job_id, "status": "queued", "created_at": created_at, "updated_at": created_at,
-        "scope": "s2" if any(key.startswith("s2") for key in strategy_keys) else "s1",
+        "scope": "s3" if "s3" in strategy_keys else "s2" if any(key.startswith("s2") for key in strategy_keys) else "s1",
         "strategies": strategy_keys, "files_total": len(staged_jobs),
         "passes_total": len(staged_jobs) * len(strategy_keys), "succeeded": 0, "failed": 0,
         "error": None,

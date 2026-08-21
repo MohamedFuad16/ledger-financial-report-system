@@ -62,7 +62,7 @@ export function DashboardPage({
         {[
           { number: '01', title: tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ'), body: tr('The same four parsers: adaptive OCR where page detection exists, otherwise OCR is compulsory.', '同じ4パーサーで、ページ判定がある場合は適応OCR、ない場合はOCRを必須化します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy1' as PanelKey, icon: Layers3 },
           { number: '02', title: tr('No-OCR parser control', 'OCRなしパーサー対照実験'), body: tr('PyPDF, PyMuPDF4LLM, pdf-inspector, and Docling with OCR disabled.', 'PyPDF、PyMuPDF4LLM、pdf-inspector、DoclingをOCRなしで比較します。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy2' as PanelKey, icon: Gauge },
-          { number: '03', title: tr('Schema-guided page filtering', 'スキーマ誘導ページフィルタリング'), body: tr('Rank complete Markdown pages against the 27-field schema, reject obvious noise, and send only the evidence packet to the same LLM.', 'Markdownの完全なページを27項目のスキーマで順位付けし、明らかなノイズを除外して根拠ページだけを同じLLMに送ります。'), status: tr('Planned', '計画中'), tone: 'amber' as const, panel: 'strategy3' as PanelKey, icon: SearchCheck },
+          { number: '03', title: tr('Intelligent scanning gate', 'インテリジェントスキャニングゲート'), body: tr('pdf-inspector selectively replaces OCR-routed pages, then scores unified complete pages and sends only the top three to five to the LLM.', 'pdf-inspectorがOCR対象ページだけを置換し、統合された完全ページを採点して上位3〜5ページだけをLLMに送ります。'), status: tr('Active', '有効'), tone: 'amber' as const, panel: 'strategy3' as PanelKey, icon: SearchCheck },
         ].map((strategy) => {
           const Icon = strategy.icon
           return (

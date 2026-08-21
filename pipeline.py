@@ -419,11 +419,20 @@ def _run_pipeline_inner(
             "No readable text could be extracted from the PDF."
         )
         raise RuntimeError(detail)
+    selected_page_count = extracted.diagnostics.get("selected_page_count")
+    extraction_summary = (
+        f"{extracted.page_count} pages inspected · {selected_page_count} selected · "
+        f"{extracted.char_count:,} characters · {extract_seconds:.1f}s"
+        if selected_page_count is not None
+        else f"{extracted.page_count} pages · {extracted.char_count:,} characters · {extract_seconds:.1f}s"
+    )
     progress(
         "extract",
-        f"{extracted.page_count} pages · {extracted.char_count:,} characters · {extract_seconds:.1f}s",
+        extraction_summary,
         done=True,
         page_count=extracted.page_count,
+        selected_page_count=selected_page_count,
+        selected_pages=extracted.diagnostics.get("selected_pages"),
         approx_tokens=extracted.approx_tokens,
         extract_seconds=extract_seconds,
     )

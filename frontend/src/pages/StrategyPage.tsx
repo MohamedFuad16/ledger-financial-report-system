@@ -26,6 +26,7 @@ const parserDescriptions: Record<string, [string, string]> = {
   s2: ['Layout Markdown + OCR', 'レイアウトMarkdown＋OCR'],
   's2-inspector': ['Position-aware Rust + OCR', '位置認識Rust＋OCR'],
   's2-docling': ['ML document graph + OCR', 'ML文書グラフ＋OCR'],
+  s3: ['Selective OCR + intelligent page gate', '選択OCR＋インテリジェントページゲート'],
 }
 
 export function StrategyPage({
@@ -34,13 +35,14 @@ export function StrategyPage({
   onRefreshRuns,
   onNotify,
 }: {
-  kind: 's1' | 's2'
+  kind: 's1' | 's2' | 's3'
   runs: RunSummary[]
   onRefreshRuns: () => Promise<void>
   onNotify: (message: string, tone: 'success' | 'error') => void
 }) {
   const { locale, tr, schemaText } = useLocale()
   const isStrategy1 = kind === 's1'
+  const isStrategy3 = kind === 's3'
   const [files, setFiles] = useState<File[]>([])
   const [inputSource, setInputSource] = useState<'upload' | 'corpus'>('upload')
   const [corpusDocuments, setCorpusDocuments] = useState<CorpusDocument[]>([])
@@ -52,8 +54,9 @@ export function StrategyPage({
   const [uploadHovering, setUploadHovering] = useState(false)
   // Public strategy numbering is intentionally independent from the historical
   // backend parser keys. Strategy 1 is the OCR arm; Strategy 2 is the no-OCR arm.
-  const parserChoices = isStrategy1 ? experimentStrategies.ocr : experimentStrategies.no_ocr
-  const experiment = isStrategy1 ? 'ocr' : 'no_ocr'
+  const parserChoices = isStrategy3 ? experimentStrategies.intelligent_scan : isStrategy1 ? experimentStrategies.ocr : experimentStrategies.no_ocr
+  const experiment = isStrategy3 ? 'intelligent_scan' : isStrategy1 ? 'ocr' : 'no_ocr'
+  const strategyNumber = isStrategy3 ? '03' : isStrategy1 ? '01' : '02'
   const [selectedParsers, setSelectedParsers] = useState<string[]>(parserChoices)
   const [reasoningEnabled, setReasoningEnabled] = useState(true)
   const [prompt, setPrompt] = useState('')
@@ -152,7 +155,9 @@ export function StrategyPage({
     const parser = parserFor(data.strategy).short
     if (data.step === 'upload') return 'レポートを保存しました'
     if (data.step === 'extract') return data.done
-      ? `${formatNumber(data.page_count)}ページを解析完了`
+      ? data.selected_page_count
+        ? `${formatNumber(data.page_count)}ページを検査・${formatNumber(data.selected_page_count)}ページを選択`
+        : `${formatNumber(data.page_count)}ページを解析完了`
       : `${parser}で文書を解析中`
     if (data.step === 'prompt') return data.done
       ? '入力プロンプトを作成しました'
@@ -355,16 +360,26 @@ export function StrategyPage({
     <div className="page strategy-page">
       <header className="page-header">
         <div>
-          <Badge tone={isStrategy1 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {isStrategy1 ? '01' : '02'} · {tr('Active', '有効')}</Badge>
-          <h1>{isStrategy1 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
-          <p>{isStrategy1 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
+          <Badge tone={isStrategy3 ? 'amber' : isStrategy1 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {strategyNumber} · {tr('Active', '有効')}</Badge>
+          <h1>{isStrategy3 ? tr('Intelligent scanning gate', 'インテリジェントスキャニングゲート') : isStrategy1 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
+          <p>{isStrategy3 ? tr('Use pdf-inspector as the finalized parser, replace only OCR-routed pages, then rank complete unified-Markdown pages and send the top three to five to the model.', 'pdf-inspectorを最終パーサーとして使用し、OCR対象ページだけを置換した後、統合Markdownの完全なページを順位付けし、上位3〜5ページだけをモデルに送ります。') : isStrategy1 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
         </div>
       </header>
 
       <div className="hypothesis-banner">
-        <div className="hypothesis-number">H{isStrategy1 ? '1' : '2'}</div>
-        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy1 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
+        <div className="hypothesis-number">H{isStrategy3 ? '3' : isStrategy1 ? '1' : '2'}</div>
+        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy3 ? tr('Parser-guided OCR plus deterministic page scoring should preserve the evidence required by the 27-row schema while sharply reducing LLM input.', 'パーサー誘導OCRと決定論的ページスコアリングにより、27行スキーマに必要な根拠を維持しながらLLM入力を大幅に削減できるはずです。') : isStrategy1 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
       </div>
+
+      {isStrategy3 && <div className="strategy-three-live-flow">
+        {[
+          tr('1. Inspect every PDF page', '1. 全PDFページを検査'),
+          tr('2. OCR only routed pages', '2. 対象ページのみOCR'),
+          tr('3. Replace into unified Markdown', '3. 統合Markdownへ置換'),
+          tr('4. Score complete pages', '4. 完全ページを採点'),
+          tr('5. Map top 3–5 and validate', '5. 上位3〜5ページをマッピング・検証'),
+        ].map((label) => <Card key={label}><strong>{label}</strong></Card>)}
+      </div>}
 
       <div className="strategy-prompt-row">
         <Disclosure title={tr('System prompt', 'システムプロンプト')} subtitle={tr('Shared across all active strategies', 'すべての有効な戦略で共有')}>
@@ -376,7 +391,7 @@ export function StrategyPage({
       <div className="strategy-workspace">
         <div className="strategy-controls">
           <Card>
-            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isStrategy1 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} action={<div className="segmented-control input-source-toggle"><button className={inputSource === 'upload' ? 'is-active' : ''} onClick={() => setInputSource('upload')}>{tr('Upload', 'アップロード')}</button><button className={inputSource === 'corpus' ? 'is-active' : ''} onClick={() => setInputSource('corpus')}>{tr('Corpus', 'コーパス')}</button></div>} />
+            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isStrategy3 ? tr('Run the finalized pdf-inspector and intelligent-gate pipeline on one report or a batch.', '最終版pdf-inspector＋インテリジェントゲートを1件または一括レポートで実行します。') : isStrategy1 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} action={<div className="segmented-control input-source-toggle"><button className={inputSource === 'upload' ? 'is-active' : ''} onClick={() => setInputSource('upload')}>{tr('Upload', 'アップロード')}</button><button className={inputSource === 'corpus' ? 'is-active' : ''} onClick={() => setInputSource('corpus')}>{tr('Corpus', 'コーパス')}</button></div>} />
             {inputSource === 'upload' ? <><div
               className={`upload-zone ${dragging ? 'is-dragging' : ''}`}
               onMouseEnter={() => setUploadHovering(true)}
@@ -422,10 +437,10 @@ export function StrategyPage({
 
       {completedComparison.length > 0 && (
         <Card className="comparison-card">
-          <SectionHeading eyebrow={tr('Controlled comparison', '統制比較')} title={tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={tr('Batch averages compare each parser across the same reports. Per-report results remain available below.', '同じレポート群に対するパーサーごとの平均を比較し、各レポートの結果も下に保持します。')} />
+          <SectionHeading eyebrow={isStrategy3 ? tr('Selected-page results', '選択ページ結果') : tr('Controlled comparison', '統制比較')} title={isStrategy3 ? tr('Intelligent gate extraction results', 'インテリジェントゲート抽出結果') : tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={isStrategy3 ? tr('Each result records OCR routing, selected pages, score components, input reduction, model output and deterministic validation.', '各結果にOCRルーティング、選択ページ、スコア内訳、入力削減、モデル出力、決定論的検証を記録します。') : tr('Batch averages compare each parser across the same reports. Per-report results remain available below.', '同じレポート群に対するパーサーごとの平均を比較し、各レポートの結果も下に保持します。')} />
           <div className="comparison-cohort-note">
             <strong>{tr(`${matchedExecutions.length} of ${executions.length} reports in the matched cohort`, `${executions.length}件中${matchedExecutions.length}件が比較対象`)}</strong>
-            <span>{tr('A report enters the cumulative average only after every selected parser completes it, preventing partial-success bias.', '選択したすべてのパーサーが完了したレポートだけを累積平均に含め、部分成功による偏りを防ぎます。')}</span>
+            <span>{isStrategy3 ? tr('Every completed report used the same locked pdf-inspector → selective OCR → intelligent gate → semantic mapping contract.', '完了したすべてのレポートは、固定されたpdf-inspector→選択OCR→インテリジェントゲート→セマンティックマッピング契約を使用します。') : tr('A report enters the cumulative average only after every selected parser completes it, preventing partial-success bias.', '選択したすべてのパーサーが完了したレポートだけを累積平均に含め、部分成功による偏りを防ぎます。')}</span>
           </div>
           {comparisonSummary.length > 0 && <div className="comparison-grid">{comparisonSummary.map((summary) => { const meta = parserFor(summary.strategy); return <article key={summary.strategy}><i style={{ background: meta.color }} /><span>{meta.short}<small>{tr(`Matched average of ${summary.count} report${summary.count === 1 ? '' : 's'}`, `${summary.count}件の対応平均`)}</small></span><strong>{formatMetric(summary.accuracy)}</strong><small>{formatMetric(summary.coverage)} {tr('coverage', 'カバレッジ')} · {formatDuration(summary.totalSeconds)} {tr('average', '平均')}</small><small>{tr(`${summary.successful}/${summary.scheduled} successful · ${summary.failed} failed`, `成功 ${summary.successful}/${summary.scheduled} · 失敗 ${summary.failed}`)}</small></article> })}</div>}
           <div className="comparison-detail-wrap">
@@ -445,7 +460,7 @@ export function StrategyPage({
       )}
 
       <Card className="previous-runs-card">
-        <SectionHeading eyebrow={tr('History', '履歴')} title={tr(`Previous Strategy ${isStrategy1 ? '1' : '2'} runs`, `戦略${isStrategy1 ? '1' : '2'}の過去実行`)} description={tr(`${strategyRuns.length} stored experiment records.`, `${strategyRuns.length}件の実験記録を保存。`)} />
+        <SectionHeading eyebrow={tr('History', '履歴')} title={tr(`Previous Strategy ${isStrategy3 ? '3' : isStrategy1 ? '1' : '2'} runs`, `戦略${isStrategy3 ? '3' : isStrategy1 ? '1' : '2'}の過去実行`)} description={tr(`${strategyRuns.length} stored experiment records.`, `${strategyRuns.length}件の実験記録を保存。`)} />
         <RunTable runs={strategyRuns.slice(0, 8)} compact />
       </Card>
     </div>
