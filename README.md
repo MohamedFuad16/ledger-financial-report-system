@@ -34,7 +34,7 @@ The current assignment uses 3M reports as the initial benchmark, while the corpu
 
 ## Features
 
-- **Two active extraction strategies** — the same four selectable parsers with OCR (Strategy 1) and without OCR (Strategy 2).
+- **Two active extraction strategies** — the same four selectable parsers without OCR (Strategy 1) and with OCR (Strategy 2).
 - **Strategy 3 intelligent scanning gate** — pdf-inspector performs native page extraction and OCR routing, Ledger replaces only routed pages with OCR Markdown, then a deterministic gate sends the top three to five complete pages to the same 27-row semantic mapper.
 - **Four parser passes** — PyPDF, PyMuPDF4LLM, pdf-inspector and Docling can be selected individually or together.
 - **Fixed output contract** — exactly 27 canonical rows, normalized and validated before use.
@@ -70,11 +70,15 @@ Company / fiscal year / run artifacts
 
 The selected parser and OCR policy change between strategies. The report, prompt, model settings, output contract, confidence rule and scoring path remain shared.
 
-### Strategy 1 · OCR-enabled parser comparison
+### Strategy 1 · no-OCR parser comparison
+
+All four parsers run with OCR disabled. PyPDF calls `page.extract_text()` for every page, normalizes the text, inserts page markers and builds an in-memory prompt. PyMuPDF4LLM, pdf-inspector and Docling use their native non-OCR representations. No pass consults the answer key.
+
+### Strategy 2 · OCR-enabled parser comparison
 
 The report is independently represented by the selected parser passes. OCR is page-adaptive only when the parser exposes a reliable page-level decision boundary; otherwise OCR is compulsory:
 
-| Parser | Strategy 1 OCR policy | Output sent to the shared prompt |
+| Parser | Strategy 2 OCR policy | Output sent to the shared prompt |
 |---|---|---|
 | PyPDF | Compulsory | OCR text assembled in page order |
 | PyMuPDF4LLM | Adaptive | Layout-aware Markdown with integrated OCR fallback |
@@ -82,10 +86,6 @@ The report is independently represented by the selected parser passes. OCR is pa
 | Docling | Compulsory | OCR-backed ML document graph exported as Markdown |
 
 Each pass gets its own provider response, validation result, timing and persisted run, making the comparison inspectable rather than inferred.
-
-### Strategy 2 · no-OCR parser comparison
-
-All four parsers run with OCR disabled. PyPDF calls `page.extract_text()` for every page, normalizes the text, inserts page markers and builds an in-memory prompt. PyMuPDF4LLM, pdf-inspector and Docling use their native non-OCR representations. No pass consults the answer key.
 
 ### Strategy 3 · pdf-inspector intelligent scanning gate
 

@@ -313,7 +313,7 @@ check("empty-page PDFs are reported as unreadable", _empty_extract.readable_page
 check("empty-page PDFs carry an actionable OCR warning",
       any("OCR" in warning for warning in _empty_extract.warnings))
 
-# --- Rate limiting (adaptive, since Z.AI publishes no fixed RPM/TPM) ---------
+# --- Adaptive rate limiting --------------------------------------------------
 print("\nAdaptive rate limiting")
 from ratelimit import AdaptiveLimiter, estimate_batch_plan, retry_after_seconds
 
@@ -335,7 +335,7 @@ check("compound durations are parsed", retry_after_seconds({"retry-after": "1m30
 plan = estimate_batch_plan([{"name": "a.pdf", "pages": 141, "approx_tokens": 130000}], 5)
 check("a batch plan reports estimated tokens", plan["total_approx_tokens"] == 130000)
 check("a batch plan never recommends more lanes than files", plan["recommended_concurrency"] == 1)
-check("the plan states the limits are unpublished", any("no fixed RPM/TPM" in a for a in plan["advisories"]))
+check("routine plans do not surface an unpublished-limit advisory", not any("RPM/TPM" in a for a in plan["advisories"]))
 
 # --- Deterministic reconciliation (reconcile.py) ------------------------------
 print("\nArithmetic reconciliation")
@@ -402,6 +402,12 @@ from extraction import STRATEGIES
 
 check("every strategy has a unique run-id prefix",
       len({s.run_prefix for s in STRATEGIES.values()}) == len(STRATEGIES))
+check("Strategy 1 is no-OCR and Strategy 2 is OCR-enabled",
+      all(STRATEGIES[key].label.startswith("Strategy 1") and not STRATEGIES[key].ocr_enabled
+          for key in ("s1", "s1-pymupdf", "s1-docling", "s1-inspector"))
+      and all(STRATEGIES[key].label.startswith("Strategy 2") and STRATEGIES[key].ocr_enabled
+              for key in ("s2-pypdf", "s2", "s2-docling", "s2-inspector"))
+      and get_strategy(None).key == "s1")
 check(
     "the matched four-by-two arms and finalized Strategy 3 are registered",
     set(STRATEGIES) == {

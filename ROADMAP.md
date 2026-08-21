@@ -2,8 +2,8 @@
 
 ## Active baseline
 
-- Strategy 1: the four-parser OCR-enabled comparison.
-- Strategy 2: the same four parsers with OCR disabled.
+- Strategy 1: the four-parser no-OCR control.
+- Strategy 2: the same four parsers with OCR enabled.
 - Both convert one Annual Report to a page-marked representation, make one configured-model semantic-mapping call, validate the fixed 27-row result, and use the same verification and scoring contract.
 
 ## Strategy 3: finalized intelligent scanning gate

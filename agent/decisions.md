@@ -29,8 +29,9 @@
 | ADR-0025 | — Isolate public run state by anonymous browser workspace | — |
 | ADR-0026 | — Require PDF extraction before human answer review | — |
 | ADR-0027 | — Limit the product to two extraction strategies | — |
-| ADR-0028 | — Restore Strategy 3 as guarded page selection | — |
+| ADR-0028 | — Restore Strategy 3 as guarded page selection and separate discovery from answer mapping | — |
 | ADR-0029 | — Finalize Strategy 3 on pdf-inspector metadata and selective OCR | — |
+| ADR-0030 | — Align public strategy numbers with durable backend scopes | — |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -234,3 +235,10 @@
 - Context: The finalized architecture requires pdf-inspector to be the sole parser, route OCR per page, replace only routed pages in unified Markdown, then reduce semantic-mapping input to three to five relevant complete pages. The implementation had to use metadata the library actually exposes rather than assume document-layout capabilities.
 - Decision: Require pdf-inspector 1.15+. Use `detect_pdf` for document type, confidence, encoding health and OCR routing, and `extract_pages_markdown` for 0-indexed page bodies plus 1-indexed aggregate OCR/table/column metadata. Normalize all boundaries to 1-indexed PDF pages. Render only routed pages at 200 DPI, replace them with GLM-OCR Markdown, and retain native Markdown for every other page. Score complete unified pages in deterministic Python using BM25-style 27-schema/accounting terms, financial headings, table presence, column/layout metadata, numeric density and bounded boilerplate penalties. Send the top three to five pages in original order to the existing semantic mapper, exact JSON contract, confidence gate and arithmetic reconciliation. Persist full selection scores and page provenance. Do not add embeddings, a vector store, arbitrary chunks, recursive retrieval or an agentic loop.
 - Consequences: Strategy 3 is an active backend/UI execution path rather than a roadmap stub. LLM input falls by roughly 96–97% in representative readable 3M reports, but OCR work happens before selection: pdf-inspector routes 73/142 FY2021 pages because of its damaged text layer, so OCR cost may remain high even when LLM-token cost falls. The fixed three-to-five-page ceiling must be evaluated on held-out reports for evidence recall and exact accuracy; diagnostics make misses and routing costs auditable.
+
+## ADR-0030 — Align public strategy numbers with durable backend scopes
+- Date: 2026-08-22
+- Status: Accepted; supersedes the Strategy 1/2 numbering decision in ADR-0028 and restores ADR-0023
+- Context: Public labels mapped Strategy 1 to backend `s2` and Strategy 2 to backend `s1`. Durable jobs derive their scope from those stable keys, so an OCR job launched from the page labelled Strategy 1 could be discovered and rendered by the page labelled Strategy 2. Routine preflight also surfaced a non-actionable Z.AI RPM/TPM advisory as an error toast on every run.
+- Decision: Define Strategy 1 as the `s1*` no-OCR arm and Strategy 2 as the `s2*` OCR-enabled arm everywhere. Keep job scope, route identity, parser selection, dashboard experiment and history filtering aligned. Reject a persisted job whose scope does not match the observing page before replaying any events. Retain adaptive 429 handling internally but do not emit the static unpublished-limit advisory.
+- Consequences: Live execution is visible only on its owning strategy page, historical run keys remain compatible, and normal extraction startup no longer produces an alarming non-actionable popup. Real scheduling reductions, observed limits and throttle events remain available as advisories.

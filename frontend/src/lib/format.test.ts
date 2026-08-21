@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupParserStats, matchedParserCohort, parserMetricLeaders } from './format'
+import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, groupParserStats, matchedParserCohort, parserMetricLeaders } from './format'
 import type { RunSummary } from '../types'
 
 const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
@@ -13,6 +13,16 @@ const run = (strategy: string, file: string, accuracy: number, seconds = 1, expe
   extract_seconds: seconds,
   company: '3M',
   ...identity,
+})
+
+describe('strategy page identity', () => {
+  it('keeps numbering, experiment arms, and durable job scopes aligned', () => {
+    expect(experimentForStrategyPage('s1')).toBe('no_ocr')
+    expect(experimentForStrategyPage('s2')).toBe('ocr')
+    expect(experimentForStrategyPage('s3')).toBe('intelligent_scan')
+    expect(extractionJobBelongsToStrategyPage('s1', 's1')).toBe(true)
+    expect(extractionJobBelongsToStrategyPage('s2', 's1')).toBe(false)
+  })
 })
 
 describe('matched historical parser cohort', () => {

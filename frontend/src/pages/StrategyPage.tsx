@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { api, type SseEvent } from '../lib/api'
 import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
-import { experimentStrategies, formatDuration, formatMetric, formatMoney, formatNumber, parserFor } from '../lib/format'
+import { experimentForStrategyPage, experimentStrategies, extractionJobBelongsToStrategyPage, formatDuration, formatMetric, formatMoney, formatNumber, parserFor, type StrategyPageKind } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
 import { FolderUpload } from '../components/FolderUpload'
 import { CorpusPicker, type CorpusSelectionMode } from '../components/CorpusPicker'
@@ -35,7 +35,7 @@ export function StrategyPage({
   onRefreshRuns,
   onNotify,
 }: {
-  kind: 's1' | 's2' | 's3'
+  kind: StrategyPageKind
   runs: RunSummary[]
   onRefreshRuns: () => Promise<void>
   onNotify: (message: string, tone: 'success' | 'error') => void
@@ -52,10 +52,10 @@ export function StrategyPage({
   const [selectedCorpusIds, setSelectedCorpusIds] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const [uploadHovering, setUploadHovering] = useState(false)
-  // Public strategy numbering is intentionally independent from the historical
-  // backend parser keys. Strategy 1 is the OCR arm; Strategy 2 is the no-OCR arm.
-  const parserChoices = isStrategy3 ? experimentStrategies.intelligent_scan : isStrategy1 ? experimentStrategies.ocr : experimentStrategies.no_ocr
-  const experiment = isStrategy3 ? 'intelligent_scan' : isStrategy1 ? 'ocr' : 'no_ocr'
+  // Public strategy numbering matches the stable backend parser keys and job scopes.
+  // Strategy 1 is the no-OCR control; Strategy 2 is the OCR-enabled arm.
+  const experiment = experimentForStrategyPage(kind)
+  const parserChoices = experimentStrategies[experiment]
   const strategyNumber = isStrategy3 ? '03' : isStrategy1 ? '01' : '02'
   const [selectedParsers, setSelectedParsers] = useState<string[]>(parserChoices)
   const [reasoningEnabled, setReasoningEnabled] = useState(true)
@@ -254,6 +254,12 @@ export function StrategyPage({
       try {
         const job = await api.extractionJob(activeJobId, eventOffset.current)
         if (cancelled) return
+        if (!extractionJobBelongsToStrategyPage(job.scope, kind)) {
+          window.localStorage.removeItem(storageKey)
+          setActiveJobId(null)
+          setRunning(false)
+          return
+        }
         job.events.forEach((record) => handleEvent({ event: record.event, data: record.data }))
         eventOffset.current = job.next_offset
         if ((job.status === 'complete' || job.status === 'failed' || job.status === 'interrupted') && !finished) {
@@ -361,14 +367,14 @@ export function StrategyPage({
       <header className="page-header">
         <div>
           <Badge tone={isStrategy3 ? 'amber' : isStrategy1 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {strategyNumber} · {tr('Active', '有効')}</Badge>
-          <h1>{isStrategy3 ? tr('Intelligent scanning gate', 'インテリジェントスキャニングゲート') : isStrategy1 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
-          <p>{isStrategy3 ? tr('Use pdf-inspector as the finalized parser, replace only OCR-routed pages, then rank complete unified-Markdown pages and send the top three to five to the model.', 'pdf-inspectorを最終パーサーとして使用し、OCR対象ページだけを置換した後、統合Markdownの完全なページを順位付けし、上位3〜5ページだけをモデルに送ります。') : isStrategy1 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
+          <h1>{isStrategy3 ? tr('Intelligent scanning gate', 'インテリジェントスキャニングゲート') : isStrategy1 ? tr('No-OCR parser control', 'OCRなしパーサー対照実験') : tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ')}</h1>
+          <p>{isStrategy3 ? tr('Use pdf-inspector as the finalized parser, replace only OCR-routed pages, then rank complete unified-Markdown pages and send the top three to five to the model.', 'pdf-inspectorを最終パーサーとして使用し、OCR対象ページだけを置換した後、統合Markdownの完全なページを順位付けし、上位3〜5ページだけをモデルに送ります。') : isStrategy1 ? tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。') : tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。')}</p>
         </div>
       </header>
 
       <div className="hypothesis-banner">
         <div className="hypothesis-number">H{isStrategy3 ? '3' : isStrategy1 ? '1' : '2'}</div>
-        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy3 ? tr('Parser-guided OCR plus deterministic page scoring should preserve the evidence required by the 27-row schema while sharply reducing LLM input.', 'パーサー誘導OCRと決定論的ページスコアリングにより、27行スキーマに必要な根拠を維持しながらLLM入力を大幅に削減できるはずです。') : isStrategy1 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
+        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy3 ? tr('Parser-guided OCR plus deterministic page scoring should preserve the evidence required by the 27-row schema while sharply reducing LLM input.', 'パーサー誘導OCRと決定論的ページスコアリングにより、27行スキーマに必要な根拠を維持しながらLLM入力を大幅に削減できるはずです。') : isStrategy1 ? tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。') : tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。')}</strong></div>
       </div>
 
       {isStrategy3 && <div className="strategy-three-live-flow">

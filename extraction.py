@@ -928,7 +928,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s1": Strategy(
         key="s1",
         run_prefix="S1",
-        label="Strategy 2 - PyPDF without OCR",
+        label="Strategy 1 - PyPDF without OCR",
         extraction_note=(
             "raw page-by-page text using basic PyPDF extraction only. Table columns "
             "may be flattened or interleaved. Page markers identify the source PDF page."
@@ -940,7 +940,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s1-pymupdf": Strategy(
         key="s1-pymupdf",
         run_prefix="S1PM",
-        label="Strategy 2 - PyMuPDF4LLM without OCR",
+        label="Strategy 1 - PyMuPDF4LLM without OCR",
         extraction_note=(
             "layout-aware Markdown using PyMuPDF4LLM with table structure preserved. "
             "Page markers identify the source PDF page."
@@ -952,7 +952,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s1-docling": Strategy(
         key="s1-docling",
         run_prefix="S1DL",
-        label="Strategy 2 - Docling without OCR",
+        label="Strategy 1 - Docling without OCR",
         extraction_note=(
             "layout-aware Markdown produced by Docling's document model, with table "
             "structure and cell matching. Page markers identify the source PDF page."
@@ -964,7 +964,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s1-inspector": Strategy(
         key="s1-inspector",
         run_prefix="S1FC",
-        label="Strategy 2 - pdf-inspector without OCR",
+        label="Strategy 1 - pdf-inspector without OCR",
         extraction_note=(
             "position-aware Markdown produced by Firecrawl's pdf-inspector, with "
             "multi-column reading order and table detection. Page markers identify "
@@ -977,7 +977,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s2-pypdf": Strategy(
         key="s2-pypdf",
         run_prefix="S2PY",
-        label="Strategy 1 - PyPDF with compulsory OCR",
+        label="Strategy 2 - PyPDF with compulsory OCR",
         extraction_note=(
             "Every page is rendered and processed with RapidOCR because PyPDF has no trusted "
             "per-page OCR classifier. Page markers identify the source PDF page."
@@ -991,7 +991,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s2": Strategy(
         key="s2",
         run_prefix="S2",
-        label="Strategy 1 - PyMuPDF4LLM with OCR",
+        label="Strategy 2 - PyMuPDF4LLM with OCR",
         extraction_note=(
             "layout-aware Markdown using PyMuPDF4LLM with integrated RapidOCR recovery and table structure preserved. "
             "Page markers identify the source PDF page."
@@ -1005,7 +1005,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s2-docling": Strategy(
         key="s2-docling",
         run_prefix="S2DL",
-        label="Strategy 1 - Docling with compulsory OCR",
+        label="Strategy 2 - Docling with compulsory OCR",
         extraction_note=(
             "Docling document-graph conversion with OCR forced on every page, table structure, and cell matching. "
             "Page markers identify the source PDF page."
@@ -1019,7 +1019,7 @@ STRATEGIES: dict[str, Strategy] = {
     "s2-inspector": Strategy(
         key="s2-inspector",
         run_prefix="S2FC",
-        label="Strategy 1 - pdf-inspector with adaptive OCR",
+        label="Strategy 2 - pdf-inspector with adaptive OCR",
         extraction_note=(
             "pdf-inspector classifies every page. Text pages keep native Rust Markdown; OCR-needed pages "
             "are rendered at 200 DPI and replaced by GLM-OCR Markdown before page-ordered assembly."
@@ -1049,9 +1049,9 @@ STRATEGIES: dict[str, Strategy] = {
     ),
 }
 
-# Historical keys are preserved for run compatibility; the public default is
-# Strategy 1, the OCR-enabled arm, whose stable backend key is ``s2``.
-DEFAULT_STRATEGY = "s2"
+# Historical keys already match the public numbering: Strategy 1 is the
+# no-OCR control and Strategy 2 is the OCR-enabled arm.
+DEFAULT_STRATEGY = "s1"
 
 
 def get_strategy(key: str | None) -> Strategy:

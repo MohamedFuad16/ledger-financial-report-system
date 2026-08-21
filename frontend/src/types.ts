@@ -266,7 +266,7 @@ export interface ExtractionJobEvent {
 export interface ExtractionJob {
   id: string
   status: 'queued' | 'running' | 'complete' | 'failed' | 'interrupted'
-  scope: 's1' | 's2'
+  scope: 's1' | 's2' | 's3'
   strategies: string[]
   files_total: number
   passes_total: number

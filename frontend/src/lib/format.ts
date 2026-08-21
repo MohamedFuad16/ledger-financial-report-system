@@ -13,11 +13,22 @@ export const parserMeta: Record<string, { short: string; label: string; color: s
 }
 
 export type BenchmarkExperiment = 'no_ocr' | 'ocr' | 'intelligent_scan'
+export type StrategyPageKind = 's1' | 's2' | 's3'
 
 export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
   no_ocr: ['s1', 's1-pymupdf', 's1-inspector', 's1-docling'],
   ocr: ['s2-pypdf', 's2', 's2-inspector', 's2-docling'],
   intelligent_scan: ['s3'],
+}
+
+export function experimentForStrategyPage(kind: StrategyPageKind): BenchmarkExperiment {
+  if (kind === 's1') return 'no_ocr'
+  if (kind === 's2') return 'ocr'
+  return 'intelligent_scan'
+}
+
+export function extractionJobBelongsToStrategyPage(scope: StrategyPageKind, kind: StrategyPageKind) {
+  return scope === kind
 }
 
 export function parserFor(key?: string) {

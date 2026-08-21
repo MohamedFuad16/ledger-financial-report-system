@@ -43,11 +43,22 @@ Every active parser follows the same pipeline. Only the document representation 
 
 The repair boundary is intentionally narrow: confidence below `0.80` never triggers a model retry, and a failed arithmetic identity never triggers a model retry. Both are downstream measurements of a contract-valid answer.
 
-## Strategy 1: four-parser OCR-enabled arm
+## Strategy 1: four-parser no-OCR control
 
-Strategy 1 exposes the four selectable parsers with OCR enabled. “Adaptive” applies only to a parser that has a real page-level decision mechanism; it does not mean that OCR is optional for the whole strategy.
+Strategy 1 exposes the same four parsers with OCR disabled.
 
-| Parser | Strategy 1 OCR behavior | Policy |
+| Parser | Strategy 1 representation | OCR policy |
+|---|---|---|
+| PyPDF | Raw page text assembled in memory with page markers | Off |
+| PyMuPDF4LLM | Layout-aware Markdown with complete page boundaries | Off |
+| pdf-inspector | Position-aware native Rust Markdown | Off |
+| Docling | ML document graph converted to Markdown | Off |
+
+## Strategy 2: four-parser OCR-enabled arm
+
+Strategy 2 exposes the four selectable parsers with OCR enabled. “Adaptive” applies only to a parser that has a real page-level decision mechanism; it does not mean that OCR is optional for the whole strategy.
+
+| Parser | Strategy 2 OCR behavior | Policy |
 |---|---|---|
 | PyPDF | Renders and OCRs every page because PyPDF has no trusted OCR-needed classifier | Compulsory |
 | PyMuPDF4LLM | Uses its integrated page-aware OCR recovery | Adaptive |
@@ -55,17 +66,6 @@ Strategy 1 exposes the four selectable parsers with OCR enabled. “Adaptive” 
 | Docling | Runs document conversion with OCR forced for every page | Compulsory |
 
 The user may select one parser or any subset; every pass produces its own model request and stored prediction against the same PDF, model, prompt, schema, and evaluation code.
-
-## Strategy 2: four-parser no-OCR control
-
-Strategy 2 exposes the same four parsers with OCR disabled.
-
-| Parser | Strategy 2 representation | OCR policy |
-|---|---|---|
-| PyPDF | Raw page text assembled in memory with page markers | Off |
-| PyMuPDF4LLM | Layout-aware Markdown with complete page boundaries | Off |
-| pdf-inspector | Position-aware native Rust Markdown | Off |
-| Docling | ML document graph converted to Markdown | Off |
 
 The exact pdf-inspector path is:
 
@@ -144,7 +144,7 @@ On 21 August 2026, the Firecrawl workflow discovered the official 3M FY2022 SEC 
 
 Firecrawl credential persistence was also verified against production using an empty replacement field: the backend reused the masked saved credential, completed the read-only credit probe, returned HTTP 200, and kept the key server-side.
 
-The same workflow was then tested against AppBank's official Japanese IR library. Firecrawl followed the official securities-report page to the FY2024 filing, downloaded `AppBank_annual_report_2024.pdf`, verified the official source, screened all 105 pages as readable, detected FY2024 and found the balance sheet on page 68. The file is visible as `Ready` in the Strategy 2 corpus selector and reuses the canonical company/year path rather than creating duplicates.
+The same workflow was then tested against AppBank's official Japanese IR library. Firecrawl followed the official securities-report page to the FY2024 filing, downloaded `AppBank_annual_report_2024.pdf`, verified the official source, screened all 105 pages as readable, detected FY2024 and found the balance sheet on page 68. The file is visible as `Ready` in both strategy corpus selectors and reuses the canonical company/year path rather than creating duplicates.
 
 This successful Japanese crawl also exposes an important experiment boundary: the AppBank filing is denominated in JPY, while the assignment's fixed output contract requires M USD and forbids external facts. It is therefore valid corpus data but not yet a valid M-USD benchmark input. Ledger should introduce an explicit currency-aware contract and a documented conversion source before running this or other Japanese filings through the accuracy comparison.
 
@@ -182,11 +182,11 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 ## Current limitations
 
 - Strategy 1, Strategy 2 and Strategy 3 are active; Strategy 3 is one finalized pdf-inspector pass rather than a parser bake-off.
-- Strategy 1 provides compulsory or page-adaptive OCR; Strategy 2 is intentionally no-OCR.
+- Strategy 1 is intentionally no-OCR; Strategy 2 provides compulsory or page-adaptive OCR.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
 - Only 3M FY2022 has an assignment-supplied complete answer key. Every other report remains unscored until its 27-row candidate sheet is manually approved for the exact PDF SHA-256.
-- Strategy 1 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
+- Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
 - Final accuracy can include deterministic normalization and one contract-repair call. Benchmark reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

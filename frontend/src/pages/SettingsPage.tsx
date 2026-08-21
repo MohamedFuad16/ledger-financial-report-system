@@ -110,7 +110,7 @@ export function SettingsPage({
             <label className="toggle-setting"><span><strong>{tr('Automatic batch sizing', '自動バッチサイズ')}</strong><small>{tr('Use PDF count and estimated token load to choose the initial width.', 'PDF数と推定トークン量から初期並列数を選びます。')}</small></span><input type="checkbox" checked={autoConcurrency} onChange={(event) => setAutoConcurrency(event.target.checked)} /></label>
             <div className="ocr-policy-contract field-wide">
               <strong>{tr('OCR policy is fixed by parser', 'OCRポリシーはパーサーごとに固定')}</strong>
-              <span>{tr('Strategy 1 uses page-adaptive OCR for pdf-inspector and PyMuPDF, while PyPDF and Docling force OCR because they do not expose the same reliable per-page decision boundary. Strategy 2 never uses OCR.', '戦略1ではpdf-inspectorとPyMuPDFがページ単位の適応OCRを使用し、同等の判定境界を持たないPyPDFとDoclingはOCRを強制します。戦略2はOCRを使用しません。')}</span>
+              <span>{tr('Strategy 1 never uses OCR. Strategy 2 uses page-adaptive OCR for pdf-inspector and PyMuPDF, while PyPDF and Docling force OCR because they do not expose the same reliable per-page decision boundary.', '戦略1はOCRを使用しません。戦略2ではpdf-inspectorとPyMuPDFがページ単位の適応OCRを使用し、同等の判定境界を持たないPyPDFとDoclingはOCRを強制します。')}</span>
             </div>
           </div>
           <div className="rate-state">

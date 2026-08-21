@@ -243,12 +243,6 @@ def estimate_batch_plan(
                 )
         except (TypeError, ValueError):
             pass
-    else:
-        advisories.append(
-            "Z.AI publishes no fixed RPM/TPM figures, so no hard limit can be checked before "
-            "sending. Throttling is detected from HTTP 429 responses and retried automatically."
-        )
-
     if len(files) > recommended:
         waves = -(-len(files) // recommended)
         advisories.append(
