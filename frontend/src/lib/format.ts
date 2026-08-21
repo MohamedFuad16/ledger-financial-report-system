@@ -1,10 +1,21 @@
 import type { MetricValue, RunSummary } from '../types'
 
 export const parserMeta: Record<string, { short: string; label: string; color: string }> = {
-  s1: { short: 'PyPDF', label: 'Strategy 1 · PyPDF', color: '#2563eb' },
-  s2: { short: 'PyMuPDF', label: 'Strategy 2 · PyMuPDF4LLM', color: '#10b981' },
-  's2-docling': { short: 'Docling', label: 'Strategy 2 · Docling', color: '#ef4444' },
-  's2-inspector': { short: 'Inspector', label: 'Strategy 2 · pdf-inspector', color: '#f59e0b' },
+  s1: { short: 'PyPDF', label: 'No OCR · PyPDF', color: '#2563eb' },
+  's1-pymupdf': { short: 'PyMuPDF', label: 'No OCR · PyMuPDF4LLM', color: '#10b981' },
+  's1-docling': { short: 'Docling', label: 'No OCR · Docling', color: '#ef4444' },
+  's1-inspector': { short: 'Inspector', label: 'No OCR · pdf-inspector', color: '#f59e0b' },
+  's2-pypdf': { short: 'PyPDF', label: 'OCR · PyPDF', color: '#2563eb' },
+  s2: { short: 'PyMuPDF', label: 'OCR · PyMuPDF4LLM', color: '#10b981' },
+  's2-docling': { short: 'Docling', label: 'OCR · Docling', color: '#ef4444' },
+  's2-inspector': { short: 'Inspector', label: 'OCR · pdf-inspector', color: '#f59e0b' },
+}
+
+export type BenchmarkExperiment = 'no_ocr' | 'ocr'
+
+export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
+  no_ocr: ['s1', 's1-pymupdf', 's1-inspector', 's1-docling'],
+  ocr: ['s2-pypdf', 's2', 's2-inspector', 's2-docling'],
 }
 
 export function parserFor(key?: string) {
@@ -65,7 +76,9 @@ export function displayReportName(name?: string, fiscalYear?: string | number | 
 export function reportCohortKey(run: RunSummary) {
   const file = (run.pdf_file || '').split(/[\\/]/).pop()?.trim().toLowerCase()
   const year = String(run.fiscal_year || run.detected_fiscal_year || '').match(/(?:19|20)\d{2}/)?.[0] || ''
-  return file ? `${file}::${year}` : ''
+  const company = String(run.company || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const digest = String(run.source_pdf_sha256 || '').trim().toLowerCase()
+  return file ? `${company || 'unknown'}::${year}::${digest || file}` : ''
 }
 
 /**
@@ -73,10 +86,9 @@ export function reportCohortKey(run: RunSummary) {
  * Repeated runs stay in the cohort, but parser statistics first average those
  * repeats per report so rerunning one parser cannot silently weight it more.
  */
-export function matchedParserCohort(runs: RunSummary[]) {
-  const scored = runs.filter((run) => run.accuracy != null && reportCohortKey(run))
-  const strategies = [...new Set(scored.map((run) => run.strategy))]
-  if (!strategies.length) return []
+export function matchedParserCohort(runs: RunSummary[], experiment: BenchmarkExperiment = 'no_ocr') {
+  const strategies = experimentStrategies[experiment]
+  const scored = runs.filter((run) => run.experiment === experiment && strategies.includes(run.strategy) && run.accuracy != null && reportCohortKey(run))
   const strategiesByReport = scored.reduce<Map<string, Set<string>>>((groups, run) => {
     const key = reportCohortKey(run)
     const present = groups.get(key) || new Set<string>()
@@ -92,9 +104,10 @@ export function matchedParserCohort(runs: RunSummary[]) {
   return scored.filter((run) => matchedReports.has(reportCohortKey(run)))
 }
 
-export function groupParserStats(runs: RunSummary[]) {
-  const cohort = matchedParserCohort(runs)
-  return Object.entries(parserMeta).map(([key, meta]) => {
+export function groupParserStats(runs: RunSummary[], experiment: BenchmarkExperiment = 'no_ocr') {
+  const cohort = matchedParserCohort(runs, experiment)
+  return experimentStrategies[experiment].map((key) => {
+    const meta = parserMeta[key]
     const relevant = cohort.filter((run) => run.strategy === key)
     const byReport = Object.values(relevant.reduce<Record<string, RunSummary[]>>((groups, run) => {
       const report = reportCohortKey(run)

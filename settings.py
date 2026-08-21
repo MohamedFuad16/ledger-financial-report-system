@@ -61,6 +61,9 @@ def current_settings() -> dict[str, Any]:
     except ValueError:
         max_concurrency = 6
     auto_concurrency = (os.getenv("LLM_AUTO_CONCURRENCY", "true").strip().lower() not in ("false", "0", "no"))
+    firecrawl_pdf_mode = (os.getenv("FIRECRAWL_PDF_MODE", "auto") or "auto").strip().lower()
+    if firecrawl_pdf_mode not in {"fast", "auto", "ocr"}:
+        firecrawl_pdf_mode = "auto"
     return {
         "provider": provider.key,
         "provider_label": provider.label,
@@ -74,6 +77,14 @@ def current_settings() -> dict[str, Any]:
         "max_concurrency": max_concurrency,
         "auto_concurrency": auto_concurrency,
         "firecrawl_api_key": os.getenv("FIRECRAWL_API_KEY", ""),
+        "firecrawl_pdf_mode": firecrawl_pdf_mode,
+        # Hosted page OCR is a separate Z.AI tool endpoint. A dedicated key can
+        # be supplied without exposing it to the browser; otherwise the active
+        # Z.AI gateway key is reused.
+        "glm_ocr_api_key": os.getenv("GLM_OCR_API_KEY", "") or api_key,
+        "glm_ocr_endpoint": os.getenv(
+            "GLM_OCR_ENDPOINT", "https://api.z.ai/api/paas/v4/layout_parsing"
+        ),
     }
 
 
@@ -118,12 +129,14 @@ def save_runtime_settings(
     auto_concurrency: bool,
     firecrawl_api_key: str = "",
     keep_firecrawl_key: bool = True,
+    firecrawl_pdf_mode: str = "auto",
 ) -> None:
     """Persist local scheduling and corpus-connector settings without an API call."""
     ENV_PATH.touch(exist_ok=True)
     values = {
         "LLM_MAX_CONCURRENCY": str(max(1, min(int(max_concurrency), 20))),
         "LLM_AUTO_CONCURRENCY": "true" if auto_concurrency else "false",
+        "FIRECRAWL_PDF_MODE": firecrawl_pdf_mode if firecrawl_pdf_mode in {"fast", "auto", "ocr"} else "auto",
     }
     if firecrawl_api_key:
         values["FIRECRAWL_API_KEY"] = firecrawl_api_key.strip()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 import time
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,10 +13,37 @@ import server
 
 
 class CorpusJobPersistenceTests(unittest.TestCase):
+    def test_live_job_owned_by_another_gunicorn_process_stays_visible(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            server, "CORPUS_JOBS_ROOT", Path(temp_dir)
+        ):
+            job_id = "b" * 12
+            server._write_corpus_job_state(job_id, {
+                "id": job_id,
+                "status": "running",
+                "worker_instance_id": "another-gunicorn-process",
+                "worker_pid": os.getpid(),
+                "events": [],
+            })
+
+            state = server._read_corpus_job_state(job_id)
+
+            self.assertEqual("running", state["status"])
+            self.assertNotIn("error", state)
+
     def test_completed_job_survives_loss_of_process_memory(self):
-        def build(_companies, years, *, api_key, max_downloads, on_event):
+        def build(
+            _companies,
+            years,
+            *,
+            api_key,
+            max_downloads,
+            firecrawl_pdf_mode,
+            on_event,
+        ):
             self.assertEqual("test-firecrawl", api_key)
             self.assertEqual([2024], years)
+            self.assertEqual("auto", firecrawl_pdf_mode)
             on_event({"type": "discovered", "company": "Example"})
             return {"requested": 1, "downloaded": [], "failed": [], "years": years}
 

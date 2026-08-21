@@ -22,6 +22,10 @@
 | ADR-0018 | — Persist extraction jobs independently of browser routes | — |
 | ADR-0019 | — Aggregate parser results on a matched report cohort | — |
 | ADR-0020 | — Screen Japanese filings without weakening the M-USD contract | — |
+| ADR-0021 | — Pace Firecrawl globally and persist corpus-job evidence | — |
+| ADR-0022 | — Treat answer-key provenance separately from reconciliation | — |
+| ADR-0023 | — Separate the no-OCR and OCR-enabled parser arms | — |
+| ADR-0024 | — Coordinate Firecrawl pacing and manifest writes across processes | — |
 
 # Decisions (ADRs) — append-only
 
@@ -178,3 +182,17 @@
 - Context: The test suite proves that maintained year keys have valid shape and balance-sheet arithmetic, but the assignment problem statement supplies a complete authoritative key only for FY2022. Calling every project-derived year “official ground truth” overstates what those tests establish, and FY2021's broken text layer makes the distinction especially important.
 - Decision: Describe FY2022 as assignment-supplied and every other maintained year key as provisional until it is pinned to the evaluated PDF SHA-256 and independently transcribed with page/table/column/unit/derivation citations. Keep arithmetic reconciliation as a separate document-independent consistency signal. Preserve FY2021's `1/27 = 3.7%` result as a text-layer failure and exclude it from parser-representation claims until OCR/vision is an explicit strategy.
 - Consequences: Dashboard arithmetic remains unchanged, but research claims now disclose the provenance boundary. A future audited golden-set artifact should carry row-level citations and reviewer status rather than relying on an in-code dictionary alone.
+
+## ADR-0023 — Separate the no-OCR and OCR-enabled parser arms
+- Date: 2026-08-21
+- Status: Accepted; refines ADR-0003, ADR-0004 and ADR-0022
+- Context: The previous Strategy 1/2 labeling conflated a direct PyPDF baseline, a representation bake-off and OCR recovery. The assignment requires the same four selectable parsers in both strategies, with OCR completely disabled in Strategy 1 and enabled in Strategy 2. Only parsers with a real page-level detector may be called adaptive, and Firecrawl-generated answers must not become ground truth automatically.
+- Decision: Register PyPDF, PyMuPDF4LLM, pdf-inspector and Docling in both strategies. Disable OCR for all Strategy 1 passes. In Strategy 2, force OCR for PyPDF and Docling, use PyMuPDF4LLM's integrated adaptive recovery, and route pdf-inspector page-by-page: native Rust extraction for text pages, exact 200-DPI render plus GLM-OCR/VLM for OCR-needed pages, then page-ordered Markdown assembly. Use Firecrawl twice—first for report discovery and later for a SHA-bound, non-authoritative 27-row candidate sheet. Permit unverified corpus execution with an explicit warning, but expose exact accuracy only for 3M FY2022 assignment gold or a human-approved table bound to the executed PDF SHA-256.
+- Consequences: Dashboard strategy comparisons now reflect two explicit end-to-end experimental arms, OCR routing remains observable per page, and machine candidates cannot silently contaminate accuracy. Because Strategy 2 parsers use different OCR engines/routing, it is an end-to-end capability comparison rather than a pure OCR-only causal ablation; a shared OCR-normalized control would be needed for that claim.
+
+## ADR-0024 — Coordinate Firecrawl pacing and manifest writes across processes
+- Date: 2026-08-21
+- Status: Accepted; refines ADR-0021
+- Context: ADR-0021's process-local seven-second gate was still vulnerable to a second worker process and exceeded the observed account limit once request timing and retries overlapped. The JSON manifest's thread-only lock had the same cross-process lost-update risk.
+- Decision: Reserve every credit-consuming Firecrawl call through an OS-file-locked, cross-process 12.5-second gate, extend the same shared state with account-wide `Retry-After` cooldowns, and protect manifest read-modify-write operations with a separate OS file lock. Keep the implementation file-backed while the worker remains single-host.
+- Consequences: Gunicorn threads and local worker processes on the EC2 host cannot bypass pacing or overwrite each other's manifest updates. A horizontally scaled deployment still requires a distributed lease/transaction store such as Redis or DynamoDB; the local lock is not a multi-host queue.

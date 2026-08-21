@@ -40,8 +40,9 @@ OpenAI-compatible chat-completions providers configured in `providers.py`:
 OpenRouter, OpenAI, Z.AI, Z.AI Coding, or a custom endpoint. Authentication uses
 an API key from local environment settings. No credentials belong in this file.
 
-Firecrawl v2 map/search is used only for link discovery. All credit-consuming
-calls share one process-wide seven-second request gate and an account-wide
+Firecrawl v2 map/search is used for link discovery, followed by a structured
+PDF scrape that prepopulates an unverified 27-row candidate table. All credit-consuming
+calls share one cross-process 12.5-second request gate and an account-wide
 `Retry-After` cooldown. Candidate PDFs are downloaded directly, validated,
 hashed and screened locally; crawling never starts an LLM extraction
 automatically. Runtime credential verification uses `GET /v2/team/credit-usage`,

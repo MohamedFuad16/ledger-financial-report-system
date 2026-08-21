@@ -21,6 +21,8 @@ export interface RunMetrics {
   filled_fields?: number
   committed_and_compared?: number
   has_golden?: boolean
+  gold_company?: string | null
+  gold_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required' | 'unavailable' | string
 }
 
 export interface RunSummary extends RunMetrics {
@@ -28,6 +30,12 @@ export interface RunSummary extends RunMetrics {
   timestamp?: string
   strategy: string
   strategy_label?: string
+  parser?: string
+  experiment?: 'no_ocr' | 'ocr' | 'legacy_no_ocr'
+  ocr_enabled?: boolean
+  ocr_policy?: 'off' | 'adaptive' | 'force'
+  company?: string
+  source_pdf_sha256?: string
   model?: string
   fiscal_year?: string
   detected_fiscal_year?: string
@@ -121,6 +129,7 @@ export interface SettingsData {
   auto_concurrency: boolean
   firecrawl_key_masked: string
   has_firecrawl_key: boolean
+  firecrawl_pdf_mode: 'fast' | 'auto' | 'ocr'
   rate_limit: {
     max_concurrency?: number
     permitted_concurrency?: number
@@ -154,13 +163,37 @@ export interface CorpusDocument {
   screen_reasons?: string[]
   output_directory?: string
   output_count?: number
+  verification_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  candidate_count?: number
+  approved_at?: string | null
 }
 
 export interface CorpusManifest {
   version: number
   updated_at: string | null
   documents: CorpusDocument[]
-  summary: { documents: number; companies: number; ok: number; review: number; unreadable: number }
+  summary: { documents: number; companies: number; ok: number; review: number; unreadable: number; verified?: number; human_review_required?: number }
+}
+
+export interface CorpusVerificationRow {
+  classification: string
+  subclassification: string
+  item: string
+  answer_m_usd: number | null
+  source_page?: number | null
+  evidence?: string | null
+}
+
+export interface CorpusVerification {
+  document_id: string
+  company: string
+  fiscal_year: number
+  filename: string
+  sha256: string
+  status: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  immutable?: boolean
+  approved_at?: string | null
+  rows: CorpusVerificationRow[]
 }
 
 export interface CorpusJob {
@@ -181,6 +214,7 @@ export interface StagedFile {
   size_bytes?: number
   pages?: number
   approx_tokens?: number
+  verification_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required'
   error?: string
 }
 
@@ -211,7 +245,7 @@ export interface ExtractionJobEvent {
 
 export interface ExtractionJob {
   id: string
-  status: 'queued' | 'running' | 'complete' | 'failed'
+  status: 'queued' | 'running' | 'complete' | 'failed' | 'interrupted'
   scope: 's1' | 's2'
   strategies: string[]
   files_total: number

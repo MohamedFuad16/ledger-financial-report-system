@@ -43,41 +43,45 @@ Every active parser follows the same pipeline. Only the document representation 
 
 The repair boundary is intentionally narrow: confidence below `0.80` never triggers a model retry, and a failed arithmetic identity never triggers a model retry. Both are downstream measurements of a contract-valid answer.
 
-## Strategy 1: direct LLM baseline
+## Strategy 1: four-parser no-OCR control
 
-Strategy 1 deliberately measures the simplest text representation.
+Strategy 1 is the no-OCR experimental arm. The user may select one parser or any subset of the four parsers; selected passes run as independent comparisons against the same PDF, model, system prompt, 27-row schema and evaluation code.
+
+| Parser | Strategy 1 representation | OCR policy |
+|---|---|---|
+| PyPDF | Raw page text assembled in memory with page markers | Off |
+| PyMuPDF4LLM | Layout-aware Markdown and page chunks | Off |
+| pdf-inspector | Position-aware native Rust Markdown | Off |
+| Docling | ML document graph converted to Markdown | Off |
+
+PyPDF does not create an intermediate Markdown file. It produces one in-memory string from `page.extract_text()` results. The other passes may preserve more layout, but none may render a page for OCR in Strategy 1. Every selected pass produces its own model request and stored prediction.
+
+## Strategy 2: four-parser OCR-enabled arm
+
+Strategy 2 exposes the same four selectable parsers with OCR enabled. “Adaptive” applies only to a parser that has a real page-level decision mechanism; it does not mean that OCR is optional for the whole strategy.
+
+| Parser | Strategy 2 OCR behavior | Policy |
+|---|---|---|
+| PyPDF | Renders and OCRs every page because PyPDF has no trusted OCR-needed classifier | Compulsory |
+| PyMuPDF4LLM | Uses its integrated page-aware OCR recovery | Adaptive |
+| pdf-inspector | Classifies every page; retains native Rust text for text pages and sends only OCR-needed pages through the exact 200-DPI GLM-OCR path | Adaptive |
+| Docling | Runs document conversion with OCR forced for every page | Compulsory |
+
+The exact pdf-inspector path is:
 
 ```text
-Annual Report PDF
-  → PyPDF page.extract_text()
-  → normalized raw page text in memory
-  → page-number markers
-  → fixed system prompt + 27-row user contract + full report text
-  → configured model
-  → normalized and validated 27-row JSON
-  → confidence gate, reconciliation, golden-set metrics
-  → stored prediction
+PDF
+  → pdf-inspector per-page classification
+      ├─ text page → native Rust extraction
+      └─ OCR-needed page
+           → render at exactly 200 DPI
+           → GLM-OCR/VLM layout extraction
+           → Markdown for that page
+  → page-ordered Markdown assembly
+  → shared prompt/model/contract/evaluation pipeline
 ```
 
-Important details:
-
-- PyPDF does not create an intermediate Markdown file. It produces one in-memory string from page-by-page `extract_text()` output.
-- It performs no OCR, table reconstruction, chunking, retrieval or reranking.
-- Flattened columns can interleave, which is the intended control condition.
-- Basic metadata and relevant outline entries are included only as diagnostics when available.
-
-## Strategy 2: representation bake-off
-
-Strategy 2 keeps the prompt, model, schema, validation and scoring constant while changing the parser. One selected PDF runs through the selected parser passes sequentially; separate PDFs may run concurrently.
-
-| Parser | Representation | Role |
-|---|---|---|
-| PyPDF | Raw page text | Baseline included for comparison |
-| PyMuPDF4LLM | Layout-aware Markdown, page chunks, OCR disabled | Preserves headings and table structure |
-| pdf-inspector | Position-aware Markdown from a Rust parser | Preserves reading order and reports document/table diagnostics |
-| Docling | ML document model and Markdown graph | Optional, slowest and most resource-intensive pass |
-
-Each pass produces an independent model request and run artifact. This makes parser timing, token load, coverage and accuracy directly comparable on the same PDF. Docling is optional because its model load is CPU/memory heavy; its conversions are serialized.
+Per-page provenance records the decision, reason, engine, page number and render DPI. Each selected pass still produces an independent model request and run artifact.
 
 The live and historical comparison now uses a matched report cohort: a report contributes to parser averages only when every selected parser completed that report. Repeated observations are averaged within each report before reports are averaged, preventing a parser rerun or a failed pass from silently changing the comparison population. Scheduled, successful and failed pass counts remain visible, and each PDF's individual values remain in its run history.
 
@@ -100,15 +104,13 @@ There are three different checks, and they must not be conflated:
 
 1. **Corpus screening** proves that the downloaded bytes are a PDF from the expected official domain, records a SHA-256 identity, checks the expected fiscal year inside the file, counts readable/garbled pages, and looks for a balance-sheet page and currency. This is document identity and health evidence, not an answer-key audit.
 2. **Arithmetic reconciliation** proves that a set of 27 values obeys the schema's subtotal identities. It catches inconsistent totals, but an internally consistent set can still be copied from the wrong column or year.
-3. **Golden-set verification** requires source-level provenance for every value. FY2022's complete 27-row answer key is supplied by the assignment problem statement. The FY2020, FY2021, FY2023, FY2024 and partial FY2025 keys are project-derived; the automated suite proves their shape and arithmetic consistency, but they should be treated as provisional until two-person/manual transcription with page, table, column, unit and derivation citations is complete.
+3. **Golden-set verification** requires source-level provenance for every value. Only the 3M FY2022 27-row answer key supplied by the assignment is authoritative by default. Every other company/year begins as Firecrawl-generated candidate data and has no exact-accuracy score until a person reviews all 27 rows against the source PDF and saves approval. Approval is bound to the exact PDF SHA-256, so replacing the PDF invalidates that approval.
 
 For a defensible manual audit, one reviewer should transcribe each leaf value from the rendered official PDF and record the printed page/table/column/unit; a second reviewer should independently re-enter it; computed subtotals should be regenerated from the leaves; disagreements should be resolved against the rendered page; and the final key should be pinned to the same PDF SHA-256 used by the run. Exact accuracy should not be reported as authoritative for a provisional key without that qualifier.
 
 ### FY2021 incident audit
 
-The 3M FY2021 score of `3.7%` is mechanically correct: exactly one accepted row (`Total Assets = 47,072`) matched out of 27 evaluated rows, so `1 / 27 × 100 = 3.7037%`. All four text-only parser passes returned the same result. The PDF is the official 142-page 3M 2021 Annual Report, but its balance-sheet page has a broken font-to-Unicode mapping: the page renders visibly and shows the 2021 figures, while normal text extraction returns glyph-code noise. Ledger flagged 73 of 142 pages as unreadable/garbled. A rendered inspection of printed page 47 independently shows `Current assets 15,403`, `Total assets 47,072`, and the other core lines, while the textual parser can recover essentially only the summary total from a different readable page.
-
-This is not evidence that PyPDF, PyMuPDF, pdf-inspector and Docling all made the same accounting mistake. It is an input representation failure shared by text-only strategies. FY2021 should be excluded from claims comparing these text representations until an explicit OCR/vision strategy is added; it should remain visible as a failed-document case rather than being silently dropped.
+The historical 3M FY2021 `3.7%` value was `1 / 27`, but it was calculated against a project-derived reference that is no longer an authoritative runtime gold set. The document also has a broken font-to-Unicode mapping: its balance sheet renders visibly while ordinary text extraction returns glyph-code noise. It is therefore useful evidence for comparing Strategy 1 with the new OCR-enabled Strategy 2, but Ledger now reports speed and coverage—not exact accuracy—until a reviewer approves a SHA-bound FY2021 table.
 
 ## Corpus acquisition and reuse
 
@@ -116,16 +118,17 @@ The Report corpus workflow is independent from extraction:
 
 ```text
 Company + official site + FY2020–FY2025
-  → Firecrawl map/search for candidate official-report URLs
-  → direct PDF download
+  → Firecrawl call 1: map/search for candidate official-report URLs
+  → direct PDF download to the canonical company/year path
   → MIME/signature, year, balance-sheet and text-health screening
-  → SHA-256 manifest entry
-  → corpus_dataset/<company>/<year>/<company>_annual_report_<year>.pdf
+  → Firecrawl call 2: structured extraction of 27 candidate answers
+  → SHA-256-bound manifest + candidate review artifact
+  → human review in the Corpus UI (optional before execution, required for accuracy)
 ```
 
-Crawling never starts a model extraction. A verified recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
+Crawling never starts a Strategy 1/2 model extraction. A screened recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF. Unverified documents are usable, but the picker warns that their candidate answers are not gold and their runs will not contribute to exact-accuracy leadership.
 
-The corpus worker is deterministic Python orchestration running inside the single Gunicorn service process on EC2. Firecrawl supplies link discovery results; Ledger itself spaces all credit-consuming Firecrawl calls through one process-wide gate (seven seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. The worker then uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes. It does not call GLM or any other extraction LLM. Model calls happen only after a user explicitly stages a screened report in Strategy 1 or Strategy 2.
+The corpus worker is deterministic Python orchestration running inside the single Gunicorn service process on EC2. Firecrawl supplies link discovery and the non-authoritative structured candidate table. Ledger spaces all credit-consuming Firecrawl calls through one process-wide gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent. Strategy model calls happen only after a user explicitly stages a report in Strategy 1 or Strategy 2.
 
 Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live separately on EBS and remain available.
 
@@ -172,11 +175,11 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 ## Current limitations
 
 - Strategies 3 and 4 remain planned.
-- Text-only parsers cannot recover scanned pages or PDFs with broken font mappings; those require OCR or a vision strategy.
+- Strategy 1 is intentionally text-only; Strategy 2 provides compulsory or page-adaptive OCR for every corresponding parser.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
-- Only FY2022 currently has an assignment-supplied complete answer key. Other maintained year keys are provisional until a PDF-hash-pinned, page-cited dual-entry audit is complete.
-- Strategy 2 is best described as an end-to-end parser capability bake-off, not a perfectly isolated representation-only ablation, because parser-specific diagnostics are included in the prompt.
+- Only 3M FY2022 has an assignment-supplied complete answer key. Every other report remains unscored until its 27-row candidate sheet is manually approved for the exact PDF SHA-256.
+- Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
 - Final accuracy can include deterministic normalization and one contract-repair call. Research reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

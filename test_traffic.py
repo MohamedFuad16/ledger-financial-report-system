@@ -106,6 +106,7 @@ class TrafficTests(unittest.TestCase):
             auto_concurrency=True,
             firecrawl_api_key="",
             keep_firecrawl_key=True,
+            firecrawl_pdf_mode="auto",
         )
 
     def test_visit_email_contains_a_readable_html_table(self):

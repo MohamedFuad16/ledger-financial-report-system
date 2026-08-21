@@ -59,8 +59,8 @@ export function CorpusPicker({
             return (
               <button className={`corpus-document-row ${checked ? 'is-selected' : ''}`} disabled={disabled} onClick={() => toggle(document)} key={document.sha256}>
                 <span className="corpus-document-check">{checked && <Check size={14} strokeWidth={3} />}</span>
-                <span className="corpus-document-copy"><strong>{document.company}</strong><small>FY{document.fiscal_year} · {document.filename}</small></span>
-                <Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened === 'ok' ? tr('Ready', '準備完了') : document.screened === 'review' ? tr('Review', '要確認') : tr('Unreadable', '読取不可')}</Badge>
+                <span className="corpus-document-copy"><strong>{document.company}</strong><small>FY{document.fiscal_year} · {document.filename}</small>{document.verification_status === 'human_review_required' && <em>{tr('Candidate answers are not human verified. You may run this report, but exact accuracy will not be scored.', '候補回答は人による確認前です。実行できますが、完全一致率は採点されません。')}</em>}</span>
+                <Badge tone={document.verification_status === 'human_review_required' ? 'amber' : document.screened === 'unreadable' ? 'red' : 'green'}>{document.verification_status === 'assignment_supplied' ? tr('Assignment gold', '課題正解') : document.verification_status === 'human_verified' ? tr('Verified', '確認済み') : document.screened === 'unreadable' ? tr('Unreadable', '読取不可') : tr('Human review', '人の確認待ち')}</Badge>
               </button>
             )
           })}

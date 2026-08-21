@@ -18,6 +18,10 @@ class _FakeStrategy:
     label = "PyPDF raw text"
     run_prefix = "S1"
     extraction_note = "Raw page-marked text."
+    parser = "pypdf"
+    experiment = "no_ocr"
+    ocr_enabled = False
+    ocr_policy = "off"
 
     def __call__(self, _path: Path) -> ExtractedText:
         return ExtractedText(text="Annual report text", page_count=1, readable_pages=1)
@@ -46,6 +50,8 @@ class PipelineSemanticsTests(unittest.TestCase):
             runs_root = Path(temp_dir) / "runs"
             run_dir = runs_root / "run"
             run_dir.mkdir(parents=True)
+            pdf_path = Path(temp_dir) / "3M_annual_report_2022.pdf"
+            pdf_path.write_bytes(b"%PDF-test")
             model_call = Mock(side_effect=model_side_effect)
             arithmetic = Mock(return_value={
                 "checks": [], "total_identities": 1, "evaluated": 1, "passed": 0,
@@ -60,7 +66,7 @@ class PipelineSemanticsTests(unittest.TestCase):
                 pipeline, "run_extraction", model_call
             ), patch.object(pipeline, "reconcile", arithmetic):
                 result = pipeline.run_pipeline(
-                    pdf_path=Path(temp_dir) / "3M_annual_report_2022.pdf",
+                    pdf_path=pdf_path,
                     settings={
                         "api_key": "test", "model": "test", "base_url": "https://example.invalid",
                         "provider": "openai", "reasoning_effort": "none",

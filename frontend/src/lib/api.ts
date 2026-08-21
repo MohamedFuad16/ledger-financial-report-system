@@ -2,6 +2,7 @@ import type {
   ProviderInfo,
   CorpusJob,
   CorpusManifest,
+  CorpusVerification,
   ExtractionJob,
   RunDetail,
   RunSummary,
@@ -39,7 +40,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   saveRuntimeSettings: (body: Record<string, unknown>) =>
-    jsonRequest<{ ok: boolean; max_concurrency: number; auto_concurrency: boolean; has_firecrawl_key: boolean; firecrawl_key_masked: string; firecrawl_credits?: { remainingCredits?: number; planCredits?: number } }>('/api/runtime-settings', {
+    jsonRequest<{ ok: boolean; max_concurrency: number; auto_concurrency: boolean; has_firecrawl_key: boolean; firecrawl_key_masked: string; firecrawl_pdf_mode: 'fast' | 'auto' | 'ocr'; firecrawl_credits?: { remainingCredits?: number; planCredits?: number } }>('/api/runtime-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -66,6 +67,7 @@ export const api = {
     return jsonRequest<{
       ok: boolean
       files: StagedFile[]
+      advisories?: string[]
       plan: {
         total_pages: number
         total_approx_tokens: number
@@ -75,12 +77,22 @@ export const api = {
     }>('/api/uploads', { method: 'POST', body })
   },
   corpus: () => jsonRequest<CorpusManifest>('/api/corpus'),
+  corpusPdfUrl: (documentId: string) => apiUrl(`/api/corpus/${encodeURIComponent(documentId)}/pdf`),
+  corpusVerification: (documentId: string) =>
+    jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification`),
+  approveCorpusVerification: (documentId: string, rows: CorpusVerification['rows']) =>
+    jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows }),
+    }),
   deleteCorpusDocument: (documentId: string) =>
     jsonRequest<{ ok: boolean; deleted: { filename: string; file_removed: boolean } }>(`/api/corpus/${encodeURIComponent(documentId)}`, { method: 'DELETE' }),
   stageCorpusDocuments: (documentIds: string[]) =>
     jsonRequest<{
       ok: boolean
       files: StagedFile[]
+      advisories?: string[]
       plan: { total_pages: number; total_approx_tokens: number; recommended_concurrency: number; advisories: string[] }
     }>('/api/corpus/stage', {
       method: 'POST',

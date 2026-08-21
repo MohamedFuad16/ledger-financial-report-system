@@ -7,9 +7,18 @@ import random
 import re
 import threading
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable
 
 import requests
+
+from schema import ASSET_SCHEMA
+
+try:  # Linux/macOS production and development hosts.
+    import fcntl
+except ImportError:  # pragma: no cover - Windows is not a supported worker host
+    fcntl = None
 
 
 class FirecrawlError(RuntimeError):
@@ -31,37 +40,78 @@ class FirecrawlRateGate:
         *,
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], None] = time.sleep,
+        state_path: Path | str | None = None,
     ) -> None:
         self.interval_seconds = max(0.0, float(interval_seconds))
         self._clock = clock
         self._sleep = sleeper
         self._lock = threading.Lock()
         self._next_allowed_at = 0.0
+        self._state_path = Path(state_path) if state_path else None
+        if self._state_path:
+            self._state_path.parent.mkdir(parents=True, exist_ok=True)
+
+    @contextmanager
+    def _shared_state(self):
+        """Yield the account timestamp under an inter-process file lock.
+
+        Gunicorn runs several Python processes. A module-level lock therefore
+        cannot protect an account-wide Firecrawl quota. The small state file is
+        deliberately outside the corpus manifest: it is runtime coordination,
+        not benchmark data.
+        """
+        if not self._state_path or fcntl is None:
+            with self._lock:
+                yield None
+            return
+        lock_path = self._state_path.with_suffix(self._state_path.suffix + ".lock")
+        with lock_path.open("a+", encoding="utf-8") as lock_handle:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+            try:
+                try:
+                    next_allowed = float(self._state_path.read_text(encoding="utf-8") or 0)
+                except (OSError, ValueError):
+                    next_allowed = 0.0
+                state = {"next_allowed_at": next_allowed}
+                yield state
+                temporary = self._state_path.with_suffix(self._state_path.suffix + ".tmp")
+                temporary.write_text(str(state["next_allowed_at"]), encoding="utf-8")
+                temporary.replace(self._state_path)
+            finally:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
     def wait(self) -> float:
         """Reserve the next request slot, sleeping until it is available."""
         waited = 0.0
         while True:
-            with self._lock:
+            with self._shared_state() as shared:
                 now = self._clock()
-                delay = max(0.0, self._next_allowed_at - now)
+                next_allowed = shared["next_allowed_at"] if shared is not None else self._next_allowed_at
+                delay = max(0.0, next_allowed - now)
                 if delay <= 0:
-                    self._next_allowed_at = now + self.interval_seconds
+                    reserved = now + self.interval_seconds
+                    if shared is not None:
+                        shared["next_allowed_at"] = reserved
+                    else:
+                        self._next_allowed_at = reserved
                     return waited
             self._sleep(delay)
             waited += delay
 
     def defer(self, seconds: float) -> None:
         """Apply an account-wide cooldown, normally from Retry-After."""
-        with self._lock:
-            self._next_allowed_at = max(
-                self._next_allowed_at,
-                self._clock() + max(0.0, float(seconds)),
-            )
+        with self._shared_state() as shared:
+            deferred = self._clock() + max(0.0, float(seconds))
+            if shared is not None:
+                shared["next_allowed_at"] = max(shared["next_allowed_at"], deferred)
+            else:
+                self._next_allowed_at = max(self._next_allowed_at, deferred)
 
 
 _GLOBAL_RATE_GATE = FirecrawlRateGate(
-    float(os.getenv("FIRECRAWL_REQUEST_INTERVAL_SECONDS", "7.0")),
+    float(os.getenv("FIRECRAWL_REQUEST_INTERVAL_SECONDS", "12.5")),
+    clock=time.time,
+    state_path=Path(os.getenv("FIRECRAWL_RATE_GATE_PATH", "runs/_firecrawl_rate_gate")),
 )
 
 
@@ -218,3 +268,61 @@ class FirecrawlClient:
                 seen.add(link)
                 normalized.append({"url": link, "title": title, "description": ""})
         return normalized
+
+    def extract_candidate_answers(self, url: str, *, mode: str = "auto") -> dict[str, Any]:
+        """Pre-populate the 27-row review sheet from a public Annual Report.
+
+        This is deliberately named *candidate* extraction. Firecrawl's result
+        is useful review assistance, but it never becomes benchmark gold until
+        a person approves the source-hash-bound table in the corpus UI.
+        """
+        normalized_mode = str(mode or "auto").strip().lower()
+        if normalized_mode not in {"fast", "auto", "ocr"}:
+            raise ValueError("Firecrawl PDF mode must be fast, auto, or ocr.")
+        items = [str(row["item"]) for row in ASSET_SCHEMA]
+        row_schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["item", "answer_m_usd", "confidence", "source_page", "evidence"],
+            "properties": {
+                "item": {"type": "string", "enum": items},
+                "answer_m_usd": {"type": ["number", "null"]},
+                "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+                "source_page": {"type": ["integer", "null"], "minimum": 1},
+                "evidence": {"type": ["string", "null"]},
+            },
+        }
+        output_schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["detected_fiscal_year", "rows"],
+            "properties": {
+                "detected_fiscal_year": {"type": ["integer", "null"]},
+                "rows": {"type": "array", "items": row_schema, "minItems": 27, "maxItems": 27},
+            },
+        }
+        prompt = (
+            "Extract the asset-side balance sheet for the report's fiscal year. "
+            "Return exactly one row for every requested item, in the supplied order. "
+            "Normalize values to millions of US dollars (M USD), preserve negative signs, "
+            "and use null when the report does not support a value. Include a concise source "
+            "quote and one-based PDF page for human verification. Requested items: "
+            + " | ".join(items)
+        )
+        body = self._post("scrape", {
+            "url": url,
+            "formats": [{"type": "json", "schema": output_schema, "prompt": prompt}],
+            "parsers": [{"type": "pdf", "mode": normalized_mode}],
+            "timeout": 300000,
+        })
+        data = body.get("data") or {}
+        structured = data.get("json") if isinstance(data, dict) else None
+        if not isinstance(structured, dict) or not isinstance(structured.get("rows"), list):
+            raise FirecrawlError("Firecrawl returned an invalid structured PDF extraction.")
+        metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
+        return {
+            "mode": normalized_mode,
+            "detected_fiscal_year": structured.get("detected_fiscal_year"),
+            "rows": structured["rows"],
+            "metadata": metadata,
+        }

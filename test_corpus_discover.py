@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from corpus.client import FirecrawlClient, FirecrawlRateGate
 from corpus.discover import discover_company_reports
@@ -42,6 +44,24 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         self.assertEqual(10.0, gate.wait())
         self.assertEqual([7.0, 10.0], sleeps)
 
+    def test_file_backed_gate_coordinates_multiple_worker_instances(self):
+        now = [100.0]
+        sleeps: list[float] = []
+
+        def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            now[0] += seconds
+
+        with TemporaryDirectory() as directory:
+            state_path = Path(directory) / "firecrawl-rate"
+            first = FirecrawlRateGate(12.5, clock=lambda: now[0], sleeper=sleep, state_path=state_path)
+            second = FirecrawlRateGate(12.5, clock=lambda: now[0], sleeper=sleep, state_path=state_path)
+            self.assertEqual(0.0, first.wait())
+            self.assertEqual(12.5, second.wait())
+            first.defer(9.0)
+            self.assertEqual(12.5, second.wait())
+            self.assertEqual([12.5, 12.5], sleeps)
+
     def test_scraped_anchor_inherits_nearest_year_heading(self):
         client = object.__new__(FirecrawlClient)
         client._post = lambda *_args, **_kwargs: {  # type: ignore[method-assign]
@@ -52,6 +72,48 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         }
         links = client.scrape_links("https://example.jp/ir/library/")
         self.assertEqual("2024 有価証券報告書", links[0]["title"])
+
+    def test_candidate_answers_use_firecrawl_pdf_parser_and_fixed_schema(self):
+        client = object.__new__(FirecrawlClient)
+        observed = {}
+
+        def post(endpoint, payload):
+            observed.update({"endpoint": endpoint, "payload": payload})
+            return {
+                "success": True,
+                "data": {
+                    "json": {
+                        "detected_fiscal_year": 2024,
+                        "rows": [
+                            {
+                                "item": item,
+                                "answer_m_usd": None,
+                                "confidence": None,
+                                "source_page": None,
+                                "evidence": None,
+                            }
+                            for item in observed.get("items", [])
+                        ],
+                    },
+                    "metadata": {"pages": 10},
+                },
+            }
+
+        def capturing_post(endpoint, payload):
+            row_schema = payload["formats"][0]["schema"]["properties"]["rows"]
+            observed["items"] = row_schema["items"]["properties"]["item"]["enum"]
+            return post(endpoint, payload)
+
+        client._post = capturing_post  # type: ignore[method-assign]
+        parsed = client.extract_candidate_answers("https://example.com/report.pdf", mode="ocr")
+
+        self.assertEqual("scrape", observed["endpoint"])
+        self.assertEqual([{"type": "pdf", "mode": "ocr"}], observed["payload"]["parsers"])
+        rows_schema = observed["payload"]["formats"][0]["schema"]["properties"]["rows"]
+        self.assertEqual(27, rows_schema["minItems"])
+        self.assertEqual(27, rows_schema["maxItems"])
+        self.assertEqual(27, len(parsed["rows"]))
+        self.assertEqual(2024, parsed["detected_fiscal_year"])
 
     def test_japanese_ir_vocabulary_is_discovered(self):
         client = _FakeFirecrawl()

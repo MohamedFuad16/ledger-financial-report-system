@@ -180,15 +180,10 @@ SUBTOTAL_IDENTITIES: list[tuple[str, list[str]]] = [
     ("Total Assets", ["Current Assets", "Fixed Assets", "Deferred Charges"]),
 ]
 
-# Multi-year benchmark answer-key store.
-#
-# FY2022 is the 27-row answer key supplied by the assignment problem statement.
-# The other years are project-derived benchmark keys: arithmetic tests establish
-# internal consistency, not source-level truth.  They must remain subject to a
-# page-cited manual audit before research claims call them authoritative gold.
-# Used strictly for post-extraction evaluation and UI comparison; these values
-# are never included in model prompts.
-GOLDEN_ANSWERS_STORE = {
+# Historical project-derived values retained only for migration/reference.
+# They are deliberately *not* benchmark gold.  Only the assignment-supplied
+# FY2022 table or a SHA-bound table approved in the Corpus UI may be scored.
+LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
     "2020": {
         "Current Assets": 14982,
         "Quick Assets": 9339,
@@ -367,6 +362,13 @@ GOLDEN_ANSWERS_STORE = {
         "Deferred Charges": 0,
         "Total Assets": 37733
     }
+}
+
+# The assignment provides one authoritative answer key: 3M FY2022.  Other
+# company/year documents remain unscored until a reviewer approves their
+# source-hash-bound candidate table in the Corpus UI.
+GOLDEN_ANSWERS_STORE = {
+    "2022": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2022"],
 }
 
 # Benchmark view of the schema: the same 27 rows, with each row's golden answer

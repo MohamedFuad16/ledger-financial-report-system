@@ -69,10 +69,10 @@ identity or job-budget boundary.
 - Resolution: Replaced the delivery surface with typed React components, a tested SSE adapter, and browser QA across all routes.
 - First seen: 2026-08-20
 
-## FY2021 PDF has an unusable text layer
+## FY2021 PDF has an unusable text layer (historical result, not a current accuracy score)
 - Symptom: All text-only strategies score approximately 3.7% on FY2021.
 - Cause: The official PDF renders printed page 47 correctly, but its embedded font maps the balance-sheet text to unusable glyph codes. Ledger marks 73/142 pages unreadable; the only exact accepted row is Total Assets, recovered from a separate readable summary page (`1/27 = 3.7037%`).
-- Resolution: Preserve the failure as input-health evidence and exclude FY2021 from text-representation claims until an explicit OCR/vision strategy is added. Do not treat arithmetic reconciliation as proof of answer-key provenance.
+- Resolution: Preserve the failure as input-health evidence. Strategy 2 now supplies compulsory or page-adaptive OCR, but FY2021 has no authoritative golden set, so the historical 3.7% must not be shown as a current exact-accuracy score. Do not treat arithmetic reconciliation or generated candidate answers as proof of ground-truth provenance.
 - First seen: 2026-08-20
 
 ## Corpus discovery disappeared after route changes or refresh (resolved)
@@ -84,7 +84,7 @@ identity or job-budget boundary.
 ## Firecrawl account was repeatedly throttled (resolved)
 - Symptom: A large Bakuraku crawl repeatedly consumed 11–13 requests per minute and received HTTP 429 responses despite per-request retries.
 - Cause: Map, scrape and search calls were issued back-to-back; each retry slept independently, so another call could consume the account slot during cooldown.
-- Resolution: Reserve every credit-consuming call through one process-wide seven-second gate, apply `Retry-After` as a shared account cooldown, and retain bounded jittered retries.
+- Resolution: Reserve every credit-consuming call through one cross-process 12.5-second gate, apply `Retry-After` as a shared account cooldown, and retain bounded jittered retries.
 - First seen: 2026-08-21
 
 ## System Python lacks test dependencies
@@ -93,8 +93,8 @@ identity or job-budget boundary.
 - Resolution: Use `.venv/bin/python test_contract.py`.
 - First seen: 2026-08-20
 
-## FY2025 uses a partial golden key
+## FY2025 previously used a partial key as gold (resolved)
 - Symptom: Accuracy and coverage can differ because only 19 of 27 FY2025 rows are scored.
 - Cause: The supplied benchmark omits eight rows rather than inventing answers.
-- Resolution: Score only defined golden rows and continue reporting 27-row output coverage independently.
+- Resolution: Remove FY2025 from runtime gold. Only the assignment-provided 3M FY2022 key is authoritative by default; any other report is scored only after a human approves all 27 candidate rows for the exact PDF SHA.
 - First seen: 2026-08-20

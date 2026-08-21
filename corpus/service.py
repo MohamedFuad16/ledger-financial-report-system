@@ -8,7 +8,7 @@ from typing import Any, Callable, Iterable
 
 from .client import FirecrawlClient
 from .discover import discover_company_reports
-from .fetch import fetch_report
+from .fetch import fetch_report, pin_candidate_answers
 
 
 Progress = Callable[[dict[str, Any]], None]
@@ -20,6 +20,7 @@ def build_corpus(
     *,
     api_key: str = "",
     max_downloads: int = 3,
+    firecrawl_pdf_mode: str = "auto",
     on_event: Progress | None = None,
 ) -> dict[str, Any]:
     years = sorted({int(year) for year in years if 2020 <= int(year) <= 2025})
@@ -80,8 +81,39 @@ def build_corpus(
                 failed.append({"company": candidate["company"], "year": candidate["year"], "reason": str(exc), "url": candidate["url"]})
                 emit({"type": "failed", **failed[-1]})
             else:
-                downloaded.append(document)
                 emit({"type": "downloaded", "company": document["company"], "year": document["fiscal_year"], "screened": document["screened"], "path": document["local_path"]})
+                emit({
+                    "type": "extracting_candidates",
+                    "company": document["company"],
+                    "year": document["fiscal_year"],
+                    "provider": "firecrawl",
+                    "mode": firecrawl_pdf_mode,
+                })
+                try:
+                    parsed = client.extract_candidate_answers(
+                        str(document["source_url"]),
+                        mode=firecrawl_pdf_mode,
+                    )
+                    document = pin_candidate_answers(document, parsed)
+                except Exception as exc:
+                    emit({
+                        "type": "candidate_extraction_failed",
+                        "company": document["company"],
+                        "year": document["fiscal_year"],
+                        "provider": "firecrawl",
+                        "mode": firecrawl_pdf_mode,
+                        "message": str(exc),
+                    })
+                else:
+                    emit({
+                        "type": "candidates_ready",
+                        "company": document["company"],
+                        "year": document["fiscal_year"],
+                        "provider": "firecrawl",
+                        "mode": firecrawl_pdf_mode,
+                        "rows": len(document.get("verification", {})) and 27,
+                    })
+                downloaded.append(document)
 
     return {
         "requested": len(companies) * len(years),

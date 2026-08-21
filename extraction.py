@@ -8,12 +8,17 @@ pipeline is strategy-agnostic.
 
 from __future__ import annotations
 
+import base64
+import os
 import re
 import threading
+import time
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+import requests
 from pypdf import PdfReader
 
 # Characters that carry no information but do consume tokens and confuse models.
@@ -264,9 +269,51 @@ def extract_with_pypdf(pdf_path: Path) -> ExtractedText:
     return _finalize(pages, len(reader.pages), "PyPDF text extraction", diagnostics)
 
 
+def extract_with_pypdf_ocr(pdf_path: Path, *, ocr_policy: str = "force") -> ExtractedText:
+    """PyPDF representation with compulsory RapidOCR preprocessing.
+
+    PyPDF has no reliable page-level OCR router. Strategy 2 therefore sends
+    every page through the configured OCR layer before building the same
+    page-marked prompt contract used by the other parser arms.
+    """
+    import pymupdf4llm
+
+    reader = PdfReader(str(pdf_path))
+    native_pages = [
+        (page_no, normalize_text(page.extract_text() or ""))
+        for page_no, page in enumerate(reader.pages, start=1)
+    ]
+    policy = str(ocr_policy or "adaptive").lower()
+    targets = [
+        page_no for page_no, body in native_pages
+        if policy == "force" or not body.strip() or page_is_unreadable(body)
+    ]
+    recovered: dict[int, str] = {}
+    for page_no in targets:
+        chunks = pymupdf4llm.to_markdown(
+            str(pdf_path),
+            page_chunks=True,
+            pages=[page_no - 1],
+            use_ocr=True,
+            force_ocr=True,
+        )
+        if chunks:
+            chunk = chunks[0]
+            body = chunk.get("text", "") if isinstance(chunk, dict) else str(chunk)
+            recovered[page_no] = normalize_text(body)
+    pages = [(page_no, recovered.get(page_no, body)) for page_no, body in native_pages]
+    diagnostics = {
+        "source": "PyPDF + RapidOCR recovery",
+        "ocr_policy": policy,
+        "ocr_pages": _compress_pages(list(recovered)),
+        "ocr_page_count": len(recovered),
+    }
+    return _finalize(pages, len(reader.pages), "PyPDF with OCR recovery", diagnostics)
+
+
 def extract_with_pymupdf4llm(pdf_path: Path) -> ExtractedText:
     """
-    STRATEGY 2: layout-aware markdown with table structure preserved.
+    Layout-aware Markdown with table structure preserved and OCR disabled.
 
     ``page_chunks=True`` keeps the per-page split so we can emit the same
     ``--- PAGE n ---`` markers as Strategy 1. Without them the model has no way
@@ -293,9 +340,9 @@ def extract_with_pymupdf4llm(pdf_path: Path) -> ExtractedText:
         except Exception:  # noqa: BLE001
             pass
 
-    # Recent PyMuPDF4LLM releases enable OCR automatically on pages whose text
-    # detector is empty. Strategy 2 is specifically a document-representation
-    # comparison, not an OCR strategy, so keep that extra variable disabled.
+    # Recent PyMuPDF4LLM releases can enable OCR automatically on pages whose
+    # text detector is empty. Strategy 1 is the strict no-OCR control, so keep
+    # both OCR switches disabled here.
     chunks = pymupdf4llm.to_markdown(
         str(pdf_path), page_chunks=True, use_ocr=False, force_ocr=False
     )
@@ -316,36 +363,74 @@ def extract_with_pymupdf4llm(pdf_path: Path) -> ExtractedText:
     return _finalize(pages, page_count or len(pages), "PyMuPDF4LLM markdown extraction", diagnostics)
 
 
+def extract_with_pymupdf4llm_ocr(pdf_path: Path, *, ocr_policy: str = "adaptive") -> ExtractedText:
+    """Layout Markdown with integrated RapidOCR recovery."""
+    try:
+        import pymupdf
+        import pymupdf4llm
+    except ImportError as exc:  # pragma: no cover - depends on install
+        raise RuntimeError("pymupdf4llm is not installed. Run: pip install pymupdf4llm") from exc
+
+    policy = str(ocr_policy or "adaptive").lower()
+    with pymupdf.open(str(pdf_path)) as doc:
+        page_count = len(doc)
+    chunks = pymupdf4llm.to_markdown(
+        str(pdf_path),
+        page_chunks=True,
+        use_ocr=True,
+        force_ocr=policy == "force",
+    )
+    pages: list[tuple[int, str]] = []
+    for index, chunk in enumerate(chunks, start=1):
+        if isinstance(chunk, dict):
+            metadata = chunk.get("metadata") or {}
+            raw_page = metadata.get("page_number", metadata.get("page"))
+            page_no = int(raw_page) if isinstance(raw_page, int) and raw_page > 0 else index
+            body = chunk.get("text", "")
+        else:
+            page_no, body = index, str(chunk)
+        pages.append((page_no, normalize_text(body)))
+    return _finalize(
+        pages,
+        page_count or len(pages),
+        "PyMuPDF4LLM with RapidOCR",
+        {"source": "PyMuPDF4LLM + RapidOCR", "ocr_policy": policy},
+    )
+
+
 # Docling loads an ML layout model. Building a converter per call reloads that
 # model every time, and several threads loading it at once is what produces
 # "Failed to load model … [Errno 32] Broken pipe". Build it once, and let only
 # one conversion run at a time: the work is CPU-bound and does not benefit from
 # running concurrently anyway.
 _DOCLING_LOCK = threading.Lock()
-_docling_converter = None
+_docling_converters: dict[tuple[bool, bool], object] = {}
 
 
-def _docling_converter_once():
-    global _docling_converter
-    if _docling_converter is None:
+def _docling_converter_once(*, do_ocr: bool = False, force_ocr: bool = False):
+    key = (bool(do_ocr), bool(force_ocr))
+    if key not in _docling_converters:
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
 
         options = PdfPipelineOptions()
-        # Every document in the benchmark is text-based; running OCR anyway
-        # found nothing and dominated the runtime.
-        options.do_ocr = False
+        # Strategy 1 disables OCR. Strategy 2 deliberately forces a full-page
+        # OCR treatment because Docling does not expose the trusted per-page
+        # classifier required by this experiment's adaptive contract.
+        options.do_ocr = bool(do_ocr)
+        if options.do_ocr:
+            options.ocr_options.force_full_page_ocr = bool(force_ocr)
         options.do_table_structure = True
         options.table_structure_options.do_cell_matching = True
 
-        _docling_converter = DocumentConverter(
+        _docling_converters[key] = DocumentConverter(
             format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
         )
-    return _docling_converter
+    return _docling_converters[key]
 
 
-def extract_with_docling(pdf_path: Path) -> ExtractedText:
+def extract_with_docling(pdf_path: Path, *, ocr_policy: str = "off") -> ExtractedText:
     """
     Layout-aware conversion with Docling's ML document model.
 
@@ -362,7 +447,11 @@ def extract_with_docling(pdf_path: Path) -> ExtractedText:
 
     with _DOCLING_LOCK:
         try:
-            converter = _docling_converter_once()
+            policy = str(ocr_policy or "off").lower()
+            converter = _docling_converter_once(
+                do_ocr=policy != "off",
+                force_ocr=policy == "force",
+            )
         except ImportError as exc:  # pragma: no cover - depends on install
             raise RuntimeError("docling is not installed. Run: pip install docling") from exc
         except Exception as exc:  # noqa: BLE001 - model load can fail for many reasons
@@ -391,7 +480,7 @@ def extract_with_docling(pdf_path: Path) -> ExtractedText:
 
     # Docling's differentiator is a typed document graph: it knows what is a
     # table, where it sits, and how it is shaped.
-    diagnostics: dict = {"source": "Docling"}
+    diagnostics: dict = {"source": "Docling", "ocr_policy": str(ocr_policy or "off").lower()}
     try:
         table_pages, shapes = [], []
         for table in getattr(document, "tables", []) or []:
@@ -503,6 +592,174 @@ def extract_with_pdf_inspector(pdf_path: Path) -> ExtractedText:
     return extracted
 
 
+_GLM_OCR_REQUEST_LOCK = threading.Lock()
+_GLM_OCR_NEXT_REQUEST_AT = 0.0
+
+
+def _glm_ocr_markdown(
+    image_bytes: bytes,
+    *,
+    api_key: str,
+    endpoint: str,
+    page_no: int,
+    timeout: float = 180.0,
+) -> str:
+    """Return GLM-OCR Markdown for one rendered page with bounded retries.
+
+    The official layout-parsing API accepts an image data URL. Calls are kept
+    sequential and lightly spaced because a scanned report can otherwise turn
+    one user action into a burst of dozens of OCR requests.
+    """
+    if not api_key.strip():
+        raise RuntimeError(
+            "GLM-OCR requires a Z.AI API key. Configure GLM_OCR_API_KEY or "
+            "save a Z.AI model gateway key in Settings."
+        )
+    data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
+    url = endpoint.rstrip("/")
+    headers = {"Authorization": f"Bearer {api_key.strip()}", "Content-Type": "application/json"}
+    payload = {
+        "model": "glm-ocr",
+        "file": data_url,
+        "return_crop_images": False,
+        "need_layout_visualization": False,
+    }
+    last_error = "Unknown GLM-OCR error"
+    for attempt in range(1, 5):
+        global _GLM_OCR_NEXT_REQUEST_AT
+        with _GLM_OCR_REQUEST_LOCK:
+            delay = max(0.0, _GLM_OCR_NEXT_REQUEST_AT - time.monotonic())
+            if delay:
+                time.sleep(delay)
+            _GLM_OCR_NEXT_REQUEST_AT = time.monotonic() + float(
+                os.getenv("GLM_OCR_REQUEST_INTERVAL_SECONDS", "1.25")
+            )
+            try:
+                response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            except requests.RequestException as exc:
+                response = None
+                last_error = str(exc)
+
+        if response is not None:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            if response.ok:
+                data = body.get("data") if isinstance(body.get("data"), dict) else body
+                markdown = data.get("md_results") if isinstance(data, dict) else None
+                if isinstance(markdown, list):
+                    parts: list[str] = []
+                    for item in markdown:
+                        if isinstance(item, str):
+                            parts.append(item)
+                        elif isinstance(item, dict):
+                            parts.append(str(item.get("markdown") or item.get("text") or ""))
+                    markdown = "\n\n".join(part for part in parts if part.strip())
+                if isinstance(markdown, str) and markdown.strip():
+                    return normalize_text(markdown)
+                last_error = "GLM-OCR returned no Markdown."
+            else:
+                message = body.get("error") or body.get("message") or response.text[:300]
+                last_error = f"HTTP {response.status_code}: {message}"
+                if response.status_code not in {408, 409, 425, 429, 500, 502, 503, 504}:
+                    break
+        if attempt < 4:
+            time.sleep(min(12.0, 2.0 ** attempt))
+    raise RuntimeError(f"GLM-OCR failed on page {page_no}: {last_error}")
+
+
+def extract_with_pdf_inspector_ocr(
+    pdf_path: Path,
+    *,
+    ocr_policy: str = "adaptive",
+    ocr_context: dict[str, Any] | None = None,
+) -> ExtractedText:
+    """Rust page classification plus selective 200-DPI GLM-OCR.
+
+    pdf-inspector owns the page decision and native Markdown representation.
+    Only pages marked ``needs_ocr`` are rasterized and replaced by hosted
+    GLM-OCR Markdown. This keeps the adaptive treatment observable per page.
+    """
+    try:
+        import pdf_inspector
+        import pymupdf
+    except ImportError as exc:  # pragma: no cover - depends on install
+        raise RuntimeError("pdf-inspector and PyMuPDF are required for adaptive GLM-OCR.") from exc
+    policy = str(ocr_policy or "adaptive").lower()
+    context = ocr_context or {}
+    api_key = str(context.get("glm_ocr_api_key") or context.get("api_key") or "")
+    endpoint = str(
+        context.get("glm_ocr_endpoint")
+        or os.getenv("GLM_OCR_ENDPOINT")
+        or "https://api.z.ai/api/paas/v4/layout_parsing"
+    )
+    try:
+        result = pdf_inspector.extract_pages_markdown(str(pdf_path))
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"pdf-inspector page classification failed ({exc}).") from exc
+
+    raw_pages = list(getattr(result, "pages", result) or [])
+    pages: list[tuple[int, str]] = []
+    page_provenance: list[dict[str, Any]] = []
+    ocr_pages: list[int] = []
+    with pymupdf.open(str(pdf_path)) as document:
+        for index, page in enumerate(raw_pages, start=1):
+            zero_based = getattr(page, "page", None)
+            one_based = getattr(page, "page_number", None)
+            if isinstance(one_based, int) and one_based > 0:
+                page_no = one_based
+            elif isinstance(zero_based, int) and zero_based >= 0:
+                page_no = zero_based + 1
+            else:
+                page_no = index
+            native_markdown = normalize_text(
+                str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
+            )
+            classifier_decision = bool(
+                getattr(page, "needs_ocr", False)
+                or not native_markdown.strip()
+                or page_is_unreadable(native_markdown)
+            )
+            use_ocr = policy == "force" or classifier_decision
+            if use_ocr:
+                pixmap = document[page_no - 1].get_pixmap(
+                    matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
+                    alpha=False,
+                )
+                markdown = _glm_ocr_markdown(
+                    pixmap.tobytes("png"),
+                    api_key=api_key,
+                    endpoint=endpoint,
+                    page_no=page_no,
+                )
+                ocr_pages.append(page_no)
+                source = "glm_ocr"
+            else:
+                markdown = native_markdown
+                source = "pdf_inspector_native_rust"
+            pages.append((page_no, markdown))
+            page_provenance.append({
+                "page": page_no,
+                "classification_decision": "ocr_needed" if classifier_decision else "text_page",
+                "source": source,
+                "render_dpi": 200 if use_ocr else None,
+                "ocr_model": "glm-ocr" if use_ocr else None,
+            })
+
+    diagnostics = {
+        "source": "pdf-inspector native Rust + GLM-OCR",
+        "ocr_policy": policy,
+        "ocr_router": "pdf-inspector per-page classification",
+        "render_dpi": 200,
+        "ocr_engine": "glm-ocr",
+        "ocr_pages": _compress_pages(ocr_pages),
+        "ocr_page_count": len(ocr_pages),
+        "page_provenance": page_provenance,
+    }
+    return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive GLM-OCR", diagnostics)
+
+
 @dataclass(frozen=True)
 class Strategy:
     key: str
@@ -510,8 +767,29 @@ class Strategy:
     label: str
     extraction_note: str
     extract: object
+    parser: str
+    experiment: str
+    ocr_enabled: bool = False
+    ocr_policy: str = "off"
 
-    def __call__(self, pdf_path: Path) -> ExtractedText:
+    def __call__(
+        self,
+        pdf_path: Path,
+        *,
+        ocr_policy: str = "adaptive",
+        ocr_context: dict[str, Any] | None = None,
+    ) -> ExtractedText:
+        if self.ocr_enabled:
+            # OCR behavior is part of the experimental treatment, not a user
+            # preference.  Parsers with a real page classifier stay adaptive;
+            # parsers without one OCR every page in Strategy 2.
+            if self.key == "s2-inspector":
+                return self.extract(
+                    pdf_path,
+                    ocr_policy=self.ocr_policy,
+                    ocr_context=ocr_context,
+                )
+            return self.extract(pdf_path, ocr_policy=self.ocr_policy)
         return self.extract(pdf_path)
 
 
@@ -525,37 +803,101 @@ STRATEGIES: dict[str, Strategy] = {
             "may be flattened or interleaved. Page markers identify the source PDF page."
         ),
         extract=extract_with_pypdf,
+        parser="pypdf",
+        experiment="no_ocr",
     ),
-    "s2": Strategy(
-        key="s2",
-        run_prefix="S2",
-        label="Strategy 2 - layout-aware markdown",
+    "s1-pymupdf": Strategy(
+        key="s1-pymupdf",
+        run_prefix="S1PM",
+        label="Strategy 1 - PyMuPDF4LLM without OCR",
         extraction_note=(
             "layout-aware Markdown using PyMuPDF4LLM with table structure preserved. "
             "Page markers identify the source PDF page."
         ),
         extract=extract_with_pymupdf4llm,
+        parser="pymupdf",
+        experiment="no_ocr",
     ),
-    "s2-docling": Strategy(
-        key="s2-docling",
-        run_prefix="S2DL",
-        label="Strategy 2 - Docling",
+    "s1-docling": Strategy(
+        key="s1-docling",
+        run_prefix="S1DL",
+        label="Strategy 1 - Docling without OCR",
         extraction_note=(
             "layout-aware Markdown produced by Docling's document model, with table "
             "structure and cell matching. Page markers identify the source PDF page."
         ),
         extract=extract_with_docling,
+        parser="docling",
+        experiment="no_ocr",
     ),
-    "s2-inspector": Strategy(
-        key="s2-inspector",
-        run_prefix="S2FC",
-        label="Strategy 2 - Firecrawl pdf-inspector",
+    "s1-inspector": Strategy(
+        key="s1-inspector",
+        run_prefix="S1FC",
+        label="Strategy 1 - pdf-inspector without OCR",
         extraction_note=(
             "position-aware Markdown produced by Firecrawl's pdf-inspector, with "
             "multi-column reading order and table detection. Page markers identify "
             "the source PDF page."
         ),
         extract=extract_with_pdf_inspector,
+        parser="inspector",
+        experiment="no_ocr",
+    ),
+    "s2-pypdf": Strategy(
+        key="s2-pypdf",
+        run_prefix="S2PY",
+        label="Strategy 2 - PyPDF with compulsory OCR",
+        extraction_note=(
+            "Every page is rendered and processed with RapidOCR because PyPDF has no trusted "
+            "per-page OCR classifier. Page markers identify the source PDF page."
+        ),
+        extract=extract_with_pypdf_ocr,
+        parser="pypdf",
+        experiment="ocr",
+        ocr_enabled=True,
+        ocr_policy="force",
+    ),
+    "s2": Strategy(
+        key="s2",
+        run_prefix="S2",
+        label="Strategy 2 - PyMuPDF4LLM with OCR",
+        extraction_note=(
+            "layout-aware Markdown using PyMuPDF4LLM with integrated RapidOCR recovery and table structure preserved. "
+            "Page markers identify the source PDF page."
+        ),
+        extract=extract_with_pymupdf4llm_ocr,
+        parser="pymupdf",
+        experiment="ocr",
+        ocr_enabled=True,
+        ocr_policy="adaptive",
+    ),
+    "s2-docling": Strategy(
+        key="s2-docling",
+        run_prefix="S2DL",
+        label="Strategy 2 - Docling with compulsory OCR",
+        extraction_note=(
+            "Docling document-graph conversion with OCR forced on every page, table structure, and cell matching. "
+            "Page markers identify the source PDF page."
+        ),
+        extract=extract_with_docling,
+        parser="docling",
+        experiment="ocr",
+        ocr_enabled=True,
+        ocr_policy="force",
+    ),
+    "s2-inspector": Strategy(
+        key="s2-inspector",
+        run_prefix="S2FC",
+        label="Strategy 2 - pdf-inspector with adaptive OCR",
+        extraction_note=(
+            "pdf-inspector classifies every page. Text pages keep native Rust Markdown; OCR-needed pages "
+            "are rendered at 200 DPI and replaced by GLM-OCR Markdown before page-ordered assembly."
+        ),
+        extract=extract_with_pdf_inspector_ocr,
+        parser="inspector",
+        experiment="ocr",
+        ocr_enabled=True,
+        ocr_policy="adaptive",
     ),
 }
 

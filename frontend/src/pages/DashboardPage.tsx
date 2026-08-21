@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { ArrowRight, CheckCircle2, Database, Gauge, Layers3 } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
-import { formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders } from '../lib/format'
+import { type BenchmarkExperiment, formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
 import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
@@ -16,19 +17,21 @@ export function DashboardPage({
   onNavigate: (key: PanelKey) => void
 }) {
   const { tr } = useLocale()
-  const benchmarkRuns = matchedParserCohort(runs)
-  const scored = benchmarkRuns.filter((run) => run.accuracy != null)
+  const [experiment, setExperiment] = useState<BenchmarkExperiment>('no_ocr')
+  const armRuns = runs.filter((run) => run.experiment === experiment)
+  const benchmarkRuns = matchedParserCohort(runs, experiment)
+  const stats = groupParserStats(runs, experiment).filter((entry) => entry.runs)
   const average = (key: keyof RunSummary) => {
-    const source = key === 'accuracy' || key === 'coverage' ? scored : runs
-    const values = source.map((run) => run[key]).filter((value) => value != null).map(Number).filter(Number.isFinite)
+    const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
   }
-  const stats = groupParserStats(runs).filter((entry) => entry.runs)
   const fastest = stats.length ? stats.reduce((a, b) => Number(a.extractSeconds ?? Infinity) <= Number(b.extractSeconds ?? Infinity) ? a : b) : null
   const accuracyLeaders = parserMetricLeaders(stats, 'accuracy')
   const accuracyLeader = accuracyLeaders[0] || null
   const tiedAccuracyLabel = accuracyLeaders.map((entry) => entry.short).join(tr(' and ', '・'))
-  const conclusion = fastest && accuracyLeader
+  const completeReportCount = new Set(benchmarkRuns.map(reportCohortKey)).size
+  const hasUnverifiedReports = armRuns.some((run) => run.gold_status === 'human_review_required')
+  const conclusion = fastest && accuracyLeader && completeReportCount
     ? accuracyLeaders.length > 1
       ? tr(`${fastest.short} is fastest; ${tiedAccuracyLabel} are tied for exact accuracy at ${formatMetric(accuracyLeader.accuracy)}.`, `${fastest.short} が最速で、${tiedAccuracyLabel} が完全一致率 ${formatMetric(accuracyLeader.accuracy)} で同率首位です。`)
       : fastest.key === accuracyLeader.key
@@ -48,18 +51,26 @@ export function DashboardPage({
         </div>
       </header>
 
+      <div className="benchmark-arm-bar">
+        <div><strong>{tr('Benchmark arm', 'ベンチマーク条件')}</strong><span>{experiment === 'ocr' ? tr('Same four parsers · parser-specific OCR policy', '同じ4パーサー・パーサー別OCRポリシー') : tr('Same four parsers · OCR disabled', '同じ4パーサー・OCRなし')}</span></div>
+        <div className="segmented-control" role="group" aria-label={tr('Benchmark arm', 'ベンチマーク条件')}>
+          <button className={experiment === 'no_ocr' ? 'is-active' : ''} onClick={() => setExperiment('no_ocr')}>{tr('No OCR', 'OCRなし')}</button>
+          <button className={experiment === 'ocr' ? 'is-active' : ''} onClick={() => setExperiment('ocr')}>{tr('OCR', 'OCRあり')}</button>
+        </div>
+      </div>
+
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned above confidence gate', '信頼度基準を超えて取得された項目')} />
-        <MetricCard label={tr('Completed experiments', '完了した実験')} value={runs.length.toLocaleString()} detail={`${new Set(runs.map((run) => run.fiscal_year).filter(Boolean)).size} ${tr('fiscal years in the library', '会計年度を保存')}`} />
+        <MetricCard label={tr('Matched reports', '対応レポート')} value={completeReportCount.toLocaleString()} detail={tr('Every parser in this arm completed the same report', 'この条件の全パーサーが同じレポートを完了')} />
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastest?.short || '—'} detail={fastest ? `${formatDuration(fastest.extractSeconds)} ${tr('mean parse time', '平均解析時間')}` : tr('No timing data yet', '時間データはまだありません')} />
       </div>
 
       <SectionHeading eyebrow={tr('Research tracks', '研究トラック')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
       <div className="strategy-grid dashboard-strategy-grid">
         {[
-          { number: '01', title: tr('Direct LLM baseline', 'LLM直接抽出ベースライン'), body: tr('Raw page-by-page PyPDF text. The intentionally plain control condition.', 'PyPDFのページ単位の生テキストを使う基本対照条件です。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy1' as PanelKey, icon: Gauge },
-          { number: '02', title: tr('Representation bake-off', '文書表現ベイクオフ'), body: tr('PyMuPDF4LLM, Docling, and pdf-inspector on the same report and prompt.', '同一レポートとプロンプトで複数パーサーを比較します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy2' as PanelKey, icon: Layers3 },
+          { number: '01', title: tr('No-OCR parser control', 'OCRなしパーサー対照実験'), body: tr('PyPDF, PyMuPDF4LLM, pdf-inspector, and Docling with OCR disabled.', 'PyPDF、PyMuPDF4LLM、pdf-inspector、DoclingをOCRなしで比較します。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy1' as PanelKey, icon: Gauge },
+          { number: '02', title: tr('OCR-enabled bake-off', 'OCR有効ベイクオフ'), body: tr('The same four parsers: adaptive OCR where page detection exists, otherwise OCR is compulsory.', '同じ4パーサーで、ページ判定がある場合は適応OCR、ない場合はOCRを必須化します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy2' as PanelKey, icon: Layers3 },
           { number: '03', title: tr('Hybrid retrieval & RAG', 'ハイブリッド検索とRAG'), body: tr('Retrieve the balance sheet and relevant notes before extraction.', '抽出前に貸借対照表と関連注記を検索します。'), status: tr('Planned', '予定'), tone: 'neutral' as const, panel: 'strategy3' as PanelKey, icon: Database },
           { number: '04', title: tr('Agentic accounting', 'エージェント会計検証'), body: tr('Re-ask only about rows implicated by failed identities.', '不一致に関係する行だけを再確認します。'), status: tr('Planned', '予定'), tone: 'neutral' as const, panel: 'strategy4' as PanelKey, icon: CheckCircle2 },
         ].map((strategy) => {
@@ -79,7 +90,7 @@ export function DashboardPage({
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
           <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Relative parser speed', 'パーサー相対速度')} description={tr('Strategy 1 is the 1.0× baseline. Higher multiples finish the same extraction faster.', '戦略1を1.0倍の基準とし、倍率が高いほど同じ抽出を速く完了します。')} />
-          {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
+          {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} experiment={experiment} />}
         </Card>
         <Card className="chart-card coverage-card">
           <SectionHeading eyebrow={tr('Quality composition', '品質構成')} title={tr('Accuracy versus coverage', '正確度とカバレッジ')} description={tr('Coverage says a field was returned; exact accuracy says it matched the gold value.', 'カバレッジは項目の取得率、完全一致率は正解値との一致を示します。')} />
@@ -94,13 +105,15 @@ export function DashboardPage({
         </Card>
         <Card className="chart-card accuracy-card">
           <SectionHeading eyebrow={tr('Benchmark', 'ベンチマーク')} title={tr('Mean exact accuracy', '平均完全一致率')} description={tr('Scored rows only, grouped by parser.', '評価対象行をパーサー別に集計しています。')} />
-          {loading ? <div className="chart-skeleton" /> : <ParserAccuracyChart runs={benchmarkRuns} />}
+          {loading ? <div className="chart-skeleton" /> : <ParserAccuracyChart runs={benchmarkRuns} experiment={experiment} />}
         </Card>
       </div>
 
       <div className="dashboard-lower">
         <Card className="method-card conclusion-card">
           <SectionHeading eyebrow={tr('Current conclusion', '現在の結論')} title={conclusion} description={tr('This conclusion is calculated from the completed benchmark runs currently stored in the workspace.', 'この結論は、ワークスペースに保存された完了済みベンチマークから算出されます。')} />
+          {hasUnverifiedReports && <p className="benchmark-caveat">{tr('Some completed runs use reports whose candidate answers have not been human approved. They remain visible for speed and coverage analysis, but they do not contribute to exact-accuracy leadership.', '完了済み実行の一部は候補回答が人による承認前です。速度とカバレッジの分析には表示されますが、完全一致率の首位判定には含まれません。')}</p>}
+          {experiment === 'no_ocr' && armRuns.some((run) => String(run.fiscal_year) === '2021' && Number(run.accuracy) <= 4) && <p className="benchmark-caveat">{tr('FY2021 has a damaged embedded text layer (73 of 142 pages unreadable). It remains visible for diagnosis but should not support a no-OCR parser conclusion until the OCR arm is complete.', 'FY2021は埋め込みテキスト層が破損しており、142ページ中73ページが読取不能です。診断用に表示しますが、OCR条件が完了するまでOCRなしの結論には使用すべきではありません。')}</p>}
         </Card>
       </div>
 

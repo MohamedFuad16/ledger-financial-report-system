@@ -14,7 +14,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { RunSummary } from '../types'
-import { formatDuration, formatMetric, groupParserStats, parserFor } from '../lib/format'
+import { type BenchmarkExperiment, formatDuration, formatMetric, groupParserStats, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Record<string, unknown> }> }) {
@@ -75,10 +75,11 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
   )
 }
 
-export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
+export function SpeedBenchmarkChart({ runs, experiment }: { runs: RunSummary[]; experiment: BenchmarkExperiment }) {
   const { tr } = useLocale()
-  const stats = groupParserStats(runs).filter((item) => item.runs && item.extractSeconds != null && item.extractSeconds > 0)
-  const baseline = stats.find((item) => item.key === 's1') || (stats.length ? stats.reduce((slowest, item) => Number(item.extractSeconds) > Number(slowest.extractSeconds) ? item : slowest) : undefined)
+  const stats = groupParserStats(runs, experiment).filter((item) => item.runs && item.extractSeconds != null && item.extractSeconds > 0)
+  const baselineKey = experiment === 'ocr' ? 's2-pypdf' : 's1'
+  const baseline = stats.find((item) => item.key === baselineKey) || (stats.length ? stats.reduce((slowest, item) => Number(item.extractSeconds) > Number(slowest.extractSeconds) ? item : slowest) : undefined)
   const data = stats
     .map((item) => ({ ...item, speedup: Number(baseline?.extractSeconds) / Number(item.extractSeconds) }))
     .sort((a, b) => b.speedup - a.speedup)
@@ -151,9 +152,9 @@ export function CoverageDonut({ runs }: { runs: RunSummary[] }) {
   )
 }
 
-export function ParserAccuracyChart({ runs }: { runs: RunSummary[] }) {
+export function ParserAccuracyChart({ runs, experiment }: { runs: RunSummary[]; experiment: BenchmarkExperiment }) {
   const { tr } = useLocale()
-  const data = groupParserStats(runs).filter((item) => item.runs).map((item) => ({ ...item, label: item.short }))
+  const data = groupParserStats(runs, experiment).filter((item) => item.runs).map((item) => ({ ...item, label: item.short }))
   return (
     <div className="chart-frame">
       <ResponsiveContainer width="100%" height="100%">

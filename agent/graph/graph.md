@@ -4,7 +4,7 @@
 
 | Module | Depends on | Depended on by | Blast radius |
 |---|---|---|---|
-| `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, scoring, API, and UI |
+| `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, assignment-only gold, scoring, API, and UI |
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
 | `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
 | `server.py` | pipeline/settings/schema/corpus | browser client | Changes affect every client workflow |
@@ -13,7 +13,8 @@
 | `corpus/discover.py` | Firecrawl client | corpus service | Changes affect link ranking and Firecrawl credits |
 | `corpus/client.py` | Firecrawl REST API | discovery, runtime-settings verification | Changes affect discovery calls and credential-save safety |
 | `runs/_corpus_jobs` | server corpus-job registry | corpus job list/detail API, client rehydration | Changes affect navigation-safe discovery visibility and restart audit state |
-| `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect local PDF trust and naming |
+| `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect PDF trust, canonical naming, and SHA-bound candidate artifacts |
+| `corpus/manifest.py` | schema, file/OS locks | corpus API, pipeline scoring | Changes affect canonical corpus identity, human approval, deletion, and exact-accuracy eligibility |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |

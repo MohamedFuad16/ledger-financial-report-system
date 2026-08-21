@@ -16,5 +16,6 @@ graphify-out/
 /tmp/
 /output/
 corpus_dataset/**/*.pdf
+corpus_dataset/.corpus_manifest.lock
 .vercel
 .env.local

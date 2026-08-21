@@ -10,6 +10,7 @@ assembly, same Pydantic validation, same prediction.json layout.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import shutil
 import threading
@@ -200,7 +201,12 @@ def apply_confidence_gate(rows: list[dict]) -> list[dict]:
     return gated
 
 
-def compute_metrics(rows: list[dict] | None, fiscal_year: Any) -> dict[str, Any]:
+def compute_metrics(
+    rows: list[dict] | None,
+    fiscal_year: Any,
+    company: str | None = None,
+    source_pdf_sha256: str | None = None,
+) -> dict[str, Any]:
     """
     Score a prediction against the golden answers for its fiscal year.
 
@@ -218,7 +224,34 @@ def compute_metrics(rows: list[dict] | None, fiscal_year: Any) -> dict[str, Any]
     silently compared against another year.
     """
     year = re.search(r"(19|20)\d{2}", str(fiscal_year or ""))
-    golden = GOLDEN_ANSWERS_STORE.get(year.group(), {}) if year else {}
+    normalized_company = re.sub(r"[^a-z0-9]+", "", str(company or "").lower())
+    golden: dict[str, float] = {}
+    gold_status = "human_review_required"
+    gold_company = None
+    # FY2022 is the only answer key supplied by the assignment. It remains
+    # authoritative for 3M even when the run came from a direct upload.
+    if year and year.group() == "2022" and normalized_company == "3m":
+        golden = GOLDEN_ANSWERS_STORE["2022"]
+        gold_status = "assignment_supplied"
+        gold_company = "3M"
+    elif source_pdf_sha256:
+        # All other answer keys must be human-approved and bound to the exact
+        # bytes that were run. A same-year PDF replacement cannot inherit gold.
+        try:
+            from corpus.manifest import find_document, verification_payload
+
+            document = find_document(source_pdf_sha256)
+            verification = verification_payload(document) if document else None
+        except (OSError, ValueError, KeyError):
+            verification = None
+        if verification and verification.get("status") == "human_verified":
+            golden = {
+                str(item.get("item")): float(item["answer_m_usd"])
+                for item in verification.get("rows", [])
+                if item.get("answer_m_usd") is not None
+            }
+            gold_status = "human_verified"
+            gold_company = str(company or document.get("company") or "")
 
     exact = 0
     compared = 0
@@ -262,6 +295,8 @@ def compute_metrics(rows: list[dict] | None, fiscal_year: Any) -> dict[str, Any]
         "filled_fields": filled,
         "committed_and_compared": committed,
         "has_golden": bool(golden),
+        "gold_company": gold_company if golden else None,
+        "gold_status": gold_status if golden else "human_review_required",
     }
 
 
@@ -369,7 +404,13 @@ def _run_pipeline_inner(
 
     progress("extract", f"Extracting text · {strategy.label}")
     extract_started = time.perf_counter()
-    extracted = strategy(pdf_path)
+    ocr_enabled = bool(getattr(strategy, "ocr_enabled", False))
+    ocr_policy = str(getattr(strategy, "ocr_policy", "off")) if ocr_enabled else "off"
+    extracted = (
+        strategy(pdf_path, ocr_policy=ocr_policy, ocr_context=settings)
+        if ocr_enabled
+        else strategy(pdf_path)
+    )
     extract_seconds = round(time.perf_counter() - extract_started, 2)
     if not extracted.text.strip() or extracted.readable_pages == 0:
         detail = extracted.warnings[-1] if extracted.warnings else (
@@ -492,14 +533,23 @@ def _run_pipeline_inner(
     progress("validate", reconciliation_summary(reconciliation), done=True)
 
     fiscal_year = result.detected_fiscal_year or (fiscal_year_hint or "").strip()
-    metrics = compute_metrics(rows, fiscal_year)
+    company, _, _ = report_identity(display_name or Path(pdf_path).name, fiscal_year)
+    source_pdf_sha256 = hashlib.sha256(Path(pdf_path).read_bytes()).hexdigest()
+    metrics = compute_metrics(rows, fiscal_year, company, source_pdf_sha256)
     metrics["consistency"] = reconciliation["consistency"]
 
-    progress("output", "Saving verified result")
+    progress("output", "Saving extraction result")
     prediction: dict[str, Any] = {
         "run_id": run_dir.name,
         "strategy": strategy.key,
         "strategy_label": strategy.label,
+        "parser": strategy.parser,
+        "experiment": strategy.experiment,
+        "experiment_schema_version": 2,
+        "ocr_enabled": strategy.ocr_enabled,
+        "ocr_policy": ocr_policy if strategy.ocr_enabled else "off",
+        "company": company,
+        "source_pdf_sha256": source_pdf_sha256,
         "model": settings["model"],
         "base_url": settings["base_url"],
         "fiscal_year": fiscal_year,
@@ -585,7 +635,10 @@ def list_runs() -> list[dict[str, Any]]:
         # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
         # force at the time, and a history scored under two different rules is
         # not comparable.
-        metrics = compute_metrics(rows, fiscal_year)
+        company = prediction.get("company") or report_identity(
+            prediction.get("pdf_file", ""), fiscal_year
+        )[0]
+        metrics = compute_metrics(rows, fiscal_year, company, prediction.get("source_pdf_sha256"))
         report = prediction.get("reconciliation") or reconcile(rows)
         metrics["consistency"] = report["consistency"]
         # Accept any registered strategy key. The old whitelist collapsed
@@ -599,10 +652,33 @@ def list_runs() -> list[dict[str, Any]]:
                 "s2" if directory.name.startswith("S2") else "s1",
             )
 
+        registered = STRATEGIES.get(strategy)
+        if prediction.get("experiment"):
+            experiment = prediction["experiment"]
+            parser = prediction.get("parser") or (registered.parser if registered else strategy)
+            ocr_enabled = bool(prediction.get("ocr_enabled"))
+            ocr_policy = prediction.get("ocr_policy", "off")
+        else:
+            # The former Strategy 2 keys were all text-only.  Do not silently
+            # relabel historical observations as OCR runs now that those keys
+            # are used by the revised matched experiment.
+            experiment = "legacy_no_ocr"
+            parser = {
+                "s1": "pypdf", "s2": "pymupdf",
+                "s2-docling": "docling", "s2-inspector": "inspector",
+            }.get(strategy, registered.parser if registered else strategy)
+            ocr_enabled = False
+            ocr_policy = "off"
+
         summaries.append({
             "run_id": prediction.get("run_id", directory.name),
             "timestamp": run_timestamp(directory.name),
             "strategy": strategy,
+            "parser": parser,
+            "experiment": experiment,
+            "ocr_enabled": ocr_enabled,
+            "ocr_policy": ocr_policy,
+            "company": company,
             "model": prediction.get("model", ""),
             "fiscal_year": fiscal_year,
             "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),

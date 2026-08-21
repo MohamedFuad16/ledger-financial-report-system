@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import corpus.manifest as manifest_module
+import corpus.fetch as fetch_module
+from schema import ASSET_SCHEMA
 
 
 class CorpusManifestTests(unittest.TestCase):
@@ -122,6 +124,89 @@ class CorpusManifestTests(unittest.TestCase):
                     manifest_module.delete_pinned_document(document["sha256"])
 
             self.assertTrue(outside.exists())
+
+    def test_candidate_answers_are_pinned_as_non_authoritative_and_deleted_with_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "corpus_dataset"
+            pdf_path = root / "Example" / "2024" / "Example_annual_report_2024.pdf"
+            pdf_path.parent.mkdir(parents=True)
+            pdf_path.write_bytes(b"%PDF-test")
+            document = {
+                "sha256": "d" * 64,
+                "company": "Example",
+                "company_slug": "Example",
+                "fiscal_year": 2024,
+                "filename": pdf_path.name,
+                "local_path": str(pdf_path),
+                "source_url": "https://example.com/report.pdf",
+            }
+
+            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
+                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            ), patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
+                fetch_module, "upsert_document", side_effect=manifest_module.upsert_document
+            ):
+                manifest_module.upsert_document(document)
+                pinned = fetch_module.pin_candidate_answers(document, {
+                    "mode": "auto",
+                    "detected_fiscal_year": 2024,
+                    "rows": [{
+                        "item": "Current Assets",
+                        "answer_m_usd": 123.0,
+                        "confidence": 0.7,
+                        "source_page": 10,
+                        "evidence": "Total current assets 123",
+                    }],
+                    "metadata": {"pages": 1},
+                })
+                candidate_path = Path(pinned["verification"]["candidate_path"])
+                candidate = fetch_module.json.loads(candidate_path.read_text(encoding="utf-8"))
+
+                self.assertTrue(candidate_path.is_file())
+                self.assertEqual("human_review_required", pinned["verification"]["status"])
+                self.assertFalse(candidate["authoritative_golden_set"])
+                self.assertEqual(27, len(candidate["rows"]))
+                self.assertEqual(123.0, candidate["rows"][0]["answer_m_usd"])
+
+                manifest_module.delete_pinned_document(document["sha256"])
+                self.assertFalse(pdf_path.exists())
+                self.assertFalse(candidate_path.exists())
+
+    def test_human_approval_is_sha_bound_and_does_not_survive_changed_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "corpus_dataset"
+            pdf_path = root / "Example" / "2024" / "Example_annual_report_2024.pdf"
+            pdf_path.parent.mkdir(parents=True)
+            pdf_path.write_bytes(b"%PDF-first")
+            original = {
+                "sha256": "e" * 64,
+                "company": "Example",
+                "company_slug": "Example",
+                "fiscal_year": 2024,
+                "filename": pdf_path.name,
+                "local_path": str(pdf_path),
+            }
+            rows = [{**row, "answer_m_usd": index} for index, row in enumerate(ASSET_SCHEMA)]
+
+            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
+                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            ):
+                manifest_module.upsert_document(original)
+                approved = manifest_module.approve_document_answers(original["sha256"], rows)
+                self.assertEqual("human_verified", approved["status"])
+                approved_path = Path(
+                    manifest_module.find_document(original["sha256"])["verification"]["approved_path"]
+                )
+                self.assertTrue(approved_path.is_file())
+
+                pdf_path.write_bytes(b"%PDF-replacement")
+                replacement = {**original, "sha256": "f" * 64}
+                manifest_module.upsert_document(replacement)
+
+                current = manifest_module.find_document(replacement["sha256"])
+                self.assertNotIn("verification", current)
+                self.assertEqual("human_review_required", manifest_module.verification_payload(current)["status"])
+                self.assertFalse(approved_path.exists())
 
 
 if __name__ == "__main__":

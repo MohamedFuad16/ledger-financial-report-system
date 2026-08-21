@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import uuid
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ import requests
 
 from .manifest import CORPUS_ROOT, upsert_document
 from .screen import screen_pdf
+from schema import ASSET_SCHEMA
 
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
@@ -104,3 +106,64 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
         **screening,
     }
     return upsert_document(document)
+
+
+def pin_candidate_answers(document: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
+    """Persist one source-bound, non-authoritative 27-row review candidate."""
+    pdf_path = Path(str(document["local_path"])).resolve()
+    if not pdf_path.is_relative_to(CORPUS_ROOT.resolve()) or not pdf_path.is_file():
+        raise ValueError("The canonical PDF is outside corpus storage or missing.")
+
+    returned = {
+        str(row.get("item") or ""): row
+        for row in (parsed.get("rows") or [])
+        if isinstance(row, dict)
+    }
+    rows: list[dict[str, Any]] = []
+    for schema_row in ASSET_SCHEMA:
+        candidate = returned.get(str(schema_row["item"]), {})
+        answer = candidate.get("answer_m_usd")
+        confidence = candidate.get("confidence")
+        source_page = candidate.get("source_page")
+        rows.append({
+            "classification": schema_row["classification"],
+            "subclassification": schema_row["subclassification"],
+            "item": schema_row["item"],
+            "answer_m_usd": float(answer) if isinstance(answer, (int, float)) else None,
+            "confidence": float(confidence) if isinstance(confidence, (int, float)) else None,
+            "source_page": int(source_page) if isinstance(source_page, (int, float)) and source_page >= 1 else None,
+            "evidence": str(candidate.get("evidence") or "").strip() or None,
+        })
+
+    verification_dir = pdf_path.parent / "verification"
+    verification_dir.mkdir(parents=True, exist_ok=True)
+    candidate_path = verification_dir / "candidate_answers.json"
+    generated_at = datetime.now(timezone.utc).isoformat()
+    artifact = {
+        "status": "human_review_required",
+        "authoritative_golden_set": False,
+        "provider": "firecrawl",
+        "pdf_sha256": document.get("sha256"),
+        "source_url": document.get("source_url"),
+        "mode": str(parsed.get("mode") or "auto"),
+        "detected_fiscal_year": parsed.get("detected_fiscal_year"),
+        "generated_at": generated_at,
+        "rows": rows,
+        "response_metadata": parsed.get("metadata") or {},
+    }
+    temporary = candidate_path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(candidate_path)
+    updated = {
+        **document,
+        "verification": {
+            "status": "human_review_required",
+            "source_sha256": document.get("sha256"),
+            "provider": "firecrawl",
+            "candidate_path": str(candidate_path),
+            "approved_path": None,
+            "generated_at": generated_at,
+            "approved_at": None,
+        },
+    }
+    return upsert_document(updated)

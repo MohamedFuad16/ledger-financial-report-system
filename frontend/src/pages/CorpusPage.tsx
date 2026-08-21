@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
+import { CheckCircle2, ClipboardCheck, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, Save, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
-import type { CorpusDocument, CorpusJob, CorpusManifest, SettingsData } from '../types'
+import type { CorpusDocument, CorpusJob, CorpusManifest, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
@@ -17,6 +17,12 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const [loadingBakuraku, setLoadingBakuraku] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CorpusDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [reviewing, setReviewing] = useState<CorpusDocument | null>(null)
+  const [verification, setVerification] = useState<CorpusVerification | null>(null)
+  const [reviewRows, setReviewRows] = useState<CorpusVerificationRow[]>([])
+  const [loadingReview, setLoadingReview] = useState(false)
+  const [savingReview, setSavingReview] = useState(false)
+  const [confirmApprove, setConfirmApprove] = useState(false)
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
   const restoreLatestJob = () => api.corpusJobs()
@@ -93,6 +99,41 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     } finally { setDeleting(false) }
   }
 
+  const openReview = async (document: CorpusDocument) => {
+    setReviewing(document)
+    setLoadingReview(true)
+    setVerification(null)
+    try {
+      const payload = await api.corpusVerification(document.sha256)
+      setVerification(payload)
+      setReviewRows(payload.rows)
+    } catch (error) {
+      setReviewing(null)
+      onNotify(error instanceof Error ? error.message : tr('Could not load the verification sheet.', '検証シートを読み込めませんでした。'), 'error')
+    } finally { setLoadingReview(false) }
+  }
+
+  const updateReviewAnswer = (index: number, value: string) => {
+    setReviewRows((current) => current.map((row, rowIndex) => rowIndex === index
+      ? { ...row, answer_m_usd: value.trim() === '' ? null : Number(value) }
+      : row))
+  }
+
+  const approveReview = async () => {
+    if (!reviewing) return
+    setSavingReview(true)
+    try {
+      const payload = await api.approveCorpusVerification(reviewing.sha256, reviewRows)
+      setVerification(payload)
+      setReviewRows(payload.rows)
+      setConfirmApprove(false)
+      await refresh()
+      onNotify(tr('The 27-row answer table is now human verified for this exact PDF.', 'このPDFに対する27行の回答表を人による確認済みとして保存しました。'), 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : tr('Could not approve the verification sheet.', '検証シートを承認できませんでした。'), 'error')
+    } finally { setSavingReview(false) }
+  }
+
   const latestEvents = (job?.events || []).slice(-8).reverse()
   return (
     <div className="page corpus-page">
@@ -100,8 +141,8 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
       <div className="corpus-summary">
         <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies ?? 0}</strong><small>{tr('official-source targets', '公式ソース対象')}</small></Card>
         <Card><span>{tr('Documents', '文書')}</span><strong>{manifest?.summary.documents ?? 0}</strong><small>FY2020–FY2025</small></Card>
-        <Card><span>{tr('Screened OK', '検査済み')}</span><strong>{manifest?.summary.ok ?? 0}</strong><small>{tr('ready for a benchmark', 'ベンチマーク準備完了')}</small></Card>
-        <Card><span>{tr('Needs review', '要確認')}</span><strong>{(manifest?.summary.review ?? 0) + (manifest?.summary.unreadable ?? 0)}</strong><small>{tr('kept, never silently dropped', '削除せず保持')}</small></Card>
+        <Card><span>{tr('Benchmark verified', 'ベンチマーク検証済み')}</span><strong>{manifest?.summary.verified ?? 0}</strong><small>{tr('assignment gold or human approved', '課題正解または人による承認')}</small></Card>
+        <Card><span>{tr('Human review required', '人の確認が必要')}</span><strong>{manifest?.summary.human_review_required ?? 0}</strong><small>{tr('usable with an unverified warning', '未検証警告付きで使用可能')}</small></Card>
       </div>
 
       <div className="corpus-layout">
@@ -124,15 +165,36 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
 
       <Card className="corpus-table-card">
         <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Downloaded Annual Reports', 'ダウンロード済み年次報告書')} description={tr('Crawled files do not enter extraction automatically; review the screening verdict first.', 'クロール済みファイルは自動抽出されません。先に検査結果を確認してください。')} />
-        {!manifest?.documents.length ? <EmptyState icon={<FileDown size={21} />} title={tr('No corpus documents yet', 'コーパス文書はまだありません')} description={tr('The first verified download will appear here.', '最初の確認済みダウンロードがここに表示されます。')} /> : <div className="table-wrap"><table className="corpus-table"><thead><tr><th>{tr('Company', '会社')}</th><th>{tr('Year', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th></tr></thead><tbody>{manifest.documents.map((document) => <tr key={document.sha256}><td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td><td>FY{document.fiscal_year}</td><td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened}</Badge></td><td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td><td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td><td><code>{document.local_path}</code></td><td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td><td className="corpus-delete-column"><button className="corpus-delete-button" type="button" onClick={() => setPendingDelete(document)} aria-label={tr(`Delete ${document.filename}`, `${document.filename}を削除`)}><Trash2 size={15} /><span>{tr('Delete', '削除')}</span></button></td></tr>)}</tbody></table></div>}
+        {!manifest?.documents.length ? <EmptyState icon={<FileDown size={21} />} title={tr('No corpus documents yet', 'コーパス文書はまだありません')} description={tr('The first verified download will appear here.', '最初の確認済みダウンロードがここに表示されます。')} /> : <div className="table-wrap"><table className="corpus-table"><thead><tr>
+          <th>{tr('Company', '会社')}</th><th>{tr('Year', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('Answer verification', '回答検証')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th>
+        </tr></thead><tbody>{manifest.documents.map((document) => <tr key={document.sha256}>
+          <td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td>
+          <td>FY{document.fiscal_year}</td>
+          <td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened}</Badge></td>
+          <td><Badge tone={document.verification_status === 'human_review_required' ? 'amber' : 'green'}>{document.verification_status === 'assignment_supplied' ? tr('Assignment gold', '課題正解') : document.verification_status === 'human_verified' ? tr('Human verified', '人による確認済み') : tr('Human review required', '人の確認が必要')}</Badge><button className="corpus-review-button" type="button" onClick={() => void openReview(document)}><ClipboardCheck size={14} /> {tr('Review answers', '回答を確認')}</button></td>
+          <td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td>
+          <td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td>
+          <td><code>{document.local_path}</code></td>
+          <td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td>
+          <td className="corpus-delete-column"><button className="corpus-delete-button" type="button" onClick={() => setPendingDelete(document)} aria-label={tr(`Delete ${document.filename}`, `${document.filename}を削除`)}><Trash2 size={15} /><span>{tr('Delete', '削除')}</span></button></td>
+        </tr>)}</tbody></table></div>}
       </Card>
+      {reviewing && <div className="review-sheet-backdrop" role="presentation">
+        <section className="review-sheet" role="dialog" aria-modal="true" aria-labelledby="review-sheet-title">
+          <header><div><div className="eyebrow">{tr('PDF-hash-pinned review', 'PDFハッシュ固定レビュー')}</div><h2 id="review-sheet-title">{reviewing.company} · FY{reviewing.fiscal_year}</h2><p>{tr('Compare each candidate value with the source PDF. Saving approval makes this exact PDF SHA eligible for benchmark accuracy.', '各候補値を元PDFと比較してください。承認を保存すると、このPDF SHAがベンチマーク正確度の対象になります。')}</p></div><button type="button" onClick={() => { setReviewing(null); setConfirmApprove(false) }} aria-label={tr('Close review', 'レビューを閉じる')}><X size={18} /></button></header>
+          <div className="review-sheet-actions"><a className="button secondary" href={api.corpusPdfUrl(reviewing.sha256)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {tr('Open source PDF', '元PDFを開く')}</a>{verification && <Badge tone={verification.status === 'human_review_required' ? 'amber' : 'green'}>{verification.status === 'assignment_supplied' ? tr('Assignment supplied', '課題提供') : verification.status === 'human_verified' ? tr('Human verified', '人による確認済み') : tr('Approval required', '承認が必要')}</Badge>}</div>
+          {loadingReview ? <div className="review-sheet-loading"><LoaderCircle className="spin" size={20} /> {tr('Loading candidate answers…', '候補回答を読み込んでいます…')}</div> : <div className="review-table-wrap"><table className="review-table"><thead><tr><th>#</th><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th><th>{tr('Page', 'ページ')}</th><th>{tr('Candidate evidence', '候補根拠')}</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={row.item}><td>{String(index + 1).padStart(2, '0')}</td><td>{row.classification}</td><td>{row.subclassification || '—'}</td><td><strong>{row.item}</strong></td><td><input type="number" step="any" value={row.answer_m_usd ?? ''} disabled={verification?.status === 'assignment_supplied'} onChange={(event) => updateReviewAnswer(index, event.target.value)} aria-label={`${row.item} answer`} /></td><td>{row.source_page ?? '—'}</td><td>{row.evidence || '—'}</td></tr>)}</tbody></table></div>}
+          <footer><span>{tr('Firecrawl values are candidate data, never automatic gold.', 'Firecrawlの値は候補データであり、自動的に正解データにはなりません。')}</span>{verification?.status !== 'assignment_supplied' && <Button onClick={() => setConfirmApprove(true)} disabled={loadingReview || savingReview}><Save size={15} /> {verification?.status === 'human_verified' ? tr('Update approval', '承認を更新') : tr('Save & approve', '保存して承認')}</Button>}</footer>
+        </section>
+      </div>}
+      {confirmApprove && reviewing && <div className="confirm-dialog-backdrop review-confirm" role="presentation" onMouseDown={() => !savingReview && setConfirmApprove(false)}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="approve-review-title" onMouseDown={(event) => event.stopPropagation()}><div className="confirm-dialog-icon approve"><ShieldCheck size={20} /></div><div className="eyebrow">{tr('Benchmark approval', 'ベンチマーク承認')}</div><h2 id="approve-review-title">{tr('Approve all 27 values?', '27項目すべてを承認しますか？')}</h2><p>{tr('You are confirming that you manually checked this table against the opened source PDF. The approved answers will be bound to this PDF SHA-256.', 'この表を元PDFと手作業で照合したことを確認します。承認済み回答はこのPDFのSHA-256に紐づきます。')}</p><div className="confirm-dialog-actions"><Button variant="ghost" onClick={() => setConfirmApprove(false)} disabled={savingReview}>{tr('Keep reviewing', '確認を続ける')}</Button><Button onClick={approveReview} disabled={savingReview}><ShieldCheck size={15} /> {savingReview ? tr('Saving…', '保存中…') : tr('Confirm approval', '承認を確定')}</Button></div></section></div>}
       {pendingDelete && <div className="confirm-dialog-backdrop" role="presentation" onMouseDown={() => !deleting && setPendingDelete(null)}>
         <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" onMouseDown={(event) => event.stopPropagation()}>
           <button className="confirm-dialog-close" type="button" onClick={() => setPendingDelete(null)} disabled={deleting} aria-label={tr('Close dialog', 'ダイアログを閉じる')}><X size={18} /></button>
           <div className="confirm-dialog-icon"><Trash2 size={20} /></div>
           <div className="eyebrow">{tr('Downloaded report', 'ダウンロード済みレポート')}</div>
           <h2 id="delete-report-title">{tr('Delete this annual report?', 'この年次報告書を削除しますか？')}</h2>
-          <p>{tr(`${pendingDelete.filename} will be removed from the local corpus and its pinned manifest entry. Existing extraction runs will remain available.`, `${pendingDelete.filename}をローカルコーパスと固定マニフェストから削除します。既存の抽出実行は保持されます。`)}</p>
+          <p>{tr(`${pendingDelete.filename} will be removed from persistent corpus storage and its pinned manifest entry. Existing extraction runs will remain available.`, `${pendingDelete.filename}を永続コーパスストレージと固定マニフェストから削除します。既存の抽出実行は保持されます。`)}</p>
           <div className="confirm-dialog-actions"><Button variant="ghost" onClick={() => setPendingDelete(null)} disabled={deleting} autoFocus>{tr('Cancel', 'キャンセル')}</Button><Button variant="danger" onClick={confirmDelete} disabled={deleting}><Trash2 size={15} /> {deleting ? tr('Deleting…', '削除中…') : tr('Delete report', 'レポートを削除')}</Button></div>
         </section>
       </div>}

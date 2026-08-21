@@ -74,11 +74,9 @@ SUBTOTALS = [
     ("Fixed Assets", ["Tangible Assets", "Intangible Assets", "Financial Assets", "Other Fixed Assets"]),
     ("Total Assets", ["Current Assets", "Fixed Assets", "Deferred Charges"]),
 ]
-COMPLETE_YEARS = [y for y, a in GOLDEN_ANSWERS_STORE.items() if len(a) == 27]
-PARTIAL_YEARS = [y for y, a in GOLDEN_ANSWERS_STORE.items() if 0 < len(a) < 27]
 check(
-    "benchmark window is exactly FY2020–FY2025",
-    set(GOLDEN_ANSWERS_STORE) == {"2020", "2021", "2022", "2023", "2024", "2025"},
+    "runtime gold contains only the assignment-supplied FY2022 key",
+    set(GOLDEN_ANSWERS_STORE) == {"2022"},
 )
 
 for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):
@@ -90,22 +88,6 @@ for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):
         if sum(answers[p] for p in parts) != answers[total]
     ]
     check(f"FY{year} subtotals reconcile", not bad, "; ".join(bad))
-
-for year in sorted(PARTIAL_YEARS):
-    answers = GOLDEN_ANSWERS_STORE[year]
-    subset = [
-        ("Quick Assets", ["Cash & Cash Equivalents", "Accounts Receivable - Trade", "Other Quick Assets"]),
-        ("Other Current Assets (subtotal)", ["Marketable Securities", "Short-term Loan", "Advance Payments", "Other Current Assets"]),
-        ("Current Assets", ["Quick Assets", "Inventories, Net", "Other Current Assets (subtotal)"]),
-    ]
-    bad = [
-        f"{t}={answers[t]} but parts sum to {sum(answers[p] for p in parts)}"
-        for t, parts in subset
-        if all(p in answers for p in parts) and t in answers
-        and sum(answers[p] for p in parts) != answers[t]
-    ]
-    check(f"FY{year} partial key ({len(answers)}/27 rows) reconciles where complete", not bad, "; ".join(bad))
-    check(f"FY{year} partial key omits rows rather than guessing", len(answers) < 27)
 
 print("\nSchema shape")
 check("schema has 27 rows", len(ASSET_SCHEMA) == 27 == EXPECTED_ROW_COUNT)
@@ -262,12 +244,12 @@ check(
     compute_metrics(rows_as_dicts(repaired({"rows": _ok})), "2022")["filled_fields"] == EXPECTED_ROW_COUNT,
 )
 perfect = rows_as_dicts(repaired({"rows": golden_rows("2022")}))
-m = compute_metrics(perfect, "2022")
+m = compute_metrics(perfect, "2022", company="3M")
 check("a perfect prediction scores 100%", m["accuracy"] == 100.0, json.dumps(m))
 check("a perfect prediction has full coverage", m["coverage"] == 100.0)
 
 one_wrong = rows_as_dicts(repaired({"rows": golden_rows("2022", Land=999)}))
-m = compute_metrics(one_wrong, "2022")
+m = compute_metrics(one_wrong, "2022", company="3M")
 check("one wrong value costs exactly one item", m["exact_matches"] == EXPECTED_ROW_COUNT - 1)
 
 nulled = golden_rows("2022")
@@ -276,7 +258,7 @@ for row in nulled:
         row["answer_m_usd"] = None
         row["confidence"] = 0.0
 nulled_rows = rows_as_dicts(repaired({"rows": nulled}))
-m = compute_metrics(nulled_rows, "2022")
+m = compute_metrics(nulled_rows, "2022", company="3M")
 check("null never counts as a match for a golden 0", m["exact_matches"] == EXPECTED_ROW_COUNT - 5, json.dumps(m))
 check("low-confidence values do not count as coverage", m["filled_fields"] == EXPECTED_ROW_COUNT - 5)
 
@@ -286,8 +268,8 @@ check("coverage is still reported without an answer key", m["coverage"] == 100.0
 
 m = compute_metrics(perfect, "2025")
 check(
-    "a partial answer key scores only the rows it defines",
-    m["total_compared"] == len(GOLDEN_ANSWERS_STORE["2025"]) == 19,
+    "a non-assignment year remains unscored until human approval",
+    m["accuracy"] is None and m["has_golden"] is False and m["total_compared"] == 0,
     json.dumps(m),
 )
 
@@ -420,8 +402,17 @@ from extraction import STRATEGIES
 
 check("every strategy has a unique run-id prefix",
       len({s.run_prefix for s in STRATEGIES.values()}) == len(STRATEGIES))
-check("the four parsers are registered",
-      set(STRATEGIES) == {"s1", "s2", "s2-docling", "s2-inspector"})
+check(
+    "the matched four-by-two parser experiment is registered",
+    set(STRATEGIES) == {
+        "s1", "s1-pymupdf", "s1-docling", "s1-inspector",
+        "s2-pypdf", "s2", "s2-docling", "s2-inspector",
+    }
+    and {strategy.parser for strategy in STRATEGIES.values()} == {
+        "pypdf", "pymupdf", "docling", "inspector",
+    }
+    and {strategy.experiment for strategy in STRATEGIES.values()} == {"no_ocr", "ocr"},
+)
 expect_error("unknown strategy keys do not silently run Strategy 1",
              lambda: get_strategy("s9"), "Unknown strategy")
 

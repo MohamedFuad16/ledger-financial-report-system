@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { api, type SseEvent } from '../lib/api'
 import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
-import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor, parserMeta } from '../lib/format'
+import { experimentStrategies, formatDuration, formatMetric, formatMoney, formatNumber, parserFor } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
 import { FolderUpload } from '../components/FolderUpload'
 import { CorpusPicker, type CorpusSelectionMode } from '../components/CorpusPicker'
@@ -17,7 +17,16 @@ import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, Disclosure, InlineStatus, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
-const allS2Parsers = ['s1', 's2', 's2-inspector', 's2-docling']
+const parserDescriptions: Record<string, [string, string]> = {
+  s1: ['Raw text · OCR off', '生テキスト・OCRオフ'],
+  's1-pymupdf': ['Layout Markdown · OCR off', 'レイアウトMarkdown・OCRオフ'],
+  's1-inspector': ['Position-aware Rust · OCR off', '位置認識Rust・OCRオフ'],
+  's1-docling': ['ML document graph · OCR off', 'ML文書グラフ・OCRオフ'],
+  's2-pypdf': ['Raw text + OCR', '生テキスト＋OCR'],
+  s2: ['Layout Markdown + OCR', 'レイアウトMarkdown＋OCR'],
+  's2-inspector': ['Position-aware Rust + OCR', '位置認識Rust＋OCR'],
+  's2-docling': ['ML document graph + OCR', 'ML文書グラフ＋OCR'],
+}
 
 export function StrategyPage({
   kind,
@@ -41,7 +50,9 @@ export function StrategyPage({
   const [selectedCorpusIds, setSelectedCorpusIds] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const [uploadHovering, setUploadHovering] = useState(false)
-  const [selectedParsers, setSelectedParsers] = useState<string[]>(isS2 ? ['s1', 's2', 's2-inspector'] : ['s1'])
+  const parserChoices = isS2 ? experimentStrategies.ocr : experimentStrategies.no_ocr
+  const experiment = isS2 ? 'ocr' : 'no_ocr'
+  const [selectedParsers, setSelectedParsers] = useState<string[]>(parserChoices)
   const [reasoningEnabled, setReasoningEnabled] = useState(true)
   const [prompt, setPrompt] = useState('')
   const [defaultPrompt, setDefaultPrompt] = useState('')
@@ -53,6 +64,10 @@ export function StrategyPage({
   const [activeJobId, setActiveJobId] = useState<string | null>(() => window.localStorage.getItem(storageKey))
   const eventOffset = useRef(0)
   const successfulRunIds = useRef<string[]>([])
+
+  useEffect(() => {
+    setSelectedParsers(parserChoices)
+  }, [kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api.prompt().then((data) => { setPrompt(data.system_prompt); setDefaultPrompt(data.default_prompt) }).catch(() => undefined)
@@ -67,7 +82,7 @@ export function StrategyPage({
       .finally(() => { setCorpusLoading(false); setCorpusLoaded(true) })
   }, [inputSource, corpusLoaded, corpusLoading, onNotify, tr])
 
-  const strategyRuns = useMemo(() => runs.filter((run) => isS2 ? run.strategy.startsWith('s2') : run.strategy === 's1'), [runs, isS2])
+  const strategyRuns = useMemo(() => runs.filter((run) => run.experiment === experiment), [runs, experiment])
   const acceptFiles = (incoming: File[]) => {
     const pdfs = incoming.filter((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))
     if (pdfs.length !== incoming.length) onNotify(tr('Only PDF files can be staged.', '追加できるのはPDFファイルのみです。'), 'error')
@@ -234,7 +249,7 @@ export function StrategyPage({
         if (cancelled) return
         job.events.forEach((record) => handleEvent({ event: record.event, data: record.data }))
         eventOffset.current = job.next_offset
-        if ((job.status === 'complete' || job.status === 'failed') && !finished) {
+        if ((job.status === 'complete' || job.status === 'failed' || job.status === 'interrupted') && !finished) {
           finished = true
           setRunning(false)
           await onRefreshRuns()
@@ -242,7 +257,7 @@ export function StrategyPage({
           if (latestId) setLatestDetail(await api.run(latestId))
           window.localStorage.removeItem(storageKey)
           setActiveJobId(null)
-          if (job.status === 'failed') {
+          if (job.status === 'failed' || job.status === 'interrupted') {
             onNotify(job.error || tr('The extraction could not be completed.', '抽出を完了できませんでした。'), 'error')
           } else {
             onNotify(tr(`${job.succeeded} extraction pass${job.succeeded === 1 ? '' : 'es'} completed.`, `${job.succeeded}件の抽出処理が完了しました。`), 'success')
@@ -270,7 +285,7 @@ export function StrategyPage({
   const startRun = async () => {
     const readyCount = inputSource === 'upload' ? files.length : selectedCorpusIds.length
     if (!readyCount || running) return
-    if (isS2 && !selectedParsers.length) {
+    if (!selectedParsers.length) {
       onNotify(tr('Select at least one parser for the bake-off.', '比較するパーサーを1つ以上選択してください。'), 'error')
       return
     }
@@ -283,9 +298,11 @@ export function StrategyPage({
         : await api.stageCorpusDocuments(selectedCorpusIds)
       const usable = staged.files.filter((file) => file.id && !file.error)
       if (!usable.length) throw new Error(staged.files[0]?.error || tr('No readable PDF could be staged.', '読み取り可能なPDFを追加できませんでした。'))
+      const advisories = [...(staged.advisories || []), ...(staged.plan.advisories || [])]
+      if (advisories.length) onNotify(advisories.join(' '), 'error')
       const job = await api.startExtractionJob({
         upload_ids: usable.map((file) => file.id),
-        strategies: isS2 ? selectedParsers : ['s1'],
+        strategies: selectedParsers,
         system_prompt: prompt,
         reasoning_effort: reasoningEnabled ? 'high' : 'none',
         enable_reasoning: reasoningEnabled,
@@ -337,14 +354,14 @@ export function StrategyPage({
       <header className="page-header">
         <div>
           <Badge tone={isS2 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {isS2 ? '02' : '01'} · {tr('Active', '有効')}</Badge>
-          <h1>{isS2 ? tr('Document representation bake-off', '文書表現ベイクオフ') : tr('Direct LLM baseline', 'LLM直接抽出ベースライン')}</h1>
-          <p>{isS2 ? tr('Hold the prompt and model constant while comparing how each parser represents the same Annual Report.', '同じ年次報告書に対してプロンプトとモデルを固定し、パーサーごとの文書表現を比較します。') : tr('The control condition: basic page-by-page text, one model call, and the shared 27-row contract.', 'ページ単位の基本テキスト、1回のモデル呼び出し、共通の27行契約を使う対照条件です。')}</p>
+          <h1>{isS2 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
+          <p>{isS2 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
         </div>
       </header>
 
       <div className="hypothesis-banner">
         <div className="hypothesis-number">H{isS2 ? '2' : '1'}</div>
-        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isS2 ? tr('Layout-aware structure should preserve tables and provenance without distorting the accounting taxonomy.', 'レイアウトを考慮した構造は、会計分類を歪めずに表と出典を保持できるはずです。') : tr('A long-context model can recover the full asset taxonomy directly from ordinary extracted text.', '長文脈モデルは通常の抽出テキストから資産分類全体を直接復元できるはずです。')}</strong></div>
+        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isS2 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
       </div>
 
       <div className="strategy-prompt-row">
@@ -373,23 +390,22 @@ export function StrategyPage({
             </div>
             {!!files.length && <div className="selected-files">{files.map((file) => <div key={`${file.name}-${file.size}`}><FileText size={15} /><span><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></span><Check size={15} strokeWidth={3} /></div>)}</div>}</> : corpusLoading ? <div className="corpus-picker-loading"><span className="button-spinner" /> {tr('Loading stored reports…', '保存済みレポートを読み込み中…')}</div> : <CorpusPicker documents={corpusDocuments} selected={selectedCorpusIds} mode={corpusSelectionMode} onModeChange={setCorpusSelectionMode} onSelectionChange={setSelectedCorpusIds} />}
 
-            {isS2 && (
-              <div className="parser-picker">
+            <div className="parser-picker">
                 <div className="field-label"><span>{tr('Parser passes', 'パーサー処理')}</span><small>{tr(`${selectedParsers.length} model call${selectedParsers.length === 1 ? '' : 's'} per PDF`, `PDFごとに${selectedParsers.length}回のモデル呼び出し`)}</small></div>
-                {allS2Parsers.map((key) => {
+                {parserChoices.map((key) => {
                   const meta = parserFor(key)
                   const selected = selectedParsers.includes(key)
-                  return <label className={`parser-option ${selected ? 'is-selected' : ''}`} style={{ '--parser-color': meta.color } as CSSProperties} key={key}><input type="checkbox" checked={selected} onChange={() => setSelectedParsers((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><i /><span><strong>{meta.short}</strong><small>{key === 's1' ? tr('Raw baseline', '生テキスト基準') : key === 's2' ? tr('Layout Markdown', 'レイアウトMarkdown') : key === 's2-inspector' ? tr('Position-aware Rust', '位置認識Rust') : tr('ML document graph', 'ML文書グラフ')}</small></span><span className="check-box"><Check size={12} strokeWidth={3} /></span></label>
+                  const description = parserDescriptions[key] || [meta.label, meta.label]
+                  return <label className={`parser-option ${selected ? 'is-selected' : ''}`} style={{ '--parser-color': meta.color } as CSSProperties} key={key}><input type="checkbox" checked={selected} onChange={() => setSelectedParsers((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><i /><span><strong>{meta.short}</strong><small>{tr(description[0], description[1])}</small></span><span className="check-box"><Check size={12} strokeWidth={3} /></span></label>
                 })}
               </div>
-            )}
 
             <div className="control-grid strategy-run-options">
               <div className="reasoning-toggle"><span><strong>{tr('Model reasoning', 'モデル推論')}</strong><small>{tr('Mapped to the model’s native thinking on/off control.', 'モデル固有の思考オン／オフに対応します。')}</small></span><div><button className={!reasoningEnabled ? 'is-active' : ''} onClick={() => setReasoningEnabled(false)}>{tr('Off', 'オフ')}</button><button className={reasoningEnabled ? 'is-active' : ''} onClick={() => setReasoningEnabled(true)}>{tr('On', 'オン')}</button></div></div>
             </div>
 
             <Button className="run-button" onClick={startRun} disabled={!selectedInputCount || running}>
-              {running ? <><span className="button-spinner" /> {tr('Running extraction', '抽出を実行中')}</> : <><Play size={15} fill="currentColor" /> {isS2 ? tr(`Run ${selectedParsers.length || ''} parser pass${selectedParsers.length === 1 ? '' : 'es'}`, `${selectedParsers.length || ''}件のパーサー処理を実行`) : selectedInputCount > 1 ? tr(`Run ${selectedInputCount}-report batch`, `${selectedInputCount}件のレポートを一括実行`) : tr('Run baseline extraction', 'ベースライン抽出を実行')}</>}
+              {running ? <><span className="button-spinner" /> {tr('Running extraction', '抽出を実行中')}</> : <><Play size={15} fill="currentColor" /> {tr(`Run ${selectedParsers.length || ''} parser pass${selectedParsers.length === 1 ? '' : 'es'}`, `${selectedParsers.length || ''}件のパーサー処理を実行`)}</>}
             </Button>
             <div className="run-footnote"><Info size={13} /> {inputSource === 'corpus' ? tr('Stored corpus PDFs stay in their company/year folders. Extraction starts only after this button is pressed.', '保存済みPDFは会社・年度別フォルダーに保持され、このボタンを押した後にのみ抽出を開始します。') : tr('PDFs are staged locally. A model call starts only after this button is pressed.', 'PDFはローカルに準備され、このボタンを押した後にのみモデルを呼び出します。')}</div>
           </Card>
@@ -402,7 +418,7 @@ export function StrategyPage({
         </Card>
       </div>
 
-      {isS2 && completedComparison.length > 0 && (
+      {completedComparison.length > 0 && (
         <Card className="comparison-card">
           <SectionHeading eyebrow={tr('Controlled comparison', '統制比較')} title={tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={tr('Batch averages compare each parser across the same reports. Per-report results remain available below.', '同じレポート群に対するパーサーごとの平均を比較し、各レポートの結果も下に保持します。')} />
           <div className="comparison-cohort-note">

@@ -10,11 +10,19 @@ from datetime import datetime, timezone
 from numbers import Real
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, request, stream_with_context
+from flask import Flask, Response, jsonify, request, send_file, stream_with_context
 
 from api_client import GLMError, QuotaExhaustedError, test_api_key
 from corpus.client import FirecrawlClient, FirecrawlError
-from corpus.manifest import CORPUS_ROOT, delete_pinned_document, load_manifest, migrate_corpus_layout
+from corpus.manifest import (
+    CORPUS_ROOT,
+    approve_document_answers,
+    delete_pinned_document,
+    find_document,
+    load_manifest,
+    migrate_corpus_layout,
+    verification_payload,
+)
 from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
@@ -129,7 +137,7 @@ def prediction_response(prediction: dict) -> dict:
     """
     rows = apply_confidence_gate(prediction.get("rows", []))
     fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
-    metrics = compute_metrics(rows, fiscal_year)
+    metrics = compute_metrics(rows, fiscal_year, prediction.get("company"), prediction.get("source_pdf_sha256"))
     report = reconcile(rows)
     metrics["consistency"] = report["consistency"]
     return {
@@ -181,9 +189,25 @@ def _read_corpus_job_state(job_id: str) -> dict | None:
         state = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if (
-        state.get("status") in {"queued", "running"}
+    owner_pid = state.get("worker_pid")
+    owner_alive = False
+    if isinstance(owner_pid, int) and owner_pid > 0:
+        try:
+            os.kill(owner_pid, 0)
+            owner_alive = True
+        except (OSError, ProcessLookupError):
+            owner_alive = False
+    # A poll can land on any Gunicorn process. A different process-local UUID
+    # is not evidence that the background thread died; only a missing owner PID
+    # is. This is what made valid jobs disappear after navigation/reload.
+    has_owner_pid = isinstance(owner_pid, int) and owner_pid > 0
+    legacy_owner_is_gone = (
+        not has_owner_pid
+        and bool(state.get("worker_instance_id"))
         and state.get("worker_instance_id") != CORPUS_WORKER_INSTANCE_ID
+    )
+    if state.get("status") in {"queued", "running"} and (
+        (has_owner_pid and not owner_alive) or legacy_owner_is_gone
     ):
         state["status"] = "interrupted"
         state["error"] = "The backend restarted before this discovery job completed. Start a new discovery job to continue."
@@ -220,9 +244,28 @@ def _read_extraction_job_state(job_id: str) -> dict | None:
     if not path.is_file():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        state = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    owner_pid = state.get("worker_pid")
+    owner_alive = False
+    if isinstance(owner_pid, int) and owner_pid > 0:
+        try:
+            os.kill(owner_pid, 0)
+            owner_alive = True
+        except (OSError, ProcessLookupError):
+            owner_alive = False
+    if (
+        state.get("status") in {"queued", "running"}
+        and isinstance(owner_pid, int)
+        and owner_pid > 0
+        and not owner_alive
+    ):
+        state["status"] = "interrupted"
+        state["error"] = "The backend restarted before this extraction job completed. Start a new extraction job to continue."
+        state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        _write_extraction_job_state(job_id, state)
+    return state
 
 
 def _append_extraction_event(job_id: str, event: str, data: dict) -> None:
@@ -334,6 +377,7 @@ def get_settings():
         "auto_concurrency": settings.get("auto_concurrency", True),
         "firecrawl_key_masked": mask_key(settings.get("firecrawl_api_key") or ""),
         "has_firecrawl_key": bool(settings.get("firecrawl_api_key")),
+        "firecrawl_pdf_mode": settings.get("firecrawl_pdf_mode", "auto"),
         "rate_limit": LIMITER.snapshot(),
     })
 
@@ -346,6 +390,9 @@ def update_runtime_settings():
     max_concurrency = max(1, min(int(parse_float(data.get("max_concurrency"), current.get("max_concurrency", 6))), 20))
     auto_concurrency = parse_bool(data.get("auto_concurrency"), current.get("auto_concurrency", True))
     firecrawl_api_key = str(data.get("firecrawl_api_key") or "").strip()
+    firecrawl_pdf_mode = str(data.get("firecrawl_pdf_mode") or current.get("firecrawl_pdf_mode") or "auto").strip().lower()
+    if firecrawl_pdf_mode not in {"fast", "auto", "ocr"}:
+        return jsonify({"error": "Firecrawl PDF mode must be fast, auto, or ocr."}), 400
     candidate_key = firecrawl_api_key or str(current.get("firecrawl_api_key") or "")
     if not candidate_key:
         return jsonify({"error": "A Firecrawl API key is required before runtime settings can be saved."}), 400
@@ -358,6 +405,7 @@ def update_runtime_settings():
         auto_concurrency=auto_concurrency,
         firecrawl_api_key=firecrawl_api_key,
         keep_firecrawl_key=not bool(data.get("clear_firecrawl_key")),
+        firecrawl_pdf_mode=firecrawl_pdf_mode,
     )
     LIMITER.resize(max_concurrency)
     return jsonify({
@@ -367,6 +415,7 @@ def update_runtime_settings():
         "has_firecrawl_key": bool(current_settings().get("firecrawl_api_key")),
         "firecrawl_key_masked": mask_key(candidate_key),
         "firecrawl_credits": credit_usage,
+        "firecrawl_pdf_mode": firecrawl_pdf_mode,
         "rate_limit": LIMITER.snapshot(),
     })
 
@@ -451,7 +500,14 @@ def reset_prompt():
 def get_strategies():
     return jsonify({
         "strategies": [
-            {"key": s.key, "label": s.label, "extraction": s.extraction_note}
+            {
+                "key": s.key,
+                "label": s.label,
+                "extraction": s.extraction_note,
+                "parser": s.parser,
+                "experiment": s.experiment,
+                "ocr_enabled": s.ocr_enabled,
+            }
             for s in STRATEGIES.values()
         ]
     })
@@ -544,6 +600,9 @@ def get_corpus():
         output_directory = RUNS_DIR / company / f"FY{fiscal_year}"
         documents.append({
             **item,
+            "verification_status": verification_payload(item).get("status"),
+            "candidate_count": len(verification_payload(item).get("rows") or []),
+            "approved_at": verification_payload(item).get("approved_at"),
             "output_directory": str(output_directory),
             "output_count": len(list(output_directory.rglob("prediction.json"))) if output_directory.is_dir() else 0,
         })
@@ -556,8 +615,45 @@ def get_corpus():
             "ok": sum(item.get("screened") == "ok" for item in documents),
             "review": sum(item.get("screened") == "review" for item in documents),
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
+            "verified": sum(item.get("verification_status") in {"assignment_supplied", "human_verified"} for item in documents),
+            "human_review_required": sum(item.get("verification_status") == "human_review_required" for item in documents),
         },
     })
+
+
+@app.route("/api/corpus/<document_id>/pdf", methods=["GET"])
+def get_corpus_pdf(document_id):
+    """Serve a pinned source PDF for side-by-side human verification."""
+    document = find_document(document_id)
+    if document is None:
+        return jsonify({"error": "Corpus document not found."}), 404
+    path = Path(str(document.get("local_path") or "")).resolve()
+    if not path.is_relative_to(CORPUS_ROOT.resolve()) or not path.is_file():
+        return jsonify({"error": "The pinned PDF is missing from corpus storage."}), 404
+    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=str(document.get("filename") or path.name))
+
+
+@app.route("/api/corpus/<document_id>/verification", methods=["GET", "PUT"])
+def corpus_verification(document_id):
+    document = find_document(document_id)
+    if document is None:
+        return jsonify({"error": "Corpus document not found."}), 404
+    if request.method == "GET":
+        return jsonify(verification_payload(document))
+    existing = verification_payload(document)
+    if existing.get("status") == "assignment_supplied":
+        return jsonify({"error": "The 3M FY2022 assignment answer key is immutable."}), 409
+    body = request.get_json(silent=True) or {}
+    rows = body.get("rows")
+    if not isinstance(rows, list):
+        return jsonify({"error": "A 27-row review table is required."}), 400
+    try:
+        payload = approve_document_answers(document_id, rows, reviewer=str(body.get("reviewer") or "human"))
+    except KeyError:
+        return jsonify({"error": "Corpus document not found."}), 404
+    except (ValueError, OSError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, **payload})
 
 
 @app.route("/api/corpus/<document_id>", methods=["DELETE"])
@@ -630,6 +726,8 @@ def stage_corpus_documents():
             "source": "corpus",
             "company": document.get("company"),
             "fiscal_year": document.get("fiscal_year"),
+            "source_pdf_sha256": document.get("sha256"),
+            "verification_status": verification_payload(document).get("status"),
         }
         with STAGED_LOCK:
             STAGED[upload_id] = record
@@ -637,7 +735,12 @@ def stage_corpus_documents():
 
     usable = [item for item in staged if "error" not in item]
     plan = estimate_batch_plan(usable, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
-    return jsonify({"ok": bool(usable), "files": staged, "plan": plan})
+    advisories = [
+        f"{item['name']} has not been human verified; exact accuracy will not be reported."
+        for item in usable
+        if item.get("verification_status") == "human_review_required"
+    ]
+    return jsonify({"ok": bool(usable), "files": staged, "plan": plan, "advisories": advisories})
 
 
 @app.route("/api/bakuraku/customers", methods=["GET"])
@@ -700,6 +803,7 @@ def start_corpus_job():
         "created_at": created_at,
         "updated_at": created_at,
         "worker_instance_id": CORPUS_WORKER_INSTANCE_ID,
+        "worker_pid": os.getpid(),
         "companies": cleaned,
         "years": years,
         "events": [],
@@ -725,6 +829,7 @@ def start_corpus_job():
                 years,
                 api_key=settings["firecrawl_api_key"],
                 max_downloads=min(settings.get("max_concurrency", 3), 6),
+                firecrawl_pdf_mode=settings.get("firecrawl_pdf_mode", "auto"),
                 on_event=on_event,
             )
         except Exception as exc:  # noqa: BLE001 - background failures are reported to the UI
@@ -767,7 +872,9 @@ def list_extraction_jobs():
     jobs: list[dict] = []
     for path in EXTRACTION_JOBS_ROOT.glob("*/state.json"):
         try:
-            jobs.append(json.loads(path.read_text(encoding="utf-8")))
+            state = _read_extraction_job_state(path.parent.name)
+            if state:
+                jobs.append(state)
         except (OSError, json.JSONDecodeError):
             continue
     jobs.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
@@ -827,6 +934,7 @@ def start_extraction_job():
         "strategies": strategy_keys, "files_total": len(staged_jobs),
         "passes_total": len(staged_jobs) * len(strategy_keys), "succeeded": 0, "failed": 0,
         "error": None,
+        "worker_pid": os.getpid(),
     }
     with EXTRACTION_JOBS_LOCK:
         _write_extraction_job_state(job_id, state)
@@ -934,8 +1042,8 @@ def extract_stream():
     if not jobs:
         return jsonify({"error": "Staged uploads expired. Please re-select the files."}), 400
 
-    # Strategy 2 is a bake-off: one PDF is run through several extractors so the
-    # comparison is on identical input. Accept either a single strategy or a list.
+    # One PDF can run through several selected parsers so comparison uses
+    # identical input. OCR policy is defined by the strategy/parser registry.
     requested = body.get("strategies") or body.get("strategy") or "s1"
     if isinstance(requested, str):
         requested = [requested]
@@ -1173,16 +1281,23 @@ def delete_run(run_id):
 
 @app.route("/api/schema", methods=["GET"])
 def get_schema():
-    return jsonify(BENCHMARK_SCHEMA_METADATA)
+    # FY2022 is the only assignment-supplied answer key. Candidate and
+    # human-approved keys are reviewed per PDF SHA through the corpus API.
+    return jsonify([
+        {**row, "golden_answers": {"2022": row.get("golden_answers", {}).get("2022")}}
+        for row in BENCHMARK_SCHEMA_METADATA
+    ])
 
 
 @app.route("/api/golden_answers", methods=["GET"])
 def get_golden_answers():
-    return jsonify(GOLDEN_ANSWERS_STORE)
+    return jsonify({"2022": GOLDEN_ANSWERS_STORE["2022"]})
 
 
 @app.route("/api/golden_answers/<fiscal_year>", methods=["POST"])
 def save_golden_answers(fiscal_year):
+    if str(fiscal_year) != "2022":
+        return jsonify({"error": "Only the assignment-supplied FY2022 key is exposed here. Review other reports through the corpus verification workflow."}), 409
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "Invalid payload format. Expected an object of item -> number."}), 400
@@ -1213,7 +1328,7 @@ def evaluate_run(run_id):
     return jsonify({
         "run_id": prediction.get("run_id", run_id),
         "fiscal_year": fiscal_year,
-        "metrics": compute_metrics(prediction.get("rows", []), fiscal_year),
+        "metrics": compute_metrics(prediction.get("rows", []), fiscal_year, prediction.get("company"), prediction.get("source_pdf_sha256")),
     })
 
 
@@ -1227,7 +1342,7 @@ def no_store(response):
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Vary"] = "Origin"
     return response
 
