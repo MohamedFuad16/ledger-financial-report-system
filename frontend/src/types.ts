@@ -165,8 +165,11 @@ export interface CorpusManifest {
 
 export interface CorpusJob {
   id: string
-  status: 'queued' | 'running' | 'complete' | 'failed'
+  status: 'queued' | 'running' | 'complete' | 'failed' | 'interrupted'
   events: Array<Record<string, unknown>>
+  created_at?: string
+  updated_at?: string
+  finished_at?: string
   result?: { downloaded: CorpusDocument[]; failed: Array<Record<string, unknown>> } | null
   error?: string | null
 }

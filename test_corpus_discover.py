@@ -1,6 +1,6 @@
 import unittest
 
-from corpus.client import FirecrawlClient
+from corpus.client import FirecrawlClient, FirecrawlRateGate
 from corpus.discover import discover_company_reports
 
 
@@ -27,6 +27,21 @@ class _FakeFirecrawl:
 
 
 class JapaneseCorpusDiscoveryTests(unittest.TestCase):
+    def test_shared_rate_gate_spaces_requests_and_honors_cooldown(self):
+        now = [0.0]
+        sleeps: list[float] = []
+
+        def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            now[0] += seconds
+
+        gate = FirecrawlRateGate(7.0, clock=lambda: now[0], sleeper=sleep)
+        self.assertEqual(0.0, gate.wait())
+        self.assertEqual(7.0, gate.wait())
+        gate.defer(10.0)
+        self.assertEqual(10.0, gate.wait())
+        self.assertEqual([7.0, 10.0], sleeps)
+
     def test_scraped_anchor_inherits_nearest_year_heading(self):
         client = object.__new__(FirecrawlClient)
         client._post = lambda *_args, **_kwargs: {  # type: ignore[method-assign]

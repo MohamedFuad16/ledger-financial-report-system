@@ -120,3 +120,14 @@ export function groupParserStats(runs: RunSummary[]) {
     }
   })
 }
+
+export function parserMetricLeaders(
+  stats: ReturnType<typeof groupParserStats>,
+  field: 'accuracy' | 'coverage' | 'precision',
+) {
+  const available = stats.filter((entry) => entry[field] != null && Number.isFinite(Number(entry[field])))
+  if (!available.length) return []
+  const displayed = (value: number | null) => Math.round(Number(value) * 10) / 10
+  const maximum = Math.max(...available.map((entry) => displayed(entry[field])))
+  return available.filter((entry) => displayed(entry[field]) === maximum)
+}

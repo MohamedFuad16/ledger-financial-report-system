@@ -55,11 +55,14 @@ ACTIVE_PROMPT = SYSTEM_PROMPT
 STAGED: dict[str, dict] = {}
 STAGED_LOCK = threading.Lock()
 CORPUS_JOBS: dict[str, dict] = {}
-CORPUS_JOBS_LOCK = threading.Lock()
+CORPUS_JOBS_LOCK = threading.RLock()
+CORPUS_JOBS_ROOT = RUNS_DIR / "_corpus_jobs"
+CORPUS_WORKER_INSTANCE_ID = uuid.uuid4().hex
 EXTRACTION_JOBS_ROOT = RUNS_DIR / "_extraction_jobs"
 EXTRACTION_JOBS_LOCK = threading.RLock()
 
 ensure_dirs()
+CORPUS_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 EXTRACTION_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 load_local_env()
 migrate_corpus_layout()
@@ -147,6 +150,57 @@ def _extraction_job_dir(job_id: str) -> Path:
     if path.parent != EXTRACTION_JOBS_ROOT.resolve():
         raise ValueError("Invalid extraction job id.")
     return path
+
+
+def _corpus_job_dir(job_id: str) -> Path:
+    if not job_id or any(char not in "0123456789abcdef" for char in job_id.lower()):
+        raise ValueError("Invalid corpus job id.")
+    path = (CORPUS_JOBS_ROOT / job_id).resolve()
+    if path.parent != CORPUS_JOBS_ROOT.resolve():
+        raise ValueError("Invalid corpus job id.")
+    return path
+
+
+def _write_corpus_job_state(job_id: str, state: dict) -> None:
+    job_dir = _corpus_job_dir(job_id)
+    job_dir.mkdir(parents=True, exist_ok=True)
+    state["updated_at"] = datetime.now(timezone.utc).isoformat()
+    temporary = job_dir / "state.json.tmp"
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(job_dir / "state.json")
+
+
+def _read_corpus_job_state(job_id: str) -> dict | None:
+    try:
+        path = _corpus_job_dir(job_id) / "state.json"
+    except ValueError:
+        return None
+    if not path.is_file():
+        return None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if (
+        state.get("status") in {"queued", "running"}
+        and state.get("worker_instance_id") != CORPUS_WORKER_INSTANCE_ID
+    ):
+        state["status"] = "interrupted"
+        state["error"] = "The backend restarted before this discovery job completed. Start a new discovery job to continue."
+        state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        state["worker_instance_id"] = CORPUS_WORKER_INSTANCE_ID
+        _write_corpus_job_state(job_id, state)
+    return state
+
+
+def _list_corpus_job_states() -> list[dict]:
+    jobs: list[dict] = []
+    for path in CORPUS_JOBS_ROOT.glob("*/state.json"):
+        state = _read_corpus_job_state(path.parent.name)
+        if state:
+            jobs.append(state)
+    jobs.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
+    return jobs
 
 
 def _write_extraction_job_state(job_id: str, state: dict) -> None:
@@ -626,11 +680,26 @@ def start_corpus_job():
     if not settings.get("firecrawl_api_key"):
         return jsonify({"error": "Configure the Firecrawl API key in Settings first."}), 400
 
+    with CORPUS_JOBS_LOCK:
+        active = next(
+            (item for item in _list_corpus_job_states() if item.get("status") in {"queued", "running"}),
+            None,
+        )
+    if active:
+        return jsonify({
+            "error": f"Corpus discovery job {active['id']} is already running.",
+            "job_id": active["id"],
+            "status": active["status"],
+        }), 409
+
     job_id = uuid.uuid4().hex[:12]
+    created_at = datetime.now(timezone.utc).isoformat()
     job = {
         "id": job_id,
         "status": "queued",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": created_at,
+        "updated_at": created_at,
+        "worker_instance_id": CORPUS_WORKER_INSTANCE_ID,
         "companies": cleaned,
         "years": years,
         "events": [],
@@ -639,12 +708,17 @@ def start_corpus_job():
     }
     with CORPUS_JOBS_LOCK:
         CORPUS_JOBS[job_id] = job
+        _write_corpus_job_state(job_id, job)
 
     def run_job() -> None:
         def on_event(event: dict) -> None:
             with CORPUS_JOBS_LOCK:
                 job["events"] = [*job["events"][-199:], {**event, "at": datetime.now(timezone.utc).isoformat()}]
                 job["status"] = "running"
+                _write_corpus_job_state(job_id, job)
+        with CORPUS_JOBS_LOCK:
+            job["status"] = "running"
+            _write_corpus_job_state(job_id, job)
         try:
             result = build_corpus(
                 cleaned,
@@ -658,20 +732,30 @@ def start_corpus_job():
                 job["status"] = "failed"
                 job["error"] = str(exc)
                 job["finished_at"] = datetime.now(timezone.utc).isoformat()
+                _write_corpus_job_state(job_id, job)
         else:
             with CORPUS_JOBS_LOCK:
                 job["status"] = "complete"
                 job["result"] = result
                 job["finished_at"] = datetime.now(timezone.utc).isoformat()
+                _write_corpus_job_state(job_id, job)
 
     threading.Thread(target=run_job, daemon=True, name=f"corpus-{job_id}").start()
     return jsonify({"ok": True, "job_id": job_id, "status": "queued"}), 202
 
 
+@app.route("/api/corpus/jobs", methods=["GET"])
+def list_corpus_jobs():
+    """Return recent durable discovery jobs so a new tab can rehydrate progress."""
+    with CORPUS_JOBS_LOCK:
+        jobs = _list_corpus_job_states()
+    return jsonify({"jobs": jobs[:20]})
+
+
 @app.route("/api/corpus/jobs/<job_id>", methods=["GET"])
 def get_corpus_job(job_id):
     with CORPUS_JOBS_LOCK:
-        job = CORPUS_JOBS.get(job_id)
+        job = CORPUS_JOBS.get(job_id) or _read_corpus_job_state(job_id)
         if job is None:
             return jsonify({"error": "Corpus job not found."}), 404
         return jsonify(json.loads(json.dumps(job)))

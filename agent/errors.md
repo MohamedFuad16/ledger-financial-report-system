@@ -71,9 +71,21 @@ identity or job-budget boundary.
 
 ## FY2021 PDF has an unusable text layer
 - Symptom: All text-only strategies score approximately 3.7% on FY2021.
-- Cause: The source PDF's balance-sheet text layer is broken.
-- Resolution: Detect and explain the condition; a future OCR strategy is required for recovery.
+- Cause: The official PDF renders printed page 47 correctly, but its embedded font maps the balance-sheet text to unusable glyph codes. Ledger marks 73/142 pages unreadable; the only exact accepted row is Total Assets, recovered from a separate readable summary page (`1/27 = 3.7037%`).
+- Resolution: Preserve the failure as input-health evidence and exclude FY2021 from text-representation claims until an explicit OCR/vision strategy is added. Do not treat arithmetic reconciliation as proof of answer-key provenance.
 - First seen: 2026-08-20
+
+## Corpus discovery disappeared after route changes or refresh (resolved)
+- Symptom: The EC2 thread continued after leaving Report corpus, but returning or reloading showed no active job; a backend restart erased the in-memory record entirely.
+- Cause: `CORPUS_JOBS` was a process-local dictionary and the client had no recent-job listing/rehydration path.
+- Resolution: Atomically snapshot every corpus job/event under `runs/_corpus_jobs`, expose recent jobs, restore the newest active/recent job on mount, and mark pre-restart active snapshots `interrupted` rather than losing their evidence.
+- First seen: 2026-08-21
+
+## Firecrawl account was repeatedly throttled (resolved)
+- Symptom: A large Bakuraku crawl repeatedly consumed 11–13 requests per minute and received HTTP 429 responses despite per-request retries.
+- Cause: Map, scrape and search calls were issued back-to-back; each retry slept independently, so another call could consume the account slot during cooldown.
+- Resolution: Reserve every credit-consuming call through one process-wide seven-second gate, apply `Retry-After` as a shared account cooldown, and retain bounded jittered retries.
+- First seen: 2026-08-21
 
 ## System Python lacks test dependencies
 - Symptom: `python3 -m pytest` fails because pytest is absent.

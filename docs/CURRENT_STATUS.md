@@ -94,6 +94,22 @@ Evidence, source labels, confidence, warnings and arithmetic diagnostics stay in
 
 The answer key is never sent to the model. It is read only after a prediction has passed validation and the confidence gate.
 
+### Benchmark-key assurance
+
+There are three different checks, and they must not be conflated:
+
+1. **Corpus screening** proves that the downloaded bytes are a PDF from the expected official domain, records a SHA-256 identity, checks the expected fiscal year inside the file, counts readable/garbled pages, and looks for a balance-sheet page and currency. This is document identity and health evidence, not an answer-key audit.
+2. **Arithmetic reconciliation** proves that a set of 27 values obeys the schema's subtotal identities. It catches inconsistent totals, but an internally consistent set can still be copied from the wrong column or year.
+3. **Golden-set verification** requires source-level provenance for every value. FY2022's complete 27-row answer key is supplied by the assignment problem statement. The FY2020, FY2021, FY2023, FY2024 and partial FY2025 keys are project-derived; the automated suite proves their shape and arithmetic consistency, but they should be treated as provisional until two-person/manual transcription with page, table, column, unit and derivation citations is complete.
+
+For a defensible manual audit, one reviewer should transcribe each leaf value from the rendered official PDF and record the printed page/table/column/unit; a second reviewer should independently re-enter it; computed subtotals should be regenerated from the leaves; disagreements should be resolved against the rendered page; and the final key should be pinned to the same PDF SHA-256 used by the run. Exact accuracy should not be reported as authoritative for a provisional key without that qualifier.
+
+### FY2021 incident audit
+
+The 3M FY2021 score of `3.7%` is mechanically correct: exactly one accepted row (`Total Assets = 47,072`) matched out of 27 evaluated rows, so `1 / 27 × 100 = 3.7037%`. All four text-only parser passes returned the same result. The PDF is the official 142-page 3M 2021 Annual Report, but its balance-sheet page has a broken font-to-Unicode mapping: the page renders visibly and shows the 2021 figures, while normal text extraction returns glyph-code noise. Ledger flagged 73 of 142 pages as unreadable/garbled. A rendered inspection of printed page 47 independently shows `Current assets 15,403`, `Total assets 47,072`, and the other core lines, while the textual parser can recover essentially only the summary total from a different readable page.
+
+This is not evidence that PyPDF, PyMuPDF, pdf-inspector and Docling all made the same accounting mistake. It is an input representation failure shared by text-only strategies. FY2021 should be excluded from claims comparing these text representations until an explicit OCR/vision strategy is added; it should remain visible as a failed-document case rather than being silently dropped.
+
 ## Corpus acquisition and reuse
 
 The Report corpus workflow is independent from extraction:
@@ -108,6 +124,10 @@ Company + official site + FY2020–FY2025
 ```
 
 Crawling never starts a model extraction. A verified recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
+
+The corpus worker is deterministic Python orchestration running inside the single Gunicorn service process on EC2. Firecrawl supplies link discovery results; Ledger itself spaces all credit-consuming Firecrawl calls through one process-wide gate (seven seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. The worker then uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes. It does not call GLM or any other extraction LLM. Model calls happen only after a user explicitly stages a screened report in Strategy 1 or Strategy 2.
+
+Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live separately on EBS and remain available.
 
 ### Verified corpus smoke tests
 
@@ -156,6 +176,7 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
+- Only FY2022 currently has an assignment-supplied complete answer key. Other maintained year keys are provisional until a PDF-hash-pinned, page-cited dual-entry audit is complete.
 - Strategy 2 is best described as an end-to-end parser capability bake-off, not a perfectly isolated representation-only ablation, because parser-specific diagnostics are included in the prompt.
 - Final accuracy can include deterministic normalization and one contract-repair call. Research reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

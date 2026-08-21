@@ -12,6 +12,7 @@
 | `corpus/service.py` | discovery/fetch/manifest | Flask corpus jobs, CLI worker | Changes affect large-scale source acquisition |
 | `corpus/discover.py` | Firecrawl client | corpus service | Changes affect link ranking and Firecrawl credits |
 | `corpus/client.py` | Firecrawl REST API | discovery, runtime-settings verification | Changes affect discovery calls and credential-save safety |
+| `runs/_corpus_jobs` | server corpus-job registry | corpus job list/detail API, client rehydration | Changes affect navigation-safe discovery visibility and restart audit state |
 | `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect local PDF trust and naming |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |

@@ -93,6 +93,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  corpusJobs: () => jsonRequest<{ jobs: CorpusJob[] }>('/api/corpus/jobs'),
   corpusJob: (id: string) => jsonRequest<CorpusJob>(`/api/corpus/jobs/${encodeURIComponent(id)}`),
   bakurakuCustomers: () => jsonRequest<{ count: number; customers: Array<Record<string, string>> }>('/api/bakuraku/customers'),
   extractionJobs: () => jsonRequest<{ jobs: Array<Omit<ExtractionJob, 'events' | 'next_offset'>> }>('/api/extraction/jobs'),

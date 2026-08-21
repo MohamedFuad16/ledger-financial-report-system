@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import random
 import re
+import threading
 import time
 from typing import Any, Callable
 
@@ -12,6 +14,55 @@ import requests
 
 class FirecrawlError(RuntimeError):
     pass
+
+
+class FirecrawlRateGate:
+    """Process-wide spacing and shared cooldown for credit-consuming calls.
+
+    Firecrawl's Retry-After header applies to the account, not just the request
+    that received the 429.  Reserving each request through one gate prevents a
+    second corpus job from consuming the slot while the first job is cooling
+    down.
+    """
+
+    def __init__(
+        self,
+        interval_seconds: float,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleeper: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.interval_seconds = max(0.0, float(interval_seconds))
+        self._clock = clock
+        self._sleep = sleeper
+        self._lock = threading.Lock()
+        self._next_allowed_at = 0.0
+
+    def wait(self) -> float:
+        """Reserve the next request slot, sleeping until it is available."""
+        waited = 0.0
+        while True:
+            with self._lock:
+                now = self._clock()
+                delay = max(0.0, self._next_allowed_at - now)
+                if delay <= 0:
+                    self._next_allowed_at = now + self.interval_seconds
+                    return waited
+            self._sleep(delay)
+            waited += delay
+
+    def defer(self, seconds: float) -> None:
+        """Apply an account-wide cooldown, normally from Retry-After."""
+        with self._lock:
+            self._next_allowed_at = max(
+                self._next_allowed_at,
+                self._clock() + max(0.0, float(seconds)),
+            )
+
+
+_GLOBAL_RATE_GATE = FirecrawlRateGate(
+    float(os.getenv("FIRECRAWL_REQUEST_INTERVAL_SECONDS", "7.0")),
+)
 
 
 class FirecrawlClient:
@@ -24,12 +75,14 @@ class FirecrawlClient:
         timeout: float = 70,
         max_attempts: int = 5,
         on_retry: Callable[[int, float, str], None] | None = None,
+        rate_gate: FirecrawlRateGate | None = None,
     ) -> None:
         if not api_key.strip():
             raise FirecrawlError("FIRECRAWL_API_KEY is not configured.")
         self.timeout = timeout
         self.max_attempts = max(1, max_attempts)
         self.on_retry = on_retry
+        self.rate_gate = rate_gate or _GLOBAL_RATE_GATE
         self.session = requests.Session()
         self.session.headers.update({
             "Authorization": f"Bearer {api_key.strip()}",
@@ -41,6 +94,7 @@ class FirecrawlClient:
         url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
         last_error = "Unknown Firecrawl error"
         for attempt in range(1, self.max_attempts + 1):
+            self.rate_gate.wait()
             try:
                 response = self.session.post(url, json=payload, timeout=self.timeout)
             except requests.RequestException as exc:
@@ -63,9 +117,9 @@ class FirecrawlClient:
             except (TypeError, ValueError):
                 delay = min(30.0, 2 ** attempt)
             delay += random.uniform(0, 0.75)
+            self.rate_gate.defer(delay)
             if self.on_retry:
                 self.on_retry(attempt, delay, last_error)
-            time.sleep(delay)
         raise FirecrawlError(last_error)
 
     def credit_usage(self) -> dict[str, Any]:

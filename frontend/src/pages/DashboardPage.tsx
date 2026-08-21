@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, Database, Gauge, Layers3 } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
-import { formatDuration, formatMetric, groupParserStats, matchedParserCohort } from '../lib/format'
+import { formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
 import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
@@ -25,9 +25,13 @@ export function DashboardPage({
   }
   const stats = groupParserStats(runs).filter((entry) => entry.runs)
   const fastest = stats.length ? stats.reduce((a, b) => Number(a.extractSeconds ?? Infinity) <= Number(b.extractSeconds ?? Infinity) ? a : b) : null
-  const accuracyLeader = stats.length ? stats.reduce((a, b) => Number(a.accuracy ?? -Infinity) >= Number(b.accuracy ?? -Infinity) ? a : b) : null
+  const accuracyLeaders = parserMetricLeaders(stats, 'accuracy')
+  const accuracyLeader = accuracyLeaders[0] || null
+  const tiedAccuracyLabel = accuracyLeaders.map((entry) => entry.short).join(tr(' and ', '・'))
   const conclusion = fastest && accuracyLeader
-    ? fastest.key === accuracyLeader.key
+    ? accuracyLeaders.length > 1
+      ? tr(`${fastest.short} is fastest; ${tiedAccuracyLabel} are tied for exact accuracy at ${formatMetric(accuracyLeader.accuracy)}.`, `${fastest.short} が最速で、${tiedAccuracyLabel} が完全一致率 ${formatMetric(accuracyLeader.accuracy)} で同率首位です。`)
+      : fastest.key === accuracyLeader.key
       ? tr(`${fastest.short} is currently the fastest and most accurate parser for this project.`, `${fastest.short} が現在このプロジェクトで最速かつ最も正確なパーサーです。`)
       : tr(`${fastest.short} is fastest; ${accuracyLeader.short} leads exact accuracy.`, `${fastest.short} が最速で、${accuracyLeader.short} が完全一致率で首位です。`)
     : tr('Run the benchmark to identify the leading parser.', 'ベンチマークを実行して最良のパーサーを確認します。')
@@ -45,7 +49,7 @@ export function DashboardPage({
       </header>
 
       <div className="metric-grid">
-        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${accuracyLeader.short} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
+        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned above confidence gate', '信頼度基準を超えて取得された項目')} />
         <MetricCard label={tr('Completed experiments', '完了した実験')} value={runs.length.toLocaleString()} detail={`${new Set(runs.map((run) => run.fiscal_year).filter(Boolean)).size} ${tr('fiscal years in the library', '会計年度を保存')}`} />
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastest?.short || '—'} detail={fastest ? `${formatDuration(fastest.extractSeconds)} ${tr('mean parse time', '平均解析時間')}` : tr('No timing data yet', '時間データはまだありません')} />

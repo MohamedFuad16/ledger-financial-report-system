@@ -19,7 +19,16 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const [deleting, setDeleting] = useState(false)
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
-  useEffect(() => { refresh() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const restoreLatestJob = () => api.corpusJobs()
+    .then(async ({ jobs }) => {
+      const latest = jobs.find((item) => ['queued', 'running'].includes(item.status)) || jobs[0]
+      setJob(latest ? await api.corpusJob(latest.id) : null)
+    })
+    .catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not restore corpus progress.', 'コーパス進捗を復元できませんでした。'), 'error'))
+  const refreshAll = () => Promise.all([refresh(), restoreLatestJob()])
+  useEffect(() => {
+    void refreshAll()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!job || !['queued', 'running'].includes(job.status)) return
@@ -28,7 +37,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
         const next = await api.corpusJob(job.id)
         setJob(next)
         if (next.status === 'complete') { await refresh(); onNotify(tr('Corpus discovery completed.', 'コーパス探索が完了しました。'), 'success') }
-        if (next.status === 'failed') onNotify(next.error || tr('Corpus discovery failed.', 'コーパス探索に失敗しました。'), 'error')
+        if (next.status === 'failed' || next.status === 'interrupted') onNotify(next.error || tr('Corpus discovery failed.', 'コーパス探索に失敗しました。'), 'error')
       } catch (error) { onNotify(error instanceof Error ? error.message : tr('Could not read corpus progress.', 'コーパス進捗を取得できませんでした。'), 'error') }
     }, 1500)
     return () => window.clearTimeout(timer)
@@ -105,9 +114,9 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
         </Card>
 
         <Card className="corpus-progress">
-          <SectionHeading eyebrow={tr('Background worker', 'バックグラウンドワーカー')} title={tr('Discovery activity', '探索アクティビティ')} description={tr('Firecrawl finds links; the AWS worker downloads and screens each PDF before replacing its canonical company/year file.', 'Firecrawlでリンクを発見し、AWSワーカーがPDFをダウンロード・検査して会社・年度ごとの標準ファイルを置き換えます。')} action={<Button variant="ghost" onClick={refresh}><RefreshCw size={15} /> {tr('Refresh', '更新')}</Button>} />
+          <SectionHeading eyebrow={tr('Background worker', 'バックグラウンドワーカー')} title={tr('Discovery activity', '探索アクティビティ')} description={tr('Firecrawl finds links; the AWS worker downloads and screens each PDF before replacing its canonical company/year file.', 'Firecrawlでリンクを発見し、AWSワーカーがPDFをダウンロード・検査して会社・年度ごとの標準ファイルを置き換えます。')} action={<Button variant="ghost" onClick={() => void refreshAll()}><RefreshCw size={15} /> {tr('Refresh', '更新')}</Button>} />
           {!job ? <EmptyState icon={<FolderSearch2 size={21} />} title={tr('No active discovery', '実行中の探索はありません')} description={tr('Start with one company, verify the result, then scale the company list.', 'まず1社で結果を確認してから会社リストを拡大してください。')} /> : <>
-            <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}</small></div></div>
+            <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' || job.status === 'interrupted' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' || job.status === 'interrupted' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}</small></div></div>
             <div className="job-events">{latestEvents.map((event, index) => <div key={`${String(event.at)}-${index}`}><span>{String(event.type || 'update')}</span><strong>{[event.company, event.year && `FY${event.year}`, event.message || event.screened].filter(Boolean).join(' · ')}</strong></div>)}</div>
           </>}
         </Card>

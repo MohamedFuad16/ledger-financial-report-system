@@ -23,6 +23,7 @@
 | DELETE | `/api/corpus/<sha256>` | Delete one manifest-owned corpus PDF after an explicit client confirmation; extraction runs remain intact |
 | POST | `/api/corpus/stage` | Validate selected SHA-256 corpus entries and stage their durable PDFs for the normal extraction stream |
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
+| GET | `/api/corpus/jobs` | List recent durable discovery jobs for route/reload rehydration |
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
@@ -39,10 +40,12 @@ OpenAI-compatible chat-completions providers configured in `providers.py`:
 OpenRouter, OpenAI, Z.AI, Z.AI Coding, or a custom endpoint. Authentication uses
 an API key from local environment settings. No credentials belong in this file.
 
-Firecrawl v2 map/search is used only for link discovery. Candidate PDFs are
-downloaded directly, validated, hashed and screened locally; crawling never
-starts an LLM extraction automatically. Runtime credential verification uses
-`GET /v2/team/credit-usage`, which authenticates without starting a crawl.
+Firecrawl v2 map/search is used only for link discovery. All credit-consuming
+calls share one process-wide seven-second request gate and an account-wide
+`Retry-After` cooldown. Candidate PDFs are downloaded directly, validated,
+hashed and screened locally; crawling never starts an LLM extraction
+automatically. Runtime credential verification uses `GET /v2/team/credit-usage`,
+which authenticates without starting a crawl.
 
 Upstash Redis stores a bounded private visit log and aggregate counters. AWS
 SES v2 sends one notification to the verified owner identity for each new

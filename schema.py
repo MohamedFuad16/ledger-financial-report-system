@@ -180,8 +180,14 @@ SUBTOTAL_IDENTITIES: list[tuple[str, list[str]]] = [
     ("Total Assets", ["Current Assets", "Fixed Assets", "Deferred Charges"]),
 ]
 
-# Multi-Year Golden Answers Store (3M Official Ground Truth)
-# Used strictly for benchmark evaluation & UI comparison
+# Multi-year benchmark answer-key store.
+#
+# FY2022 is the 27-row answer key supplied by the assignment problem statement.
+# The other years are project-derived benchmark keys: arithmetic tests establish
+# internal consistency, not source-level truth.  They must remain subject to a
+# page-cited manual audit before research claims call them authoritative gold.
+# Used strictly for post-extraction evaluation and UI comparison; these values
+# are never included in model prompts.
 GOLDEN_ANSWERS_STORE = {
     "2020": {
         "Current Assets": 14982,
