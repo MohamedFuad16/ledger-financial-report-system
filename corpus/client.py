@@ -13,8 +13,6 @@ from typing import Any, Callable
 
 import requests
 
-from schema import ASSET_SCHEMA
-
 try:  # Linux/macOS production and development hosts.
     import fcntl
 except ImportError:  # pragma: no cover - Windows is not a supported worker host
@@ -268,64 +266,3 @@ class FirecrawlClient:
                 seen.add(link)
                 normalized.append({"url": link, "title": title, "description": ""})
         return normalized
-
-    def extract_candidate_answers(self, url: str, *, mode: str = "auto") -> dict[str, Any]:
-        """Pre-populate the 27-row review sheet from a public Annual Report.
-
-        This is deliberately named *candidate* extraction. Firecrawl's result
-        is useful review assistance, but it never becomes benchmark gold until
-        a person approves the source-hash-bound table in the corpus UI.
-        """
-        normalized_mode = str(mode or "auto").strip().lower()
-        if normalized_mode not in {"fast", "auto", "ocr"}:
-            raise ValueError("Firecrawl PDF mode must be fast, auto, or ocr.")
-        items = [str(row["item"]) for row in ASSET_SCHEMA]
-        row_schema = {
-            "type": "object",
-            "additionalProperties": False,
-            "required": ["item", "answer_m_usd", "confidence", "source_page", "evidence"],
-            "properties": {
-                "item": {"type": "string", "enum": items},
-                "answer_m_usd": {"type": ["number", "null"]},
-                "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-                "source_page": {"type": ["integer", "null"], "minimum": 1},
-                "evidence": {"type": ["string", "null"]},
-            },
-        }
-        output_schema = {
-            "type": "object",
-            "additionalProperties": False,
-            "required": ["detected_fiscal_year", "rows"],
-            "properties": {
-                "detected_fiscal_year": {"type": ["integer", "null"]},
-                "rows": {"type": "array", "items": row_schema, "minItems": 27, "maxItems": 27},
-            },
-        }
-        prompt = (
-            "Extract the asset-side balance sheet for the report's fiscal year. "
-            "Return exactly one row for every requested item, in the supplied order. "
-            "Normalize values to millions of US dollars (M USD), preserve negative signs, "
-            "and use null when the report does not support a value. Include a concise source "
-            "quote and one-based PDF page for human verification. Requested items: "
-            + " | ".join(items)
-        )
-        body = self._post("scrape", {
-            "url": url,
-            "formats": [{"type": "json", "schema": output_schema, "prompt": prompt}],
-            "parsers": [{"type": "pdf", "mode": normalized_mode}],
-            # Candidate passes measure current service repeatability. Reusing
-            # Firecrawl's default cache would make three calls one cached call.
-            "maxAge": 0,
-            "timeout": 300000,
-        })
-        data = body.get("data") or {}
-        structured = data.get("json") if isinstance(data, dict) else None
-        if not isinstance(structured, dict) or not isinstance(structured.get("rows"), list):
-            raise FirecrawlError("Firecrawl returned an invalid structured PDF extraction.")
-        metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
-        return {
-            "mode": normalized_mode,
-            "detected_fiscal_year": structured.get("detected_fiscal_year"),
-            "rows": structured["rows"],
-            "metadata": metadata,
-        }

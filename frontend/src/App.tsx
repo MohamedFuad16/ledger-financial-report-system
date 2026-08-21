@@ -9,9 +9,10 @@ import { CorpusPage } from './pages/CorpusPage'
 import { SchemaPage } from './pages/SchemaPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { StrategyPage } from './pages/StrategyPage'
+import { StrategyThreePage } from './pages/StrategyThreePage'
 import { useLocale } from './lib/i18n'
 
-const panels: PanelKey[] = ['dashboard', 'strategy1', 'strategy2', 'history', 'corpus', 'schema', 'settings']
+const panels: PanelKey[] = ['dashboard', 'strategy1', 'strategy2', 'strategy3', 'history', 'corpus', 'schema', 'settings']
 
 function panelFromHash(): PanelKey {
   const key = window.location.hash.replace(/^#\/?/, '') as PanelKey
@@ -105,7 +106,7 @@ export default function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
-        navigate('strategy2')
+        navigate('strategy1')
       }
       if (event.key === 'Escape') setSidebarOpen(false)
     }
@@ -152,6 +153,7 @@ export default function App() {
         {panel === 'dashboard' && <DashboardPage runs={runs} loading={loading} onNavigate={navigate} />}
         {panel === 'strategy1' && <StrategyPage kind="s1" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
         {panel === 'strategy2' && <StrategyPage kind="s2" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
+        {panel === 'strategy3' && <StrategyThreePage onNavigate={navigate} />}
         {panel === 'history' && <HistoryPage runs={runs} onDeleteRun={deleteRun} onDeleteRuns={deleteRuns} onDeleteAllRuns={deleteAllRuns} />}
         {panel === 'corpus' && <CorpusPage settings={settings} onNotify={notify} />}
         {panel === 'schema' && <SchemaPage rows={schema} />}

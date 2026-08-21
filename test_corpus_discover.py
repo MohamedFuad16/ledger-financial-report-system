@@ -73,48 +73,6 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         links = client.scrape_links("https://example.jp/ir/library/")
         self.assertEqual("2024 有価証券報告書", links[0]["title"])
 
-    def test_candidate_answers_use_firecrawl_pdf_parser_and_fixed_schema(self):
-        client = object.__new__(FirecrawlClient)
-        observed = {}
-
-        def post(endpoint, payload):
-            observed.update({"endpoint": endpoint, "payload": payload})
-            return {
-                "success": True,
-                "data": {
-                    "json": {
-                        "detected_fiscal_year": 2024,
-                        "rows": [
-                            {
-                                "item": item,
-                                "answer_m_usd": None,
-                                "confidence": None,
-                                "source_page": None,
-                                "evidence": None,
-                            }
-                            for item in observed.get("items", [])
-                        ],
-                    },
-                    "metadata": {"pages": 10},
-                },
-            }
-
-        def capturing_post(endpoint, payload):
-            row_schema = payload["formats"][0]["schema"]["properties"]["rows"]
-            observed["items"] = row_schema["items"]["properties"]["item"]["enum"]
-            return post(endpoint, payload)
-
-        client._post = capturing_post  # type: ignore[method-assign]
-        parsed = client.extract_candidate_answers("https://example.com/report.pdf", mode="ocr")
-
-        self.assertEqual("scrape", observed["endpoint"])
-        self.assertEqual([{"type": "pdf", "mode": "ocr"}], observed["payload"]["parsers"])
-        rows_schema = observed["payload"]["formats"][0]["schema"]["properties"]["rows"]
-        self.assertEqual(27, rows_schema["minItems"])
-        self.assertEqual(27, rows_schema["maxItems"])
-        self.assertEqual(27, len(parsed["rows"]))
-        self.assertEqual(2024, parsed["detected_fiscal_year"])
-
     def test_japanese_ir_vocabulary_is_discovered(self):
         client = _FakeFirecrawl()
         reports = discover_company_reports(

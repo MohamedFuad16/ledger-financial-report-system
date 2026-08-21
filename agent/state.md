@@ -1,17 +1,18 @@
 # Project state
 
-> Last updated: 2026-08-22 · HEAD: 280e45d
+> Last updated: 2026-08-22 · pending deployment
 
 ## Current state summary
 
-Ledger is a React/Flask Annual Report benchmark with matched four-parser arms: Strategy 1 disables OCR; Strategy 2 enables compulsory or page-adaptive OCR and records page-level provenance. Only assignment-supplied 3M FY2022 is built-in gold. Other PDFs remain unscored until a human approves a 27-row table bound to the exact source SHA-256; unverified runs still contribute speed and coverage.
+Ledger is a React/Flask Annual Report benchmark with matched four-parser arms: Strategy 1 enables compulsory or page-adaptive OCR and records page-level provenance; Strategy 2 disables OCR. Strategy 3 is planned as schema-guided complete-page filtering with BM25-style lexical scoring, deterministic reject patterns, evidence-recall gates, and a full-document fallback. It is not vector RAG or an agentic loop. Only assignment-supplied 3M FY2022 is built-in gold. Other PDFs remain unscored until a human approves a 27-row table bound to the exact source SHA-256; unverified runs still contribute speed and coverage.
 
-The corpus keeps one atomic company/year PDF, uses cross-process manifest locking and a 12.5-second Firecrawl gate, and persists corpus/extraction jobs across navigation and refresh. Candidate review is extracted-first: up to three uncached PDF passes produce a provisional consensus, the UI embeds the pinned PDF beside 27 prefilled rows, reviewers correct discrepancies, then Save & Approve. Missing legacy candidates are extracted on demand; failures show Retry instead of blank manual inputs.
+The corpus keeps one atomic company/year PDF, uses cross-process manifest locking and a 12.5-second Firecrawl gate, and persists corpus/extraction jobs across navigation and refresh. Firecrawl is discovery-only. Candidate review is extracted-first: one configured-LLM semantic-mapping pass produces a provisional table, the UI embeds a large searchable PDF beside 27 prefilled rows, reviewers correct discrepancies, then Save & Approve. Legacy Firecrawl candidates are replaced on review; failures show Retry instead of blank manual inputs.
 
 Anonymous browser workspace IDs isolate staged files, jobs, run history and run deletion between ordinary public visitors without pretending to be authentication. Vercel serves the bilingual responsive client; Tokyo EC2/Caddy/Gunicorn serves the API and persistent encrypted-EBS artifacts. Provider, Firecrawl, Upstash and SES credentials remain backend-only. Dashboard leaders use matched report cohorts and display-rounded ties.
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Restored Strategy 3 as a schema-guided complete-page filtering roadmap, corrected public Strategy 1/2 OCR numbering, removed the dashboard arm switch, separated Firecrawl discovery from configured-LLM answer prefill, and enlarged/search-enabled the corpus review workspace — why: reduce model input without overclaiming vector RAG and make human verification match the extract-correct-approve workflow — by: leader — session: Strategy 3 + final UI clean sweep
 - 2026-08-22 — Restricted the complete product surface to Overview, Strategy 1, Strategy 2, History, Report corpus, Target schema, and Settings; deleted the two out-of-scope planned routes/pages and their documentation, and added navigation regression coverage — why: align the implementation with the assignment's direct model semantic-mapping and human-verification workflow — by: leader — session: final scope correction
 - 2026-08-22 — Completed the clean-sweep implementation for extracted-first human review, three-pass candidate consensus, anonymous workspace isolation, side-by-side PDF correction/approval UI, and regression/documentation coverage; full local contract, unittest, Vitest, build, desktop/mobile and console checks pass — why: eliminate blank manual review tables and finish the interrupted public-state work — by: leader — session: final clean sweep
 - 2026-08-21 — Reverified the final OCR/gold/corpus contract with 34 backend tests, the full extraction contract suite, 15 frontend tests and a production build; aligned README/API/error records with the shipped matrix — why: eliminate stale pre-OCR claims before AWS/Vercel deployment — by: leader — session: final OCR deployment

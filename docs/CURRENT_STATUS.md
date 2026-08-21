@@ -43,29 +43,29 @@ Every active parser follows the same pipeline. Only the document representation 
 
 The repair boundary is intentionally narrow: confidence below `0.80` never triggers a model retry, and a failed arithmetic identity never triggers a model retry. Both are downstream measurements of a contract-valid answer.
 
-## Strategy 1: four-parser no-OCR control
+## Strategy 1: four-parser OCR-enabled arm
 
-Strategy 1 is the no-OCR experimental arm. The user may select one parser or any subset of the four parsers; selected passes run as independent comparisons against the same PDF, model, system prompt, 27-row schema and evaluation code.
+Strategy 1 exposes the four selectable parsers with OCR enabled. “Adaptive” applies only to a parser that has a real page-level decision mechanism; it does not mean that OCR is optional for the whole strategy.
 
-| Parser | Strategy 1 representation | OCR policy |
-|---|---|---|
-| PyPDF | Raw page text assembled in memory with page markers | Off |
-| PyMuPDF4LLM | Layout-aware Markdown and page chunks | Off |
-| pdf-inspector | Position-aware native Rust Markdown | Off |
-| Docling | ML document graph converted to Markdown | Off |
-
-PyPDF does not create an intermediate Markdown file. It produces one in-memory string from `page.extract_text()` results. The other passes may preserve more layout, but none may render a page for OCR in Strategy 1. Every selected pass produces its own model request and stored prediction.
-
-## Strategy 2: four-parser OCR-enabled arm
-
-Strategy 2 exposes the same four selectable parsers with OCR enabled. “Adaptive” applies only to a parser that has a real page-level decision mechanism; it does not mean that OCR is optional for the whole strategy.
-
-| Parser | Strategy 2 OCR behavior | Policy |
+| Parser | Strategy 1 OCR behavior | Policy |
 |---|---|---|
 | PyPDF | Renders and OCRs every page because PyPDF has no trusted OCR-needed classifier | Compulsory |
 | PyMuPDF4LLM | Uses its integrated page-aware OCR recovery | Adaptive |
 | pdf-inspector | Classifies every page; retains native Rust text for text pages and sends only OCR-needed pages through the exact 200-DPI GLM-OCR path | Adaptive |
 | Docling | Runs document conversion with OCR forced for every page | Compulsory |
+
+The user may select one parser or any subset; every pass produces its own model request and stored prediction against the same PDF, model, prompt, schema, and evaluation code.
+
+## Strategy 2: four-parser no-OCR control
+
+Strategy 2 exposes the same four parsers with OCR disabled.
+
+| Parser | Strategy 2 representation | OCR policy |
+|---|---|---|
+| PyPDF | Raw page text assembled in memory with page markers | Off |
+| PyMuPDF4LLM | Layout-aware Markdown with complete page boundaries | Off |
+| pdf-inspector | Position-aware native Rust Markdown | Off |
+| Docling | ML document graph converted to Markdown | Off |
 
 The exact pdf-inspector path is:
 
@@ -82,6 +82,10 @@ PDF
 ```
 
 Per-page provenance records the decision, reason, engine, page number and render DPI. Each selected pass still produces an independent model request and run artifact.
+
+## Strategy 3: schema-guided page filtering (planned)
+
+Strategy 3 will operate on complete page-marked Markdown pages before the existing semantic-mapping call. It will rank pages against the 27-field schema with accounting synonyms and BM25-style lexical signals, combine positive evidence patterns with explicit boilerplate reject patterns, retain the balance-sheet page and adjacent/relevant note pages, and fall back to the complete document when selector confidence is weak. It is page retrieval in the literal technical sense, but it is not vector RAG: it adds no embeddings, vector database, arbitrary token chunks, recursive search, or agentic loop. Evidence-page recall and unchanged field coverage/exact accuracy are required; token savings alone are insufficient. The full experiment contract is in `ROADMAP.md`.
 
 The live and historical comparison now uses a matched report cohort: a report contributes to parser averages only when every selected parser completed that report. Repeated observations are averaged within each report before reports are averaged, preventing a parser rerun or a failed pass from silently changing the comparison population. Scheduled, successful and failed pass counts remain visible, and each PDF's individual values remain in its run history.
 
@@ -104,7 +108,7 @@ There are three different checks, and they must not be conflated:
 
 1. **Corpus screening** proves that the downloaded bytes are a PDF from the expected official domain, records a SHA-256 identity, checks the expected fiscal year inside the file, counts readable/garbled pages, and looks for a balance-sheet page and currency. This is document identity and health evidence, not an answer-key audit.
 2. **Arithmetic reconciliation** proves that a set of 27 values obeys the schema's subtotal identities. It catches inconsistent totals, but an internally consistent set can still be copied from the wrong column or year.
-3. **Golden-set verification** requires source-level provenance for every value. Only the 3M FY2022 27-row answer key supplied by the assignment is authoritative by default. Every other company/year begins as Firecrawl-generated candidate data and has no exact-accuracy score until a person reviews all 27 rows against the source PDF and saves approval. The review workspace is extracted-first: it embeds the pinned PDF beside 27 prefilled rows, permits corrections, and exposes Save & Approve only after a candidate artifact exists. Approval is bound to the exact PDF SHA-256, so replacing the PDF invalidates that approval.
+3. **Golden-set verification** requires source-level provenance for every value. Only the 3M FY2022 27-row answer key supplied by the assignment is authoritative by default. Every other company/year begins with configured-LLM semantic mapping and has no exact-accuracy score until a person reviews all 27 rows against the source PDF and saves approval. The review workspace is extracted-first: it embeds the searchable pinned PDF beside 27 prefilled rows, permits corrections, and exposes Save & Approve only after a candidate artifact exists. Approval is bound to the exact PDF SHA-256, so replacing the PDF invalidates that approval.
 
 For a defensible manual audit, one reviewer should transcribe each leaf value from the rendered official PDF and record the printed page/table/column/unit; a second reviewer should independently re-enter it; computed subtotals should be regenerated from the leaves; disagreements should be resolved against the rendered page; and the final key should be pinned to the same PDF SHA-256 used by the run. Exact accuracy should not be reported as authoritative for a provisional key without that qualifier.
 
@@ -121,15 +125,16 @@ Company + official site + FY2020–FY2025
   → Firecrawl call 1: map/search for candidate official-report URLs
   → direct PDF download to the canonical company/year path
   → MIME/signature, year, balance-sheet and text-health screening
-  → three uncached Firecrawl structured-extraction passes
-  → provisional 27-row consensus with per-row agreement metadata
+  → user opens Review answers
+  → one configured-LLM semantic-mapping pass over the pinned PDF
+  → provisional 27-row candidate table
   → SHA-256-bound manifest + candidate review artifact
   → human review in the Corpus UI (optional before execution, required for accuracy)
 ```
 
 Crawling never starts a Strategy 1/2 model extraction. A screened recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF. Unverified documents are usable, but the picker warns that their candidate answers are not gold and their runs will not contribute to exact-accuracy leadership.
 
-The corpus worker is deterministic Python orchestration running in the EC2 Gunicorn service. Firecrawl supplies link discovery and the non-authoritative structured candidate table. Ledger spaces all credit-consuming Firecrawl calls through one cross-process gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. Repeated candidate passes measure service repeatability, not truth. For legacy documents without a candidate artifact, the Review action runs the same PDF extraction before rendering editable inputs; failures stay in a retry state instead of falling back to manual transcription. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent. Strategy model calls happen only after a user explicitly stages a report in Strategy 1 or Strategy 2.
+The corpus worker is deterministic Python orchestration running in the EC2 Gunicorn service. Firecrawl supplies link discovery only. Ledger spaces all credit-consuming Firecrawl calls through one cross-process gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. For documents without a candidate artifact, the Review action runs the configured LLM semantic mapping before rendering editable inputs; failures stay in a retry state instead of falling back to manual transcription. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent.
 
 Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live separately on EBS and remain available.
 
@@ -176,12 +181,12 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 
 ## Current limitations
 
-- The product scope is limited to Strategy 1 and Strategy 2; both send a parser-produced document representation through the configured model for semantic mapping, then validate and verify the fixed result contract.
-- Strategy 1 is intentionally text-only; Strategy 2 provides compulsory or page-adaptive OCR for every corresponding parser.
+- Strategy 1 and Strategy 2 are active; Strategy 3 is a planned selector experiment and has no extraction endpoint yet.
+- Strategy 1 provides compulsory or page-adaptive OCR; Strategy 2 is intentionally no-OCR.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
 - Only 3M FY2022 has an assignment-supplied complete answer key. Every other report remains unscored until its 27-row candidate sheet is manually approved for the exact PDF SHA-256.
-- Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
+- Strategy 1 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
 - Final accuracy can include deterministic normalization and one contract-repair call. Benchmark reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

@@ -15,6 +15,7 @@ from flask import Flask, Response, jsonify, request, send_file, stream_with_cont
 
 from api_client import GLMError, QuotaExhaustedError, test_api_key
 from corpus.client import FirecrawlClient, FirecrawlError
+from corpus.fetch import pin_candidate_answers
 from corpus.manifest import (
     CORPUS_ROOT,
     approve_document_answers,
@@ -24,7 +25,7 @@ from corpus.manifest import (
     migrate_corpus_layout,
     verification_payload,
 )
-from corpus.service import build_corpus, extract_document_candidates
+from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
 from ratelimit import LIMITER, estimate_batch_plan
@@ -704,23 +705,47 @@ def extract_corpus_verification(document_id):
     if document is None:
         return jsonify({"error": "Corpus document not found."}), 404
     existing = verification_payload(document)
-    if existing.get("candidate_extracted"):
+    reusable_candidate = str(existing.get("candidate_method") or "").startswith("configured_llm")
+    if existing.get("candidate_extracted") and (
+        existing.get("status") in {"assignment_supplied", "human_verified"} or reusable_candidate
+    ):
         return jsonify({"ok": True, "reused": True, **existing})
 
     settings = current_settings()
-    if not settings.get("firecrawl_api_key"):
+    if not settings.get("api_key"):
         return jsonify({
-            "error": "PDF answer extraction is unavailable until the Firecrawl key is configured."
+            "error": "PDF answer extraction is unavailable until the model API key is configured."
         }), 400
     try:
-        updated = extract_document_candidates(
+        prediction = run_pipeline(
+            pdf_path=Path(str(document.get("local_path") or "")),
+            settings=settings,
+            strategy_key="s2",
+            system_prompt=ACTIVE_PROMPT,
+            fiscal_year_hint=str(document.get("fiscal_year") or ""),
+            display_name=str(document.get("filename") or Path(str(document.get("local_path") or "")).name),
+            workspace_id=request_workspace_id(),
+            enable_reasoning=bool(settings.get("enable_reasoning", True)),
+            reasoning_effort=str(settings.get("reasoning_effort") or ""),
+            temperature=float(settings.get("temperature", 0.1)),
+        )
+        updated = pin_candidate_answers(
             document,
-            api_key=settings["firecrawl_api_key"],
-            firecrawl_pdf_mode=settings.get("firecrawl_pdf_mode", "auto"),
-            candidate_passes=3,
+            {
+                "detected_fiscal_year": prediction.get("detected_fiscal_year") or prediction.get("fiscal_year"),
+                "rows": prediction.get("rows") or [],
+                "mode": "semantic_mapping",
+                "metadata": {
+                    "run_id": prediction.get("run_id"),
+                    "model": prediction.get("model"),
+                    "provider": prediction.get("provider"),
+                },
+            },
+            requested_passes=1,
+            provider="configured_llm",
         )
         payload = verification_payload(updated)
-    except (FirecrawlError, RuntimeError, ValueError, OSError) as exc:
+    except (GLMError, SchemaValidationError, RuntimeError, ValueError, OSError) as exc:
         return jsonify({"error": f"Could not extract review answers from the PDF: {exc}"}), 502
     return jsonify({"ok": True, "reused": False, **payload}), 201
 
@@ -900,7 +925,6 @@ def start_corpus_job():
                 years,
                 api_key=settings["firecrawl_api_key"],
                 max_downloads=min(settings.get("max_concurrency", 3), 6),
-                firecrawl_pdf_mode=settings.get("firecrawl_pdf_mode", "auto"),
                 on_event=on_event,
             )
         except Exception as exc:  # noqa: BLE001 - background failures are reported to the UI

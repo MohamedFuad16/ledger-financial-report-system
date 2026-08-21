@@ -209,8 +209,9 @@ def pin_candidate_answers(
     parsed: dict[str, Any] | list[dict[str, Any]],
     *,
     requested_passes: int = 1,
+    provider: str = "firecrawl",
 ) -> dict[str, Any]:
-    """Persist source-bound Firecrawl passes and a non-authoritative consensus."""
+    """Persist source-bound model passes and a non-authoritative consensus."""
     pdf_path = Path(str(document["local_path"])).resolve()
     if not pdf_path.is_relative_to(CORPUS_ROOT.resolve()) or not pdf_path.is_file():
         raise ValueError("The canonical PDF is outside corpus storage or missing.")
@@ -218,13 +219,10 @@ def pin_candidate_answers(
     parsed_passes = parsed if isinstance(parsed, list) else [parsed]
     parsed_passes = [item for item in parsed_passes if isinstance(item, dict)]
     if not parsed_passes:
-        raise ValueError("At least one successful Firecrawl candidate pass is required.")
+        raise ValueError("At least one successful candidate pass is required.")
     requested_passes = max(int(requested_passes), len(parsed_passes))
-    candidate_method = (
-        "firecrawl_pdf_extraction"
-        if requested_passes == 1
-        else "firecrawl_multi_pass_consensus"
-    )
+    normalized_provider = str(provider or "configured_llm").strip().lower()
+    candidate_method = f"{normalized_provider}_semantic_mapping" if requested_passes == 1 else f"{normalized_provider}_multi_pass_consensus"
     normalized_passes = [_normalize_candidate_rows(item) for item in parsed_passes]
     rows, consensus_summary = _consensus_rows(normalized_passes, requested_passes=requested_passes)
 
@@ -240,7 +238,7 @@ def pin_candidate_answers(
         pass_artifact = {
             "status": "provisional_candidate_pass",
             "authoritative_golden_set": False,
-            "provider": "firecrawl",
+            "provider": normalized_provider,
             "pass_number": pass_number,
             "pdf_sha256": document.get("sha256"),
             "source_url": document.get("source_url"),
@@ -259,7 +257,7 @@ def pin_candidate_answers(
     artifact = {
         "status": "human_review_required",
         "authoritative_golden_set": False,
-        "provider": "firecrawl",
+        "provider": normalized_provider,
         "candidate_method": candidate_method,
         "pdf_sha256": document.get("sha256"),
         "source_url": document.get("source_url"),
@@ -285,7 +283,7 @@ def pin_candidate_answers(
             **existing_verification,
             "status": "human_verified" if preserve_approval else "human_review_required",
             "source_sha256": document.get("sha256"),
-            "provider": "firecrawl",
+            "provider": normalized_provider,
             "candidate_path": str(candidate_path),
             "candidate_pass_paths": pass_paths,
             "candidate_method": candidate_method,

@@ -6,7 +6,7 @@
 - `extraction.py` — parser strategy registry and text-health diagnostics.
 - `api_client.py` — provider request/retry, context-preserving repair payloads, separate attempt artifacts, and reply parsing.
 - `providers.py`, `ratelimit.py` — provider-specific payloads, cache metrics, concurrency, and backoff.
-- `corpus/` — Firecrawl client/discovery, ranked candidate fallback, direct PDF download, screening, multi-pass candidate consensus, on-demand review prefill, and manifest persistence.
+- `corpus/` — Firecrawl discovery, ranked report fallback, direct PDF download, screening, model-candidate persistence, on-demand review prefill, and manifest persistence.
 - `corpus_worker.py` — CSV/JSON command-line runner for the corpus service.
 
 ## Contract and quality
@@ -20,9 +20,9 @@
 
 - `server.py` — Flask routes, SSE streaming, and static/client delivery.
 - `traffic.py` — backend-only Upstash persistence, session deduplication, and escaped text/HTML-table AWS SES notification delivery.
-- `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, Strategy-2-first keyboard-command coordination, and one private visit report per browser session.
+- `frontend/src/App.tsx` — route, data, theme, persisted sidebar-collapse, Strategy-1-first keyboard-command coordination, and one private visit report per browser session.
 - `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, shared interface translation, and canonical schema/result-value localization.
-- `frontend/src/pages/` — dashboard, the two live extraction strategies, history, corpus (including confirmed deletion and an embedded-PDF extracted-answer review workspace), schema, and settings.
+- `frontend/src/pages/` — dashboard, two live extraction strategies, the planned Strategy 3 specification, history, corpus (including confirmed deletion and a searchable embedded-PDF answer-review workspace), schema, and settings.
 - `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, BeautifulUI-derived neutral execution capsules, and shared UI primitives.
 - `frontend/src/editor-theme.css` — final visual mapping from the user's Resume/editor application; loaded after the legacy stylesheet.
 - `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.

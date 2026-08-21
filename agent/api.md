@@ -46,14 +46,14 @@ OpenAI-compatible chat-completions providers configured in `providers.py`:
 OpenRouter, OpenAI, Z.AI, Z.AI Coding, or a custom endpoint. Authentication uses
 an API key from local environment settings. No credentials belong in this file.
 
-Firecrawl v2 map/search is used for link discovery, followed by three uncached
-structured PDF passes that prepopulate an unverified 27-row consensus table and
-retain per-row agreement metadata. The review endpoint runs this extraction on
-demand for older pinned documents that have no candidate artifact; it never
-returns a blank table as a substitute for extraction. All credit-consuming
+Firecrawl v2 map/search is used only for official-report link discovery. The
+review endpoint runs the configured LLM semantic-mapping pipeline on demand,
+stores its 27 provisional rows against the pinned PDF SHA-256, and never
+returns a blank table as a substitute for extraction. Legacy Firecrawl candidate
+artifacts are replaced on review. All credit-consuming Firecrawl
 calls share one cross-process 12.5-second request gate and an account-wide
 `Retry-After` cooldown. Candidate PDFs are downloaded directly, validated,
-hashed and screened locally; crawling never starts an LLM extraction
+hashed and screened locally; crawling never starts answer extraction
 automatically. Runtime credential verification uses `GET /v2/team/credit-usage`,
 which authenticates without starting a crawl.
 

@@ -20,6 +20,8 @@
   <a href="https://assignment.mohamedfuad.com">Open Ledger</a>
   ·
   <a href="docs/CURRENT_STATUS.md">Architecture report</a>
+  ·
+  <a href="ROADMAP.md">Strategy roadmap</a>
 </p>
 
 ---
@@ -32,7 +34,8 @@ The current assignment uses 3M reports as the initial benchmark, while the corpu
 
 ## Features
 
-- **Two controlled extraction strategies** — the same four selectable parsers without OCR (Strategy 1) and with OCR (Strategy 2).
+- **Two active extraction strategies** — the same four selectable parsers with OCR (Strategy 1) and without OCR (Strategy 2).
+- **Planned Strategy 3** — schema-guided page filtering reduces the Markdown sent to the model while preserving complete page boundaries and the same 27-row semantic-mapping contract.
 - **Four parser passes** — PyPDF, PyMuPDF4LLM, pdf-inspector and Docling can be selected individually or together.
 - **Fixed output contract** — exactly 27 canonical rows, normalized and validated before use.
 - **Truthful evaluation** — exact accuracy, field coverage and precision are separate metrics.
@@ -67,15 +70,11 @@ Company / fiscal year / run artifacts
 
 The selected parser and OCR policy change between strategies. The report, prompt, model settings, output contract, confidence rule and scoring path remain shared.
 
-### Strategy 1 · no-OCR parser comparison
+### Strategy 1 · OCR-enabled parser comparison
 
-All four parsers run with OCR disabled. PyPDF calls `page.extract_text()` for every page, normalizes the text, inserts page markers and builds an in-memory prompt. PyMuPDF4LLM, pdf-inspector and Docling use their native non-OCR representations. No pass consults the answer key.
+The report is independently represented by the selected parser passes. OCR is page-adaptive only when the parser exposes a reliable page-level decision boundary; otherwise OCR is compulsory:
 
-### Strategy 2 · OCR-enabled parser comparison
-
-The same report is independently represented by the selected parser passes. OCR is page-adaptive only when the parser exposes a reliable page-level decision boundary; otherwise OCR is compulsory:
-
-| Parser | Strategy 2 OCR policy | Output sent to the shared prompt |
+| Parser | Strategy 1 OCR policy | Output sent to the shared prompt |
 |---|---|---|
 | PyPDF | Compulsory | OCR text assembled in page order |
 | PyMuPDF4LLM | Adaptive | Layout-aware Markdown with integrated OCR fallback |
@@ -83,6 +82,14 @@ The same report is independently represented by the selected parser passes. OCR 
 | Docling | Compulsory | OCR-backed ML document graph exported as Markdown |
 
 Each pass gets its own provider response, validation result, timing and persisted run, making the comparison inspectable rather than inferred.
+
+### Strategy 2 · no-OCR parser comparison
+
+All four parsers run with OCR disabled. PyPDF calls `page.extract_text()` for every page, normalizes the text, inserts page markers and builds an in-memory prompt. PyMuPDF4LLM, pdf-inspector and Docling use their native non-OCR representations. No pass consults the answer key.
+
+### Strategy 3 · schema-guided page filtering (planned)
+
+Strategy 3 will keep existing Markdown page boundaries, score complete pages against the 27-field schema with accounting synonyms and BM25-style lexical signals, apply explicit reject patterns to obvious boilerplate, and send only the retained evidence pages to the same LLM semantic-mapping pipeline. It will not use a vector store, embeddings, arbitrary token chunks, or an agentic loop. The selector must always retain the detected balance-sheet page and neighbors, keep relevant notes, and fall back to the complete document when selector confidence is weak. Evidence-page recall and unchanged exact accuracy are hard acceptance gates; token reduction alone is not success. See [ROADMAP.md](ROADMAP.md).
 
 ## Quality contract
 
@@ -96,7 +103,7 @@ model JSON
   → score only when an authoritative or SHA-bound human-approved golden set exists
 ```
 
-The answer key is never model input. A low-confidence value stays in the audit artifact but is displayed and scored as unanswered. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Firecrawl-generated candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256. Human review never starts from a blank form: Ledger first extracts and prefills the complete schema, shows the pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
+The answer key is never model input. A low-confidence value stays in the audit artifact but is displayed and scored as unanswered. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Model-mapped candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256. Human review never starts from a blank form: Ledger first runs the configured LLM semantic mapping and prefills the complete schema, shows the searchable pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
 
 | Metric | Meaning |
 |---|---|
@@ -116,7 +123,7 @@ corpus_dataset/
         └── <company>_annual_report_<year>.pdf
 ```
 
-`corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. The worker persists the PDF first, then asks Firecrawl for three uncached structured extraction passes and stores their provisional consensus with explicit agreement metadata. If a legacy pinned PDF has no candidate artifact, opening **Review extracted answers** runs the same extraction before displaying editable fields; a failed extraction shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically. Unverified reports may still be used for extraction with a visible warning, but they do not receive an exact-accuracy score.
+`corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. Discovery and answer verification are deliberately separate: Firecrawl finds the official report, while opening **Review answers** runs one configured-LLM semantic-mapping pass over the pinned PDF and displays its 27 provisional rows beside the searchable source. A failed mapping shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically. Unverified reports may still be used for extraction with a visible warning, but they do not receive an exact-accuracy score.
 
 The standalone worker accepts a CSV or JSON company list:
 
@@ -146,6 +153,7 @@ frontend/                React application and public brand assets
 corpus/                  discovery, download, screening and manifest services
 deploy/aws/              EC2 bootstrap and HTTPS configuration
 docs/CURRENT_STATUS.md   code-backed architecture and extraction report
+ROADMAP.md               Strategy 3 design and acceptance contract
 research/bakuraku/       evidence-backed corpus seed companies
 extraction.py            parser implementations
 prompts.py               shared prompt assembly

@@ -40,7 +40,7 @@ export function StrategyPage({
   onNotify: (message: string, tone: 'success' | 'error') => void
 }) {
   const { locale, tr, schemaText } = useLocale()
-  const isS2 = kind === 's2'
+  const isStrategy1 = kind === 's1'
   const [files, setFiles] = useState<File[]>([])
   const [inputSource, setInputSource] = useState<'upload' | 'corpus'>('upload')
   const [corpusDocuments, setCorpusDocuments] = useState<CorpusDocument[]>([])
@@ -50,8 +50,10 @@ export function StrategyPage({
   const [selectedCorpusIds, setSelectedCorpusIds] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const [uploadHovering, setUploadHovering] = useState(false)
-  const parserChoices = isS2 ? experimentStrategies.ocr : experimentStrategies.no_ocr
-  const experiment = isS2 ? 'ocr' : 'no_ocr'
+  // Public strategy numbering is intentionally independent from the historical
+  // backend parser keys. Strategy 1 is the OCR arm; Strategy 2 is the no-OCR arm.
+  const parserChoices = isStrategy1 ? experimentStrategies.ocr : experimentStrategies.no_ocr
+  const experiment = isStrategy1 ? 'ocr' : 'no_ocr'
   const [selectedParsers, setSelectedParsers] = useState<string[]>(parserChoices)
   const [reasoningEnabled, setReasoningEnabled] = useState(true)
   const [prompt, setPrompt] = useState('')
@@ -353,15 +355,15 @@ export function StrategyPage({
     <div className="page strategy-page">
       <header className="page-header">
         <div>
-          <Badge tone={isS2 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {isS2 ? '02' : '01'} · {tr('Active', '有効')}</Badge>
-          <h1>{isS2 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
-          <p>{isS2 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
+          <Badge tone={isStrategy1 ? 'blue' : 'green'}>{tr('Strategy', '戦略')} {isStrategy1 ? '01' : '02'} · {tr('Active', '有効')}</Badge>
+          <h1>{isStrategy1 ? tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ') : tr('No-OCR parser control', 'OCRなしパーサー対照実験')}</h1>
+          <p>{isStrategy1 ? tr('Compare the same four parsers with OCR enabled: adaptive where page detection exists, otherwise compulsory.', '同じ4つのパーサーをOCR有効で比較します。ページ判定がある場合は適応型、ない場合はOCRを必須化します。') : tr('Compare the same four parsers with OCR disabled while holding the PDF, model, prompt, and output contract constant.', 'PDF・モデル・プロンプト・出力契約を固定し、同じ4つのパーサーをOCRなしで比較します。')}</p>
         </div>
       </header>
 
       <div className="hypothesis-banner">
-        <div className="hypothesis-number">H{isS2 ? '2' : '1'}</div>
-        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isS2 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
+        <div className="hypothesis-number">H{isStrategy1 ? '1' : '2'}</div>
+        <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy1 ? tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。') : tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。')}</strong></div>
       </div>
 
       <div className="strategy-prompt-row">
@@ -374,7 +376,7 @@ export function StrategyPage({
       <div className="strategy-workspace">
         <div className="strategy-controls">
           <Card>
-            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isS2 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} action={<div className="segmented-control input-source-toggle"><button className={inputSource === 'upload' ? 'is-active' : ''} onClick={() => setInputSource('upload')}>{tr('Upload', 'アップロード')}</button><button className={inputSource === 'corpus' ? 'is-active' : ''} onClick={() => setInputSource('corpus')}>{tr('Corpus', 'コーパス')}</button></div>} />
+            <SectionHeading eyebrow={tr('Input', '入力')} title={tr('Annual Report PDF', '年次報告書PDF')} description={isStrategy1 ? tr('Use one report for a clean parser comparison, or stage a batch.', '1つのレポートでパーサーを比較するか、複数ファイルを一括追加します。') : tr('Stage one report or a multi-year batch.', '1つのレポートまたは複数年度をまとめて追加します。')} action={<div className="segmented-control input-source-toggle"><button className={inputSource === 'upload' ? 'is-active' : ''} onClick={() => setInputSource('upload')}>{tr('Upload', 'アップロード')}</button><button className={inputSource === 'corpus' ? 'is-active' : ''} onClick={() => setInputSource('corpus')}>{tr('Corpus', 'コーパス')}</button></div>} />
             {inputSource === 'upload' ? <><div
               className={`upload-zone ${dragging ? 'is-dragging' : ''}`}
               onMouseEnter={() => setUploadHovering(true)}
@@ -443,7 +445,7 @@ export function StrategyPage({
       )}
 
       <Card className="previous-runs-card">
-        <SectionHeading eyebrow={tr('History', '履歴')} title={tr(`Previous Strategy ${isS2 ? '2' : '1'} runs`, `戦略${isS2 ? '2' : '1'}の過去実行`)} description={tr(`${strategyRuns.length} stored experiment records.`, `${strategyRuns.length}件の実験記録を保存。`)} />
+        <SectionHeading eyebrow={tr('History', '履歴')} title={tr(`Previous Strategy ${isStrategy1 ? '1' : '2'} runs`, `戦略${isStrategy1 ? '1' : '2'}の過去実行`)} description={tr(`${strategyRuns.length} stored experiment records.`, `${strategyRuns.length}件の実験記録を保存。`)} />
         <RunTable runs={strategyRuns.slice(0, 8)} compact />
       </Card>
     </div>

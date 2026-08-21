@@ -9,7 +9,7 @@ import { Sidebar } from './Sidebar'
 afterEach(cleanup)
 
 describe('Sidebar', () => {
-  it('shows only the two implemented extraction strategies', () => {
+  it('shows two active strategies and the planned Strategy 3 surface', () => {
     render(
       <LocaleProvider>
         <Sidebar
@@ -27,10 +27,11 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Strategy 1')).toBeInTheDocument()
     expect(screen.getByText('Strategy 2')).toBeInTheDocument()
-    expect(screen.getAllByText(/^Strategy [12]$/)).toHaveLength(2)
+    expect(screen.getByText('Strategy 3')).toBeInTheDocument()
+    expect(screen.getAllByText(/^Strategy [123]$/)).toHaveLength(3)
   })
 
-  it('routes New extraction to Strategy 2 and closes the mobile drawer', () => {
+  it('routes New extraction to Strategy 1 and closes the mobile drawer', () => {
     const onNavigate = vi.fn()
     const onOpenChange = vi.fn()
     render(
@@ -49,7 +50,7 @@ describe('Sidebar', () => {
     )
 
     fireEvent.click(screen.getByTitle('New extraction'))
-    expect(onNavigate).toHaveBeenCalledWith('strategy2')
+    expect(onNavigate).toHaveBeenCalledWith('strategy1')
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })

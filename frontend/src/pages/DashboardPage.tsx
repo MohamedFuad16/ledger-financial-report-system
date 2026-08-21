@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { ArrowRight, Gauge, Layers3 } from 'lucide-react'
+import { ArrowRight, Gauge, Layers3, SearchCheck } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
 import { type BenchmarkExperiment, formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
@@ -17,7 +16,7 @@ export function DashboardPage({
   onNavigate: (key: PanelKey) => void
 }) {
   const { tr } = useLocale()
-  const [experiment, setExperiment] = useState<BenchmarkExperiment>('no_ocr')
+  const experiment: BenchmarkExperiment = 'ocr'
   const armRuns = runs.filter((run) => run.experiment === experiment)
   const benchmarkRuns = matchedParserCohort(runs, experiment)
   const stats = groupParserStats(runs, experiment).filter((entry) => entry.runs)
@@ -47,17 +46,9 @@ export function DashboardPage({
           <p>{tr('Extract, verify, and benchmark the asset side of an Annual Report across document-representation strategies.', '年次報告書の資産項目を抽出・検証し、文書表現戦略ごとにベンチマークします。')}</p>
         </div>
         <div className="dashboard-header-actions">
-          <Button onClick={() => onNavigate('strategy2')}>{tr('Run an extraction', '抽出を実行')} <ArrowRight size={16} /></Button>
+          <Button onClick={() => onNavigate('strategy1')}>{tr('Run an extraction', '抽出を実行')} <ArrowRight size={16} /></Button>
         </div>
       </header>
-
-      <div className="benchmark-arm-bar">
-        <div><strong>{tr('Benchmark arm', 'ベンチマーク条件')}</strong><span>{experiment === 'ocr' ? tr('Same four parsers · parser-specific OCR policy', '同じ4パーサー・パーサー別OCRポリシー') : tr('Same four parsers · OCR disabled', '同じ4パーサー・OCRなし')}</span></div>
-        <div className="segmented-control" role="group" aria-label={tr('Benchmark arm', 'ベンチマーク条件')}>
-          <button className={experiment === 'no_ocr' ? 'is-active' : ''} onClick={() => setExperiment('no_ocr')}>{tr('No OCR', 'OCRなし')}</button>
-          <button className={experiment === 'ocr' ? 'is-active' : ''} onClick={() => setExperiment('ocr')}>{tr('OCR', 'OCRあり')}</button>
-        </div>
-      </div>
 
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
@@ -69,8 +60,9 @@ export function DashboardPage({
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
       <div className="strategy-grid dashboard-strategy-grid">
         {[
-          { number: '01', title: tr('No-OCR parser control', 'OCRなしパーサー対照実験'), body: tr('PyPDF, PyMuPDF4LLM, pdf-inspector, and Docling with OCR disabled.', 'PyPDF、PyMuPDF4LLM、pdf-inspector、DoclingをOCRなしで比較します。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy1' as PanelKey, icon: Gauge },
-          { number: '02', title: tr('OCR-enabled bake-off', 'OCR有効ベイクオフ'), body: tr('The same four parsers: adaptive OCR where page detection exists, otherwise OCR is compulsory.', '同じ4パーサーで、ページ判定がある場合は適応OCR、ない場合はOCRを必須化します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy2' as PanelKey, icon: Layers3 },
+          { number: '01', title: tr('OCR-enabled parser bake-off', 'OCR有効パーサーベイクオフ'), body: tr('The same four parsers: adaptive OCR where page detection exists, otherwise OCR is compulsory.', '同じ4パーサーで、ページ判定がある場合は適応OCR、ない場合はOCRを必須化します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy1' as PanelKey, icon: Layers3 },
+          { number: '02', title: tr('No-OCR parser control', 'OCRなしパーサー対照実験'), body: tr('PyPDF, PyMuPDF4LLM, pdf-inspector, and Docling with OCR disabled.', 'PyPDF、PyMuPDF4LLM、pdf-inspector、DoclingをOCRなしで比較します。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy2' as PanelKey, icon: Gauge },
+          { number: '03', title: tr('Schema-guided page filtering', 'スキーマ誘導ページフィルタリング'), body: tr('Rank complete Markdown pages against the 27-field schema, reject obvious noise, and send only the evidence packet to the same LLM.', 'Markdownの完全なページを27項目のスキーマで順位付けし、明らかなノイズを除外して根拠ページだけを同じLLMに送ります。'), status: tr('Planned', '計画中'), tone: 'amber' as const, panel: 'strategy3' as PanelKey, icon: SearchCheck },
         ].map((strategy) => {
           const Icon = strategy.icon
           return (
@@ -111,7 +103,6 @@ export function DashboardPage({
         <Card className="method-card conclusion-card">
           <SectionHeading eyebrow={tr('Current conclusion', '現在の結論')} title={conclusion} description={tr('This conclusion is calculated from the completed benchmark runs currently stored in the workspace.', 'この結論は、ワークスペースに保存された完了済みベンチマークから算出されます。')} />
           {hasUnverifiedReports && <p className="benchmark-caveat">{tr('Some completed runs use reports whose candidate answers have not been human approved. They remain visible for speed and coverage analysis, but they do not contribute to exact-accuracy leadership.', '完了済み実行の一部は候補回答が人による承認前です。速度とカバレッジの分析には表示されますが、完全一致率の首位判定には含まれません。')}</p>}
-          {experiment === 'no_ocr' && armRuns.some((run) => String(run.fiscal_year) === '2021' && Number(run.accuracy) <= 4) && <p className="benchmark-caveat">{tr('FY2021 has a damaged embedded text layer (73 of 142 pages unreadable). It remains visible for diagnosis but should not support a no-OCR parser conclusion until the OCR arm is complete.', 'FY2021は埋め込みテキスト層が破損しており、142ページ中73ページが読取不能です。診断用に表示しますが、OCR条件が完了するまでOCRなしの結論には使用すべきではありません。')}</p>}
         </Card>
       </div>
 

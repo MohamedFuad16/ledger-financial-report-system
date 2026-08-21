@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  SearchCheck,
   Sun,
   X,
 } from 'lucide-react'
@@ -47,6 +48,7 @@ export function Sidebar({
         { key: 'dashboard', label: tr('Overview', '概要'), icon: BarChart3 },
         { key: 'strategy1', label: tr('Strategy 1', '戦略 1'), icon: Beaker, count: '01' },
         { key: 'strategy2', label: tr('Strategy 2', '戦略 2'), icon: FlaskConical, count: '02' },
+        { key: 'strategy3', label: tr('Strategy 3', '戦略 3'), icon: SearchCheck, count: '03' },
       ],
     },
     {
@@ -80,7 +82,7 @@ export function Sidebar({
           <button className="mobile-close" aria-label={tr('Close navigation', 'ナビゲーションを閉じる')} onClick={() => onOpenChange(false)}><X size={18} /></button>
         </div>
 
-        <button className="new-run-button" onClick={() => navigate('strategy2')} title={tr('New extraction', '新規抽出')}>
+        <button className="new-run-button" onClick={() => navigate('strategy1')} title={tr('New extraction', '新規抽出')}>
           <FilePlus2 size={17} strokeWidth={1.9} />
           <span>{tr('New extraction', '新規抽出')}</span>
           <kbd>⌘ K</kbd>

@@ -87,7 +87,7 @@ describe('CorpusPage answer review', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Review extracted answers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('Extracted prefill — verify, then correct')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledWith(document.sha256)
 
@@ -110,7 +110,7 @@ describe('CorpusPage answer review', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Review extracted answers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('PDF extraction did not complete')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry PDF extraction' })).toBeInTheDocument()
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
