@@ -20,7 +20,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 
 1. The React client stages one or more PDFs with the API and renders real SSE lifecycle events.
 2. `pipeline.run_pipeline` extracts text, builds the prompt, calls the selected provider, parses and normalizes JSON, validates the contract, and makes at most one context-preserving repair call when JSON/Pydantic validation fails. It then applies the confidence gate, reconciles, scores, and files the run.
-3. Streaming endpoints emit per-file phase events; completed predictions are served to the UI and exports.
+3. Streaming endpoints emit per-file phase events. The client reduces those events into one live card per report, advancing that card through the current parser and stage while a compact rail retains comparison progress; completed predictions are served to the UI and exports.
 
 Corpus flow is deliberately separate: React or the CLI supplies companies and FY2020–FY2025, Firecrawl discovers candidates, direct download verifies the PDF, local screening records health, and only a later explicit extraction action may consume it.
 

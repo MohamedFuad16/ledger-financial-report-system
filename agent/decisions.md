@@ -123,3 +123,10 @@
 - Context: React/Vite has been the only served client since ADR-0002, while the former `static/` implementation, 643 MB of unreferenced upload copies, one superseded corpus PDF, and one obsolete run remained in the workspace and could be mistaken for current state.
 - Decision: Keep `frontend/` as the sole client source, remove the retired `static/` files, and recoverably move only filesystem artifacts that are absent from the corpus manifest and current run references to macOS Trash. Preserve the verified manifest-owned corpus PDF and maintained golden test dataset.
 - Consequences: The repository has one UI source of truth and the local workspace no longer carries misleading history. Trashed local artifacts can be restored if needed; future uploads and runs continue using the normalized company/year/timestamp layouts.
+
+## ADR-0016 — Reduce live comparison events to one card per report
+- Date: 2026-08-21
+- Status: Accepted
+- Context: A Strategy 2 batch previously expanded every report into one parser container plus six stage capsules for every pass. Six reports and four parsers produced a very tall wall of repeated content that obscured the file-level progress the user needed.
+- Decision: Preserve the existing per-file/per-parser SSE event model, but reduce it in the React client to exactly one animated live card per report. The card displays the active parser, current stage, streamed message and timer; a compact rail shows completed, active and queued parsers without reproducing their stages. Replace the decorative sparkle used for New extraction with a restrained file-plus action glyph.
+- Consequences: Backend execution and stored artifacts remain unchanged, while batch progress is legible at a glance. Component tests now assert one-card-per-report identity and parser transitions; future stages can be added without multiplying the page height.

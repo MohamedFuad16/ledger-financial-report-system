@@ -303,7 +303,7 @@ export function StrategyPage({
         </div>
 
         <Card className="pipeline-card">
-          <SectionHeading eyebrow={tr('Live execution', 'ライブ実行')} title={tr('Execution pipeline', '実行パイプライン')} description={tr('Each parser pass is shown as a live task row.', '各パーサー処理をライブタスク行で表示します。')} action={<InlineStatus status={running ? 'loading' : executions.length ? 'success' : 'neutral'}>{running ? tr('Running', '実行中') : executions.length ? tr('Complete', '完了') : tr('Idle', '待機')}</InlineStatus>} />
+          <SectionHeading eyebrow={tr('Live execution', 'ライブ実行')} title={tr('Execution pipeline', '実行パイプライン')} description={tr('One live card per report follows the active parser and extraction stage.', 'レポートごとのライブカードで、実行中のパーサーと抽出ステージを追跡します。')} action={<InlineStatus status={running ? 'loading' : executions.length ? 'success' : 'neutral'}>{running ? tr('Running', '実行中') : executions.length ? tr('Complete', '完了') : tr('Idle', '待機')}</InlineStatus>} />
           <ExecutionPipeline files={executions} running={running} />
         </Card>
       </div>

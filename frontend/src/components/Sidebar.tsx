@@ -8,6 +8,7 @@ import {
   FolderSearch2,
   FlaskConical,
   ExternalLink,
+  FilePlus2,
   Menu,
   Moon,
   PanelLeftClose,
@@ -89,7 +90,7 @@ export function Sidebar({
         </div>
 
         <button className="new-run-button" onClick={() => navigate('strategy2')} title={tr('New extraction', '新規抽出')}>
-          <Sparkles size={16} />
+          <FilePlus2 size={17} strokeWidth={1.9} />
           <span>{tr('New extraction', '新規抽出')}</span>
           <kbd>⌘ K</kbd>
         </button>

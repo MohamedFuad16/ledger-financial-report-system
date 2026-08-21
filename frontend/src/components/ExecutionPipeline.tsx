@@ -5,17 +5,37 @@ import type { ExecutionFile, ExecutionPass } from '../types'
 import { formatDuration, formatNumber, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 
-/* Visual behavior adapted from Beautiful UI's Task Rows primitive (MIT).
-   Status and timing come from Ledger's real extraction SSE stream. */
+/* One compact card follows each report through every parser and stage.
+   The underlying passes remain independent; only their live presentation is folded. */
 
 const stepOrder = ['upload', 'extract', 'prompt', 'api', 'validate', 'output'] as const
+type Step = typeof stepOrder[number]
 type StepState = 'queued' | 'running' | 'complete' | 'failed'
+
+function activePassFor(file: ExecutionFile) {
+  const running = file.passes.find((pass) => pass.state === 'running')
+  if (running) return running
+  if (file.state === 'failed') return file.passes.find((pass) => pass.state === 'failed') || file.passes.at(-1)
+  if (file.state === 'complete') return file.passes.at(-1)
+  return file.passes.find((pass) => pass.state === 'queued') || file.passes.at(-1)
+}
+
+function stateForStep(pass: ExecutionPass, step: Step): StepState {
+  if (pass.steps?.[step]) return pass.steps[step].state
+  const stepIndex = stepOrder.indexOf(step)
+  const activeIndex = stepOrder.indexOf((pass.step || '') as Step)
+  if (pass.state === 'complete') return 'complete'
+  if (pass.state === 'failed' && stepIndex === activeIndex) return 'failed'
+  if (activeIndex >= 0 && stepIndex < activeIndex) return 'complete'
+  if (pass.state === 'running' && (stepIndex === activeIndex || activeIndex < 0 && step === 'upload')) return 'running'
+  return 'queued'
+}
 
 export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; running: boolean }) {
   const { tr } = useLocale()
   const [now, setNow] = useState(Date.now())
   const startedAt = useRef<Record<string, number>>({})
-  const labels: Record<string, string> = {
+  const labels: Record<Step, string> = {
     upload: tr('Save report', 'レポートを保存'),
     extract: tr('Parse document', '文書を解析'),
     prompt: tr('Build prompt', 'プロンプトを作成'),
@@ -35,78 +55,110 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
       <div className="pipeline-empty">
         <span className="pipeline-empty-icon"><FileText size={22} /></span>
         <strong>{tr('No execution in progress', '実行中の処理はありません')}</strong>
-        <p>{tr('Stage an Annual Report to watch each parser task move from document text to verified output.', '年次報告書を追加すると、文書解析から検証済み出力までの各タスクを確認できます。')}</p>
+        <p>{tr('Stage an Annual Report to watch its parser and extraction stage update live.', '年次報告書を追加すると、パーサーと抽出ステージの進行をリアルタイムで確認できます。')}</p>
       </div>
     )
   }
 
-  const derivedState = (pass: ExecutionPass, step: string): StepState => {
-    if (pass.steps?.[step]) return pass.steps[step].state
-    const stepIndex = stepOrder.indexOf(step as typeof stepOrder[number])
-    const activeIndex = stepOrder.indexOf((pass.step || '') as typeof stepOrder[number])
-    if (pass.state === 'complete') return 'complete'
-    if (pass.state === 'failed' && stepIndex === activeIndex) return 'failed'
-    if (activeIndex >= 0 && stepIndex < activeIndex) return 'complete'
-    if (pass.state === 'running' && stepIndex === activeIndex) return 'running'
-    return 'queued'
-  }
-
-  const timeLabel = (key: string, pass: ExecutionPass, step: string, state: StepState) => {
+  const timeLabel = (key: string, pass: ExecutionPass, step: Step, state: StepState) => {
     const stored = pass.steps?.[step]?.durationSeconds
     if (stored != null) return formatDuration(stored)
-    if (state !== 'running') return state === 'complete' ? tr('Done', '完了') : tr('Waiting', '待機')
+    if (state !== 'running') return state === 'complete' ? tr('Done', '完了') : state === 'failed' ? tr('Stopped', '停止') : tr('Waiting', '待機')
     if (!startedAt.current[key]) startedAt.current[key] = Date.now()
     return formatDuration((now - startedAt.current[key]) / 1000)
   }
 
   return (
-    <div className="task-pipeline-list">
+    <div className="execution-file-list">
       <AnimatePresence initial={false}>
-        {files.map((file) => (
-          <motion.section className="task-file-group" key={file.name} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <header className="task-file-head">
-              <span className="file-avatar"><FileText size={15} /></span>
-              <div><strong>{file.name}</strong><span>{formatNumber(file.pages)} {tr('pages', 'ページ')} · {formatNumber(file.approxTokens)} {tr('estimated tokens', '推定トークン')}</span></div>
-            </header>
-            <div className="task-rows">
-              {file.passes.map((pass, passIndex) => {
-                const parser = parserFor(pass.strategy)
-                const statusLabel = pass.state === 'complete' ? tr('Completed', '完了') : pass.state === 'failed' ? tr('Failed', '失敗') : pass.state === 'running' ? tr('Running', '実行中') : tr('Queued', '待機中')
-                return (
-                  <motion.section className={`task-pass task-pass-${pass.state}`} key={`${file.name}-${pass.strategy}`} layout>
-                    <header className="task-pass-head">
-                      <span className="task-pass-index">{String(passIndex + 1).padStart(2, '0')}</span>
-                      <i style={{ background: parser.color }} />
-                      <div><strong>{parser.short}</strong><span>{pass.message || statusLabel}</span></div>
-                      <span className={`task-status-pill task-status-${pass.state}`}>{statusLabel}</span>
-                    </header>
-                    <motion.div className="task-capsule-list" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: .045 } } }}>
-                      {stepOrder.map((step) => {
-                        const state = derivedState(pass, step)
-                        const key = `${file.name}-${pass.strategy}-${step}`
-                        const message = pass.steps?.[step]?.message
-                        return (
-                          <motion.article className={`task-capsule task-capsule-${state}`} key={step} variants={{ hidden: { opacity: 0, y: 5 }, visible: { opacity: 1, y: 0 } }} layout>
-                            <span className="task-capsule-icon">{state === 'complete' ? <Check size={14} strokeWidth={3} /> : state === 'failed' ? <X size={14} strokeWidth={2.7} /> : state === 'running' ? <LoaderCircle className="spin" size={16} strokeWidth={2.4} /> : null}</span>
-                            <div>
-                              <strong>{labels[step]}</strong>
-                              <AnimatePresence mode="wait" initial={false}>
-                                <motion.small key={message || state} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }}>
-                                  {message || (state === 'running' ? tr('Working…', '処理中…') : state === 'failed' ? tr('Needs attention', '要確認') : state === 'complete' ? tr('Complete', '完了') : tr('Waiting for previous task', '前のタスクを待機中'))}
-                                </motion.small>
-                              </AnimatePresence>
-                            </div>
-                            <time>{timeLabel(key, pass, step, state)}</time>
-                          </motion.article>
-                        )
-                      })}
-                    </motion.div>
-                  </motion.section>
-                )
-              })}
-            </div>
-          </motion.section>
-        ))}
+        {files.map((file) => {
+          const activePass = activePassFor(file)
+          if (!activePass) return null
+          const passIndex = Math.max(0, file.passes.indexOf(activePass))
+          const parser = parserFor(activePass.strategy)
+          const step = (activePass.step && stepOrder.includes(activePass.step as Step)
+            ? activePass.step
+            : activePass.state === 'complete' ? 'output' : 'upload') as Step
+          const stepState = stateForStep(activePass, step)
+          const statusLabel = file.state === 'complete'
+            ? tr('Completed', '完了')
+            : file.state === 'failed'
+              ? tr('Failed', '失敗')
+              : activePass.state === 'queued'
+                ? tr('Queued', '待機中')
+                : tr('Running', '実行中')
+          const message = activePass.steps?.[step]?.message
+            || activePass.message
+            || (stepState === 'running'
+              ? tr('Working…', '処理中…')
+              : stepState === 'failed'
+                ? tr('This parser pass needs attention', 'このパーサー処理を確認してください')
+                : stepState === 'complete'
+                  ? tr('Parser comparison complete', 'パーサー比較が完了しました')
+                  : passIndex > 0
+                    ? tr('Waiting for the previous parser', '前のパーサーを待機中')
+                    : tr('Ready to start', '開始待ち'))
+          const completedPasses = file.passes.filter((pass) => pass.state === 'complete').length
+          const timerKey = `${file.name}-${activePass.strategy}-${step}`
+
+          return (
+            <motion.section
+              className={`execution-file-card execution-file-card-${file.state}`}
+              data-testid="execution-file-card"
+              key={file.name}
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <header className="execution-file-header">
+                <span className="file-avatar"><FileText size={15} /></span>
+                <div className="execution-file-copy">
+                  <strong>{file.name}</strong>
+                  <span>{formatNumber(file.pages)} {tr('pages', 'ページ')} · {formatNumber(file.approxTokens)} {tr('estimated tokens', '推定トークン')}</span>
+                </div>
+                <span className={`execution-status execution-status-${file.state}`}>{statusLabel}</span>
+              </header>
+
+              <div className="execution-live-capsule">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    className="execution-live-state"
+                    key={`${activePass.strategy}-${step}-${stepState}`}
+                    initial={{ opacity: 0, y: 7 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -7 }}
+                    transition={{ duration: .22 }}
+                  >
+                    <span className={`execution-state-icon execution-state-${stepState}`}>
+                      {stepState === 'complete' ? <Check size={16} strokeWidth={2.6} /> : stepState === 'failed' ? <X size={16} strokeWidth={2.6} /> : stepState === 'running' ? <LoaderCircle className="spin" size={18} strokeWidth={2.2} /> : <b>{String(passIndex + 1).padStart(2, '0')}</b>}
+                    </span>
+                    <div className="execution-live-copy">
+                      <div className="execution-parser-line"><i style={{ background: parser.color }} /><strong>{parser.short}</strong><span>{labels[step]}</span></div>
+                      <p>{message}</p>
+                    </div>
+                    <time>{timeLabel(timerKey, activePass, step, stepState)}</time>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              <div className="execution-pass-rail" aria-label={tr('Parser comparison progress', 'パーサー比較の進捗')}>
+                {file.passes.map((pass, index) => {
+                  const meta = parserFor(pass.strategy)
+                  const isActive = pass === activePass
+                  return (
+                    <span className={`execution-pass-chip is-${pass.state}${isActive ? ' is-active' : ''}`} key={`${file.name}-${pass.strategy}`}>
+                      <i style={{ background: meta.color }} />
+                      <span>{meta.short}</span>
+                      {pass.state === 'complete' ? <Check size={12} strokeWidth={2.8} /> : pass.state === 'failed' ? <X size={12} strokeWidth={2.8} /> : pass.state === 'running' ? <LoaderCircle className="spin" size={12} /> : <b>{index + 1}</b>}
+                    </span>
+                  )
+                })}
+                <small>{tr(`${completedPasses} of ${file.passes.length} parsers complete`, `${file.passes.length}件中${completedPasses}件のパーサーが完了`)}</small>
+              </div>
+            </motion.section>
+          )
+        })}
       </AnimatePresence>
       {running && <div className="pipeline-live-caption"><LoaderCircle className="spin" size={14} /> {tr('Live execution events are streaming', '実行イベントをリアルタイムで受信中')}</div>}
     </div>

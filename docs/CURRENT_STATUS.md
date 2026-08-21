@@ -39,7 +39,7 @@ Every active parser follows the same pipeline. Only the document representation 
 6. **Normalize and validate.** `normalize.py` repairs representation-only issues such as currency strings, percentages, aliases and row order, recording each repair. `models.py` then requires the exact 27-row contract. If JSON or contract validation still fails, one bounded semantic repair request includes the original context, invalid answer and exact validation error.
 7. **Apply the confidence gate.** A row is accepted only when it has a value and confidence is at least `0.80`. The raw value remains stored for audit.
 8. **Verify and score.** `reconcile.py` checks deterministic balance-sheet identities without changing values. `compute_metrics` separately measures coverage, exact accuracy and precision against a golden set when one exists.
-9. **Persist the run.** Request, raw response, optional repair artifacts and `prediction.json` are filed under `runs/<company>/FY<year>/<run_id>/`. Real progress events are streamed to the execution capsules throughout the run.
+9. **Persist the run.** Request, raw response, optional repair artifacts and `prediction.json` are filed under `runs/<strategy>/FY<year>/<run_id>/`. Real progress events update one animated live card per report; the card advances through the active parser and stage while a compact rail preserves overall comparison progress.
 
 ## Strategy 1: direct LLM baseline
 
@@ -117,7 +117,7 @@ Firecrawl credential persistence was also verified against production using an e
 - responsive desktop rail and mobile drawer
 - report upload or corpus selection
 - provider/runtime settings forms without exposing saved secret values
-- real-time SSE task capsules and elapsed-time display
+- real-time SSE reduction into one animated report card with current parser, stage, message, elapsed time and compact pass progress
 - dashboard charts, run history, compact result tables and CSV export
 
 ## Backend responsibilities
