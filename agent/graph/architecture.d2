@@ -20,8 +20,10 @@ app: "Annual Report Extractor" {
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
+  client -> api: "confirm corpus delete"
   api -> pipeline: "execute"
   api -> storage: "validate + stage durable PDF"
+  api -> storage: "delete manifest-owned PDF"
   api -> corpus: "background job"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"

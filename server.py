@@ -14,7 +14,7 @@ from flask import Flask, Response, jsonify, request, stream_with_context
 
 from api_client import GLMError, QuotaExhaustedError, test_api_key
 from corpus.client import FirecrawlClient, FirecrawlError
-from corpus.manifest import CORPUS_ROOT, load_manifest
+from corpus.manifest import CORPUS_ROOT, delete_pinned_document, load_manifest
 from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
@@ -436,6 +436,30 @@ def get_corpus():
             "ok": sum(item.get("screened") == "ok" for item in documents),
             "review": sum(item.get("screened") == "review" for item in documents),
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
+        },
+    })
+
+
+@app.route("/api/corpus/<document_id>", methods=["DELETE"])
+def delete_corpus_document(document_id):
+    """Remove one downloaded corpus PDF and its pinned manifest entry.
+
+    Extraction outputs are historical run artifacts and deliberately remain in
+    place, even when their source document is removed from the corpus.
+    """
+    try:
+        deleted = delete_pinned_document(document_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except OSError as exc:
+        return jsonify({"error": f"Could not delete the stored PDF: {exc}"}), 500
+    if deleted is None:
+        return jsonify({"error": "Corpus document not found."}), 404
+    return jsonify({
+        "ok": True,
+        "deleted": {
+            "filename": deleted.get("filename"),
+            "file_removed": deleted.get("file_removed", False),
         },
     })
 

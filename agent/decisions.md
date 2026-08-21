@@ -1,22 +1,23 @@
-# Decisions (ADRs) — append-only
-
 ## Index
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| ADR-0001 | Adopt the `agent/` knowledge base | Accepted |
-| ADR-0002 | Serve a typed React SPA from Flask | Accepted |
-| ADR-0003 | Preserve experiment purity and fail closed | Accepted |
-| ADR-0004 | Keep corpus acquisition separate from extraction | Accepted |
-| ADR-0005 | Share one adaptive request gate across strategies | Accepted |
-| ADR-0006 | Use the Resume editor as Ledger's visual source of truth | Accepted |
-| ADR-0007 | Make locale and live task state first-class client concerns | Accepted |
-| ADR-0008 | Verify connector credentials before local persistence | Accepted |
-| ADR-0009 | Bound semantic contract repair to one preserved attempt | Accepted |
-| ADR-0010 | Split static UI and persistent parser backend across Vercel and EC2 | Accepted |
-| ADR-0011 | Reuse corpus documents through durable-reference staging | Accepted |
-| ADR-0012 | Keep visit telemetry private and backend-only | Accepted |
-| ADR-0013 | Publish the assignment mutation API without a browser token | Accepted |
+| ADR-0001 | — Adopt the `agent/` knowledge base | — |
+| ADR-0002 | — Serve a typed React SPA from Flask | — |
+| ADR-0003 | — Preserve experiment purity and fail closed | — |
+| ADR-0004 | — Keep corpus acquisition separate from extraction | — |
+| ADR-0005 | — Share one adaptive request gate across strategies | — |
+| ADR-0006 | — Use the Resume editor as Ledger's visual source of truth | — |
+| ADR-0007 | — Make locale and live task state first-class client concerns | — |
+| ADR-0008 | — Verify connector credentials before local persistence | — |
+| ADR-0009 | — Bound semantic contract repair to one preserved attempt | — |
+| ADR-0010 | — Split static UI and persistent parser backend across Vercel and EC2 | — |
+| ADR-0011 | — Reuse corpus documents through durable-reference staging | — |
+| ADR-0012 | — Keep visit telemetry private and backend-only | — |
+| ADR-0013 | — Publish the assignment mutation API without a browser token | — |
+| ADR-0014 | — Delete corpus files only through their pinned manifest identity | — |
+
+# Decisions (ADRs) — append-only
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -108,3 +109,10 @@
 - Context: Durable corpus staging and extraction from the public Vercel UI still depended on an operator-only deployment token, contradicting the requested no-access-token workflow and making available-data runs fail for normal visitors.
 - Decision: Remove the Flask mutation-token guard, client token storage/header injection, bootstrap token loading, and SSM mutation-token parameter. Keep the browser CORS allowlist, existing input/path validation, provider credential isolation, adaptive concurrency and bounded request sizes. Document explicitly that CORS is not authentication.
 - Consequences: A normal visitor can stage and run a configured extraction without a separate credential. Direct callers can also invoke mutation routes and potentially consume configured model/Firecrawl quota, so authentication or a job-budget boundary is required before this becomes a multi-tenant production service.
+
+## ADR-0014 — Delete corpus files only through their pinned manifest identity
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Downloaded reports need a user-visible removal action, but accepting a client path would create an arbitrary-file-deletion risk and deleting a source document must not erase historical extraction evidence.
+- Decision: Add a confirmation-gated delete endpoint keyed exclusively by a manifest SHA-256 identifier. Resolve the stored path server-side, require that it stays inside `CORPUS_ROOT`, atomically remove the manifest entry with its PDF, prune only empty corpus subdirectories, and retain `runs/` artifacts.
+- Consequences: The Pinned Manifest can safely remove a downloaded source without breaking run history. A stale/malicious path fails closed and the action remains auditable through the manifest update time.

@@ -71,6 +71,18 @@ class TrafficTests(unittest.TestCase):
         self.assertNotEqual(response.status_code, 401)
         self.assertNotIn("backend access token", response.get_data(as_text=True).lower())
 
+    def test_corpus_delete_route_uses_the_public_corpus_contract(self):
+        document_id = "a" * 64
+        with patch.object(server, "delete_pinned_document", return_value={
+            "filename": "3M_annual_report_2022.pdf",
+            "file_removed": True,
+        }) as remove:
+            response = server.app.test_client().delete(f"/api/corpus/{document_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["deleted"]["filename"], "3M_annual_report_2022.pdf")
+        remove.assert_called_once_with(document_id)
+
     def test_visit_email_contains_a_readable_html_table(self):
         event = {
             "event_id": "event-123",

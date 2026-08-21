@@ -14,6 +14,7 @@
 - Corpus PDFs: `corpus_dataset/<company>/<year>/<downloaded_at>/<company>_annual_report_<year>.pdf`.
 - Corpus manifest: `corpus_dataset/corpus_manifest.json`, deduplicated by SHA-256 and company/year.
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
+- Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year download folders; existing run artifacts are preserved.
 - Bakuraku research: `research/bakuraku/customers.csv` plus a fully linked `README.md` table.
 - Provider defaults: `.env` (gitignored).
 - Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest

@@ -18,6 +18,7 @@
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |
 | GET | `/api/corpus` | Read the pinned local corpus manifest and screening summary |
+| DELETE | `/api/corpus/<sha256>` | Delete one manifest-owned corpus PDF after an explicit client confirmation; extraction runs remain intact |
 | POST | `/api/corpus/stage` | Validate selected SHA-256 corpus entries and stage their durable PDFs for the normal extraction stream |
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |

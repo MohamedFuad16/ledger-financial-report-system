@@ -216,6 +216,12 @@ digraph dependencies {
   "corpus_worker.py" -> "pathlib";
   "corpus_worker.py" -> "corpus.service";
   "corpus_worker.py" -> "settings";
+  "test_corpus_manifest.py" -> "__future__";
+  "test_corpus_manifest.py" -> "tempfile";
+  "test_corpus_manifest.py" -> "unittest";
+  "test_corpus_manifest.py" -> "pathlib";
+  "test_corpus_manifest.py" -> "unittest.mock";
+  "test_corpus_manifest.py" -> "corpus.manifest";
   "prompts.py" -> "not_present";
   "prompts.py" -> "json";
   "prompts.py" -> "models";

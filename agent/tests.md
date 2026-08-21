@@ -12,6 +12,7 @@
 ```bash
 .venv/bin/python test_contract.py
 .venv/bin/python test_traffic.py
+.venv/bin/python test_corpus_manifest.py
 cd frontend && npm test -- --run && npm run build
 ```
 

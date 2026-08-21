@@ -74,6 +74,8 @@ export const api = {
     }>('/api/uploads', { method: 'POST', body })
   },
   corpus: () => jsonRequest<CorpusManifest>('/api/corpus'),
+  deleteCorpusDocument: (documentId: string) =>
+    jsonRequest<{ ok: boolean; deleted: { filename: string; file_removed: boolean } }>(`/api/corpus/${encodeURIComponent(documentId)}`, { method: 'DELETE' }),
   stageCorpusDocuments: (documentIds: string[]) =>
     jsonRequest<{
       ok: boolean

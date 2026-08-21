@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
-import type { CorpusJob, CorpusManifest, SettingsData } from '../types'
+import type { CorpusDocument, CorpusJob, CorpusManifest, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
@@ -15,6 +15,8 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const [job, setJob] = useState<CorpusJob | null>(null)
   const [starting, setStarting] = useState(false)
   const [loadingBakuraku, setLoadingBakuraku] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<CorpusDocument | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
   useEffect(() => { refresh() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -60,6 +62,19 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     finally { setStarting(false) }
   }
 
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      const result = await api.deleteCorpusDocument(pendingDelete.sha256)
+      await refresh()
+      setPendingDelete(null)
+      onNotify(tr(`${result.deleted.filename || 'Annual report'} was removed from the downloaded corpus.`, `${result.deleted.filename || '年次報告書'}をダウンロード済みコーパスから削除しました。`), 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : tr('Could not delete the downloaded report.', 'ダウンロード済みレポートを削除できませんでした。'), 'error')
+    } finally { setDeleting(false) }
+  }
+
   const latestEvents = (job?.events || []).slice(-8).reverse()
   return (
     <div className="page corpus-page">
@@ -91,8 +106,18 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
 
       <Card className="corpus-table-card">
         <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Downloaded Annual Reports', 'ダウンロード済み年次報告書')} description={tr('Crawled files do not enter extraction automatically; review the screening verdict first.', 'クロール済みファイルは自動抽出されません。先に検査結果を確認してください。')} />
-        {!manifest?.documents.length ? <EmptyState icon={<FileDown size={21} />} title={tr('No corpus documents yet', 'コーパス文書はまだありません')} description={tr('The first verified download will appear here.', '最初の確認済みダウンロードがここに表示されます。')} /> : <div className="table-wrap"><table className="corpus-table"><thead><tr><th>{tr('Company', '会社')}</th><th>{tr('Year', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th></tr></thead><tbody>{manifest.documents.map((document) => <tr key={`${document.company_slug}-${document.fiscal_year}`}><td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td><td>FY{document.fiscal_year}</td><td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened}</Badge></td><td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td><td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td><td><code>{document.local_path}</code></td><td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td></tr>)}</tbody></table></div>}
+        {!manifest?.documents.length ? <EmptyState icon={<FileDown size={21} />} title={tr('No corpus documents yet', 'コーパス文書はまだありません')} description={tr('The first verified download will appear here.', '最初の確認済みダウンロードがここに表示されます。')} /> : <div className="table-wrap"><table className="corpus-table"><thead><tr><th>{tr('Company', '会社')}</th><th>{tr('Year', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th></tr></thead><tbody>{manifest.documents.map((document) => <tr key={`${document.company_slug}-${document.fiscal_year}`}><td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td><td>FY{document.fiscal_year}</td><td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened}</Badge></td><td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td><td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td><td><code>{document.local_path}</code></td><td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td><td className="corpus-delete-column"><button className="corpus-delete-button" type="button" onClick={() => setPendingDelete(document)} aria-label={tr(`Delete ${document.filename}`, `${document.filename}を削除`)}><Trash2 size={15} /><span>{tr('Delete', '削除')}</span></button></td></tr>)}</tbody></table></div>}
       </Card>
+      {pendingDelete && <div className="confirm-dialog-backdrop" role="presentation" onMouseDown={() => !deleting && setPendingDelete(null)}>
+        <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" onMouseDown={(event) => event.stopPropagation()}>
+          <button className="confirm-dialog-close" type="button" onClick={() => setPendingDelete(null)} disabled={deleting} aria-label={tr('Close dialog', 'ダイアログを閉じる')}><X size={18} /></button>
+          <div className="confirm-dialog-icon"><Trash2 size={20} /></div>
+          <div className="eyebrow">{tr('Downloaded report', 'ダウンロード済みレポート')}</div>
+          <h2 id="delete-report-title">{tr('Delete this annual report?', 'この年次報告書を削除しますか？')}</h2>
+          <p>{tr(`${pendingDelete.filename} will be removed from the local corpus and its pinned manifest entry. Existing extraction runs will remain available.`, `${pendingDelete.filename}をローカルコーパスと固定マニフェストから削除します。既存の抽出実行は保持されます。`)}</p>
+          <div className="confirm-dialog-actions"><Button variant="ghost" onClick={() => setPendingDelete(null)} disabled={deleting}>{tr('Cancel', 'キャンセル')}</Button><Button variant="danger" onClick={confirmDelete} disabled={deleting}><Trash2 size={15} /> {deleting ? tr('Deleting…', '削除中…') : tr('Delete report', 'レポートを削除')}</Button></div>
+        </section>
+      </div>}
     </div>
   )
 }
