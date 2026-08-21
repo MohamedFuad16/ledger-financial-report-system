@@ -14,7 +14,7 @@ from flask import Flask, Response, jsonify, request, stream_with_context
 
 from api_client import GLMError, QuotaExhaustedError, test_api_key
 from corpus.client import FirecrawlClient, FirecrawlError
-from corpus.manifest import CORPUS_ROOT, delete_pinned_document, load_manifest
+from corpus.manifest import CORPUS_ROOT, delete_pinned_document, load_manifest, migrate_corpus_layout
 from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
@@ -59,6 +59,7 @@ CORPUS_JOBS_LOCK = threading.Lock()
 
 ensure_dirs()
 load_local_env()
+migrate_corpus_layout()
 LIMITER.resize(current_settings().get("max_concurrency", 6))
 
 

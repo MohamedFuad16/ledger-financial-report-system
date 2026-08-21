@@ -107,7 +107,7 @@ spending model tokens:
   "ticker": "MMM",
   "fiscal_year": "2022",
   "source_url": "https://investors.3m.com/...",
-  "local_path": "corpus_dataset/3M/2022/20260820T143852Z/3M_annual_report_2022.pdf",
+  "local_path": "corpus_dataset/3M/2022/3M_annual_report_2022.pdf",
   "sha256": "708a1e60...",
   "pages": 141,
   "readable_pages": 141,

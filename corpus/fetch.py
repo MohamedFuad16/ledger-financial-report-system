@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -54,16 +55,19 @@ def _download(url: str, target: Path) -> tuple[str, int]:
 def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
     company = str(candidate["company"])
     year = int(candidate["year"])
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = company_slug(company)
-    directory = CORPUS_ROOT / slug / str(year) / stamp
+    directory = CORPUS_ROOT / slug / str(year)
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / canonical_report_name(company, year)
+    temporary = directory / f".{target.stem}.{uuid.uuid4().hex}.pdf"
     try:
-        sha256, size = _download(str(candidate["url"]), target)
-        screening = screen_pdf(target, year)
+        sha256, size = _download(str(candidate["url"]), temporary)
+        screening = screen_pdf(temporary, year)
+        # The last verified download remains usable until its replacement has
+        # passed both the PDF signature check and document screening.
+        temporary.replace(target)
     except Exception:
-        target.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
         try:
             directory.rmdir()
         except OSError:

@@ -66,8 +66,10 @@ a { color: inherit; }
 .mobile-header { display: none; }
 .sidebar { position: fixed; z-index: 30; inset: 0 auto 0 0; width: 252px; padding: 24px 18px 18px; display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--line); }
 .sidebar-brand { display: flex; align-items: center; justify-content: space-between; padding: 0 9px 24px; }
-.wordmark { display: flex; flex-direction: column; line-height: 1; }
-.wordmark span { font-size: 24px; font-weight: 600; letter-spacing: -.055em; }
+.wordmark { display: flex; align-items: center; gap: 9px; line-height: 1; }
+.wordmark img { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 8px; object-fit: contain; }
+.wordmark > span { min-width: 0; display: flex; flex-direction: column; }
+.wordmark b { font-size: 24px; font-weight: 600; letter-spacing: -.055em; }
 .wordmark small { margin-top: 6px; color: var(--muted); font-size: 7.5px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
 .mobile-close { display: none; border: 0; background: transparent; }
 .new-run-button { height: 43px; margin-bottom: 24px; padding: 0 12px; display: flex; align-items: center; gap: 9px; background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 5px 18px rgba(20,20,18,.04); font-size: 12px; font-weight: 650; }
@@ -297,7 +299,7 @@ input[type='range'] { width: 100%; height: 4px; accent-color: var(--accent); }
 }
 
 @media (max-width: 900px) {
-  .mobile-header { position: fixed; z-index: 24; top: 0; left: 0; right: 0; height: 58px; padding: 0 17px; display: flex; align-items: center; justify-content: space-between; background: color-mix(in srgb, var(--sidebar) 92%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); }.mobile-header button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; }.mobile-header .wordmark small { display: none; }.mobile-header .wordmark span { font-size: 20px; }
+  .mobile-header { position: fixed; z-index: 24; top: 0; left: 0; right: 0; height: 58px; padding: 0 17px; display: flex; align-items: center; justify-content: space-between; background: color-mix(in srgb, var(--sidebar) 92%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); }.mobile-header button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; }.mobile-header .wordmark small { display: none; }.mobile-header .wordmark img { width: 28px; height: 28px; border-radius: 7px; }.mobile-header .wordmark b { font-size: 20px; }
   .sidebar { transform: translateX(-105%); visibility: hidden; box-shadow: 30px 0 80px rgba(0,0,0,.18); transition: transform .25s ease, visibility 0s linear .25s; }.sidebar.is-open { transform: translateX(0); visibility: visible; transition-delay: 0s; }.mobile-close { display: grid; place-items: center; }.sidebar-scrim { position: fixed; z-index: 29; inset: 0; border: 0; background: rgba(0,0,0,.3); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s, visibility 0s linear .2s; }.sidebar-scrim.is-open { display: block; opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
   .main-content { margin-left: 0; padding: 70px 10px 10px; }.page { min-height: calc(100vh - 80px); border-radius: 17px; }
   .dashboard-layout, .dashboard-lower, .strategy-workspace, .settings-layout { grid-template-columns: 1fr; }

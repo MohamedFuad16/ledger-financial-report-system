@@ -115,11 +115,10 @@ The corpus builder discovers reports only for FY2020–FY2025. Firecrawl finds c
 corpus_dataset/
 └── <company>/
     └── <year>/
-        └── <downloaded_at>/
-            └── <company>_annual_report_<year>.pdf
+        └── <company>_annual_report_<year>.pdf
 ```
 
-`corpus_dataset/corpus_manifest.json` records provenance and SHA-256 identities. Crawling and extraction are deliberately separate, so downloading a report never spends model quota.
+`corpus_dataset/corpus_manifest.json` records provenance and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous verified file intact. Crawling and extraction are deliberately separate, so downloading a report never spends model quota.
 
 The standalone worker accepts a CSV or JSON company list:
 

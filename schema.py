@@ -328,8 +328,6 @@ GOLDEN_ANSWERS_STORE = {
         "Deferred Charges": 0,
         "Total Assets": 39868
     },
-    "2018": {},
-    "2019": {},
     # FY2025 is a PARTIAL key: only the rows that can be read directly off the
     # printed FY2025 statements (balance sheet page 50, PP&E note page 54) plus
     # the four rows that are structurally zero in every verified year.

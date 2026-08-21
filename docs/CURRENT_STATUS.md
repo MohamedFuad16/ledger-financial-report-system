@@ -100,10 +100,10 @@ Company + official site + FY2020–FY2025
   → direct PDF download
   → MIME/signature, year, balance-sheet and text-health screening
   → SHA-256 manifest entry
-  → corpus_dataset/<company>/<year>/<downloaded_at>/<company>_annual_report_<year>.pdf
+  → corpus_dataset/<company>/<year>/<company>_annual_report_<year>.pdf
 ```
 
-Crawling never starts a model extraction. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
+Crawling never starts a model extraction. A verified recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
 
 ### Verified corpus smoke test
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-21T02:05:42.446122+00:00",
+  "updated_at": "2026-08-21T04:43:32.445313+00:00",
   "documents": [
     {
       "company": "3M",
@@ -12,7 +12,7 @@
       "official_source_verified": true,
       "discovery": "search",
       "downloaded_at": "2026-08-21T02:05:42.445641+00:00",
-      "local_path": "corpus_dataset/3M/2022/20260821T020528Z/3M_annual_report_2022.pdf",
+      "local_path": "corpus_dataset/3M/2022/3M_annual_report_2022.pdf",
       "filename": "3M_annual_report_2022.pdf",
       "sha256": "d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d",
       "size_bytes": 1655681,

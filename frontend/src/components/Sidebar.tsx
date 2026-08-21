@@ -143,5 +143,5 @@ export function Sidebar({
 
 function Wordmark() {
   const { tr } = useLocale()
-  return <div className="wordmark"><span>LEDGER</span><small>{tr('financial report system', '財務レポートシステム')}</small></div>
+  return <div className="wordmark"><img src="/ledger-icon.png" alt="" /><span><b>LEDGER</b><small>{tr('financial report system', '財務レポートシステム')}</small></span></div>
 }

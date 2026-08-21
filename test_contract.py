@@ -76,6 +76,10 @@ SUBTOTALS = [
 ]
 COMPLETE_YEARS = [y for y, a in GOLDEN_ANSWERS_STORE.items() if len(a) == 27]
 PARTIAL_YEARS = [y for y, a in GOLDEN_ANSWERS_STORE.items() if 0 < len(a) < 27]
+check(
+    "benchmark window is exactly FY2020–FY2025",
+    set(GOLDEN_ANSWERS_STORE) == {"2020", "2021", "2022", "2023", "2024", "2025"},
+)
 
 for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):
     if len(answers) < 27:

@@ -11,11 +11,11 @@
 - New uploaded PDFs: `uploads/<company>/<year>/<timestamp>/<company>_annual_report_<year>.pdf`. The superseded flat upload cache was removed after confirming no manifest or run referenced it.
 - New runs: `runs/<company>/FY<year>/<run_id>/` containing `request.json`, `raw_response.json`, and `prediction.json`; a bounded contract repair adds `request_repair_1.json` and `raw_response_repair_1.json` without overwriting the first attempt. Readers remain backward-compatible with legacy strategy-first folders.
 - Pending runs: `runs/<strategy>/_pending/` until fiscal year is known.
-- Corpus PDFs: `corpus_dataset/<company>/<year>/<downloaded_at>/<company>_annual_report_<year>.pdf`.
+- Corpus PDFs: `corpus_dataset/<company>/<year>/<company>_annual_report_<year>.pdf`. A successful company/year recrawl atomically replaces this canonical file; failed replacements preserve the previously verified PDF.
 - Corpus manifest: `corpus_dataset/corpus_manifest.json`, deduplicated by SHA-256 and company/year.
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
-- Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year download folders; existing run artifacts are preserved.
-- The current verified seed is the official 3M FY2022 filing at `corpus_dataset/3M/2022/20260821T020528Z/3M_annual_report_2022.pdf` (`d5cf549543a2…`), screened `ok` with 252/252 readable pages and staged in production by manifest identity.
+- Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year folders; existing run artifacts are preserved.
+- The current verified seed is the official 3M FY2022 filing at `corpus_dataset/3M/2022/3M_annual_report_2022.pdf` (`d5cf549543a2…`), screened `ok` with 252/252 readable pages and staged in production by manifest identity.
 - Bakuraku research: `research/bakuraku/customers.csv` plus a fully linked `README.md` table.
 - Provider defaults: `.env` (gitignored).
 - Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest

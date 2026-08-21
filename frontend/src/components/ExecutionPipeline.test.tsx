@@ -29,7 +29,7 @@ describe('ExecutionPipeline', () => {
     expect(screen.getByText('Rate limited — retry 1 in 5s')).toBeInTheDocument()
     expect(screen.getByText('Run model')).toBeInTheDocument()
     expect(screen.getByText('1 of 3 parsers complete')).toBeInTheDocument()
-    expect(screen.getByText('Live execution events are streaming')).toBeInTheDocument()
+    expect(screen.getByText('Live execution events are streaming')).toHaveClass('sr-only')
   })
 
   it('transitions the single card to the next running parser', async () => {

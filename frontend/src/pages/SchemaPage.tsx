@@ -20,8 +20,8 @@ export function SchemaPage({ rows }: { rows: SchemaRow[] }) {
     <div className="page">
       <header className="page-header"><div><Badge tone="blue">{tr('Fixed output contract', '固定出力契約')}</Badge><h1>{tr('Benchmark target schema', 'ベンチマーク対象スキーマ')}</h1><p>{tr('The canonical 27-row asset taxonomy sent to every strategy, with year-specific reference values used only after extraction.', '全戦略に送る27行の標準資産分類です。年度別参照値は抽出後の評価にのみ使用します。')}</p></div></header>
       <div className="schema-summary">
-        <Card><span>{tr('Rows', '行')}</span><strong>27</strong><small>{tr('Immutable order', '固定順序')}</small></Card>
-        <Card><span>{tr('Reference years', '参照年度')}</span><strong>6</strong><small>FY2020–FY2025</small></Card>
+        <Card><span>{tr('Rows', '行')}</span><strong>{rows.length}</strong><small>{tr('Immutable order', '固定順序')}</small></Card>
+        <Card><span>{tr('Reference years', '参照年度')}</span><strong>{years.length}</strong><small>{years.length ? `FY${years[0]}–FY${years.at(-1)}` : '—'}</small></Card>
         <Card><span>{tr('Units', '単位')}</span><strong>M USD</strong><small>{tr('Normalized values', '正規化値')}</small></Card>
         <Card><span>{tr('Confidence', '信頼度')}</span><strong>≥ 0.80</strong><small>{tr('Acceptance threshold', '採用しきい値')}</small></Card>
       </div>

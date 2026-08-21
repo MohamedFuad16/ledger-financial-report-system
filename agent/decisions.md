@@ -16,6 +16,7 @@
 | ADR-0012 | — Keep visit telemetry private and backend-only | — |
 | ADR-0013 | — Publish the assignment mutation API without a browser token | — |
 | ADR-0014 | — Delete corpus files only through their pinned manifest identity | — |
+| ADR-0017 | — Keep one canonical PDF per corpus company and fiscal year | — |
 
 # Decisions (ADRs) — append-only
 
@@ -130,3 +131,10 @@
 - Context: A Strategy 2 batch previously expanded every report into one parser container plus six stage capsules for every pass. Six reports and four parsers produced a very tall wall of repeated content that obscured the file-level progress the user needed.
 - Decision: Preserve the existing per-file/per-parser SSE event model, but reduce it in the React client to exactly one animated live card per report. The card displays the active parser, current stage, streamed message and timer; a compact rail shows completed, active and queued parsers without reproducing their stages. Replace the decorative sparkle used for New extraction with a restrained file-plus action glyph.
 - Consequences: Backend execution and stored artifacts remain unchanged, while batch progress is legible at a glance. Component tests now assert one-card-per-report identity and parser transitions; future stages can be added without multiplying the page height.
+
+## ADR-0017 — Keep one canonical PDF per corpus company and fiscal year
+- Date: 2026-08-21
+- Status: Accepted; refines ADR-0004 and ADR-0011
+- Context: Timestamped corpus download folders allowed repeated crawls of the same company/year to accumulate parallel PDFs, made the picker identity harder to understand, and obscured the user's expectation that the latest verified report replaces the prior copy.
+- Decision: Store exactly one manifest-owned PDF at `corpus_dataset/<company>/<year>/<company>_annual_report_<year>.pdf`. Download to a unique temporary file, screen it fully, then atomically replace the canonical target and upsert the manifest by company/year. On startup, safely migrate manifest-owned legacy timestamp paths to the canonical location and remove only superseded manifest-owned files.
+- Consequences: Refreshes and service restarts continue to see the same AWS EBS-backed corpus, and successful recrawls overwrite rather than fork a company/year. Failed downloads or screening cannot destroy the previous verified PDF. The current encrypted root EBS volume is still single-instance storage, not a cross-instance backup, and is configured with delete-on-termination.

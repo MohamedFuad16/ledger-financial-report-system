@@ -111,19 +111,15 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <header className="execution-file-header">
+              <div className="execution-primary-row">
                 <span className="file-avatar"><FileText size={15} /></span>
                 <div className="execution-file-copy">
                   <strong>{file.name}</strong>
                   <span>{formatNumber(file.pages)} {tr('pages', 'ページ')} · {formatNumber(file.approxTokens)} {tr('estimated tokens', '推定トークン')}</span>
                 </div>
-                <span className={`execution-status execution-status-${file.state}`}>{statusLabel}</span>
-              </header>
-
-              <div className="execution-live-capsule">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
-                    className="execution-live-state"
+                    className="execution-live-inline"
                     key={`${activePass.strategy}-${step}-${stepState}`}
                     initial={{ opacity: 0, y: 7 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -135,14 +131,15 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
                     </span>
                     <div className="execution-live-copy">
                       <div className="execution-parser-line"><i style={{ background: parser.color }} /><strong>{parser.short}</strong><span>{labels[step]}</span></div>
-                      <p>{message}</p>
+                      <p className={stepState === 'running' ? 'execution-shimmer-text' : ''}>{message}</p>
                     </div>
                     <time>{timeLabel(timerKey, activePass, step, stepState)}</time>
                   </motion.div>
                 </AnimatePresence>
+                <span className={`execution-status execution-status-${file.state}`}>{statusLabel}</span>
               </div>
 
-              <div className="execution-pass-rail" aria-label={tr('Parser comparison progress', 'パーサー比較の進捗')}>
+              {file.passes.length > 1 && <div className="execution-pass-rail" aria-label={tr('Parser comparison progress', 'パーサー比較の進捗')}>
                 {file.passes.map((pass, index) => {
                   const meta = parserFor(pass.strategy)
                   const isActive = pass === activePass
@@ -155,12 +152,12 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
                   )
                 })}
                 <small>{tr(`${completedPasses} of ${file.passes.length} parsers complete`, `${file.passes.length}件中${completedPasses}件のパーサーが完了`)}</small>
-              </div>
+              </div>}
             </motion.section>
           )
         })}
       </AnimatePresence>
-      {running && <div className="pipeline-live-caption"><LoaderCircle className="spin" size={14} /> {tr('Live execution events are streaming', '実行イベントをリアルタイムで受信中')}</div>}
+      <span className="sr-only" aria-live="polite">{running ? tr('Live execution events are streaming', '実行イベントをリアルタイムで受信中') : ''}</span>
     </div>
   )
 }

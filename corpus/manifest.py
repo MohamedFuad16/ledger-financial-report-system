@@ -14,6 +14,32 @@ MANIFEST_PATH = CORPUS_ROOT / "corpus_manifest.json"
 _LOCK = threading.Lock()
 
 
+def _write_manifest(manifest: dict[str, Any]) -> None:
+    manifest["updated_at"] = datetime.now(timezone.utc).isoformat()
+    temporary = MANIFEST_PATH.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(MANIFEST_PATH)
+
+
+def _manifest_owned_path(raw_path: str) -> Path | None:
+    """Resolve a stored path only when it is owned by the corpus root."""
+    if not str(raw_path or "").strip():
+        return None
+    path = Path(raw_path).resolve()
+    return path if path.is_relative_to(CORPUS_ROOT.resolve()) else None
+
+
+def _prune_empty_parents(path: Path) -> None:
+    corpus_root = CORPUS_ROOT.resolve()
+    parent = path.parent
+    while parent != corpus_root:
+        try:
+            parent.rmdir()
+        except OSError:
+            break
+        parent = parent.parent
+
+
 def load_manifest() -> dict[str, Any]:
     if not MANIFEST_PATH.exists():
         return {"version": 1, "updated_at": None, "documents": []}
@@ -26,11 +52,53 @@ def load_manifest() -> dict[str, Any]:
     return payload
 
 
+def migrate_corpus_layout() -> int:
+    """Move legacy timestamped PDFs into the canonical company/year path.
+
+    This migration is idempotent and only operates on paths already pinned by
+    the manifest and contained by ``CORPUS_ROOT``.
+    """
+    if not MANIFEST_PATH.exists():
+        return 0
+    moved = 0
+    with _LOCK:
+        manifest = load_manifest()
+        for document in manifest["documents"]:
+            old_path = _manifest_owned_path(str(document.get("local_path") or ""))
+            company_slug = str(document.get("company_slug") or "").strip()
+            fiscal_year = int(document.get("fiscal_year") or 0)
+            filename = str(document.get("filename") or "").strip()
+            if not old_path or not company_slug or not fiscal_year or not filename:
+                continue
+            target = (CORPUS_ROOT / company_slug / str(fiscal_year) / filename).resolve()
+            if target == old_path:
+                continue
+            if not target.is_relative_to(CORPUS_ROOT.resolve()):
+                continue
+            if old_path.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                old_path.replace(target)
+                _prune_empty_parents(old_path)
+            elif not target.is_file():
+                continue
+            document["local_path"] = str(target.relative_to(Path.cwd().resolve())) if target.is_relative_to(Path.cwd().resolve()) else str(target)
+            moved += 1
+        if moved:
+            _write_manifest(manifest)
+    return moved
+
+
 def upsert_document(document: dict[str, Any]) -> dict[str, Any]:
     CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
     with _LOCK:
         manifest = load_manifest()
         documents = manifest["documents"]
+        superseded = [
+            item for item in documents
+            if item.get("sha256") == document.get("sha256")
+            or (item.get("company_slug"), item.get("fiscal_year"))
+            == (document.get("company_slug"), document.get("fiscal_year"))
+        ]
         documents[:] = [
             item for item in documents
             if item.get("sha256") != document.get("sha256")
@@ -39,10 +107,17 @@ def upsert_document(document: dict[str, Any]) -> dict[str, Any]:
         ]
         documents.append(document)
         documents.sort(key=lambda item: (str(item.get("company", "")).lower(), int(item.get("fiscal_year") or 0)))
-        manifest["updated_at"] = datetime.now(timezone.utc).isoformat()
-        temporary = MANIFEST_PATH.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(MANIFEST_PATH)
+        _write_manifest(manifest)
+
+        # Commit the new manifest first, then remove only a superseded source
+        # path owned by corpus storage. Historical extraction runs live outside
+        # this tree and are never touched.
+        new_path = _manifest_owned_path(str(document.get("local_path") or ""))
+        for item in superseded:
+            old_path = _manifest_owned_path(str(item.get("local_path") or ""))
+            if old_path and old_path != new_path and old_path.is_file():
+                old_path.unlink()
+                _prune_empty_parents(old_path)
         return document
 
 
@@ -78,17 +153,8 @@ def delete_pinned_document(document_id: str) -> dict[str, Any] | None:
         file_removed = pdf_path.is_file()
         if file_removed:
             pdf_path.unlink()
-            parent = pdf_path.parent
-            while parent != corpus_root:
-                try:
-                    parent.rmdir()
-                except OSError:
-                    break
-                parent = parent.parent
+            _prune_empty_parents(pdf_path)
 
         documents[:] = [item for item in documents if str(item.get("sha256") or "") != identifier]
-        manifest["updated_at"] = datetime.now(timezone.utc).isoformat()
-        temporary = MANIFEST_PATH.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(MANIFEST_PATH)
+        _write_manifest(manifest)
         return {**document, "file_removed": file_removed}

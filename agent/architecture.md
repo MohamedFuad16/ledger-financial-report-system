@@ -12,7 +12,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 - **Quality** — `reconcile.py` checks arithmetic identities; `pipeline.compute_metrics` compares accepted rows with year-specific golden data.
 - **Provider boundary** — `api_client.py`, `providers.py`, and `ratelimit.py` handle compatible LLM APIs and adaptive concurrency.
 - **Corpus boundary** — `corpus/` discovers official Annual Reports through Firecrawl, downloads directly, screens locally, and atomically updates a SHA-256 manifest. `corpus_worker.py` exposes the same service to long-lived CLI jobs.
-- **Persistence** — uploads, runs, corpus PDFs, manifests, and customer research are stored on disk with company/year/timestamp namespaces.
+- **Persistence** — uploads and runs use company/year/timestamp namespaces; each corpus company/year has one canonical manifest-owned PDF that is atomically replaced after a successful recrawl.
 - **Private traffic boundary** — `traffic.py` writes bounded per-session metadata and counters to Upstash and uses the EC2 role to send owner-only SES notifications. Connector values are loaded from SSM and never enter Vercel.
 - **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds private connector values; no secret is bundled into Vercel. The assignment API has no browser access token, while CORS remains limited to approved UI origins.
 
@@ -23,5 +23,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 3. Streaming endpoints emit per-file phase events. The client reduces those events into one live card per report, advancing that card through the current parser and stage while a compact rail retains comparison progress; completed predictions are served to the UI and exports.
 
 Corpus flow is deliberately separate: React or the CLI supplies companies and FY2020–FY2025, Firecrawl discovers candidates, direct download verifies the PDF, local screening records health, and only a later explicit extraction action may consume it.
+
+In production this file-backed state lives on the EC2 instance's encrypted EBS volume, not in browser storage. It survives page refreshes and service restarts, but the current single-instance root volume is not a multi-AZ object-store backup and is configured for deletion if the instance is terminated.
 
 See `agent/graph/architecture.svg` and `agent/graph/graph.md`.
