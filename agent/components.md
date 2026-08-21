@@ -28,7 +28,6 @@
 - `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.
 - `frontend/public/providers/` — locally served official OpenRouter, Z.AI and OpenAI marks used by the model-gateway selector.
 - `frontend/src/lib/api.ts` — typed HTTP and fragmented-SSE adapter.
-- `static/` — archived legacy UI; no longer served.
 - `app.py` — legacy Streamlit wrapper.
 
 ## Verification

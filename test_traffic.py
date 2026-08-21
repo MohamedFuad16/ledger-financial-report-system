@@ -83,6 +83,31 @@ class TrafficTests(unittest.TestCase):
         self.assertEqual(response.get_json()["deleted"]["filename"], "3M_annual_report_2022.pdf")
         remove.assert_called_once_with(document_id)
 
+    def test_runtime_settings_reuse_a_saved_firecrawl_key(self):
+        current = {
+            "max_concurrency": 6,
+            "auto_concurrency": True,
+            "firecrawl_api_key": "fc-saved-server-side",
+        }
+        with patch.object(server, "current_settings", return_value=current), patch.object(
+            server, "FirecrawlClient"
+        ) as firecrawl, patch.object(server, "save_runtime_settings") as save:
+            firecrawl.return_value.credit_usage.return_value = {"remainingCredits": 9000}
+            response = server.app.test_client().post(
+                "/api/runtime-settings",
+                json={"max_concurrency": 7, "auto_concurrency": True, "firecrawl_api_key": ""},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["has_firecrawl_key"])
+        firecrawl.assert_called_once_with("fc-saved-server-side", timeout=20, max_attempts=1)
+        save.assert_called_once_with(
+            max_concurrency=7,
+            auto_concurrency=True,
+            firecrawl_api_key="",
+            keep_firecrawl_key=True,
+        )
+
     def test_visit_email_contains_a_readable_html_table(self):
         event = {
             "event_id": "event-123",

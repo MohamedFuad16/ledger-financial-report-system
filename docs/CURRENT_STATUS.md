@@ -105,6 +105,12 @@ Company + official site + FY2020–FY2025
 
 Crawling never starts a model extraction. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
 
+### Verified corpus smoke test
+
+On 21 August 2026, the Firecrawl workflow discovered the official 3M FY2022 SEC filing on `investors.3m.com`. Ledger downloaded and normalized it to `3M_annual_report_2022.pdf`, matched SHA-256 `d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d`, confirmed FY2022 and the balance sheet on page 38, and screened all 252 pages as readable. The same manifest identity was then selected through the production `/api/corpus/stage` contract: it returned HTTP 200 as a `source: corpus` staged file with 252 pages, no browser access token, and no copied PDF.
+
+Firecrawl credential persistence was also verified against production using an empty replacement field: the backend reused the masked saved credential, completed the read-only credit probe, returned HTTP 200, and kept the key server-side.
+
 ## Frontend responsibilities
 
 - English/Japanese locale state and localized display labels

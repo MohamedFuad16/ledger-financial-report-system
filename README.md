@@ -189,7 +189,7 @@ Copy `.env.example` to `.env`, then use **Settings** to test and save the provid
 
 ```bash
 .venv/bin/python test_contract.py
-.venv/bin/python -m unittest test_traffic.py
+.venv/bin/python -m unittest test_traffic.py test_corpus_manifest.py
 npm --prefix frontend test
 npm --prefix frontend run build
 ```
