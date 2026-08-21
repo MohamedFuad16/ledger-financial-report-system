@@ -189,12 +189,37 @@ export interface ExecutionPass {
   message?: string
   runId?: string
   metrics?: RunMetrics
+  totalSeconds?: number | null
+  extractSeconds?: number | null
+  fiscalYear?: string
   error?: string
   steps?: Record<string, {
     state: 'queued' | 'running' | 'complete' | 'failed'
     message?: string
     durationSeconds?: number
   }>
+}
+
+export interface ExtractionJobEvent {
+  event: string
+  data: Record<string, unknown>
+  at: string
+}
+
+export interface ExtractionJob {
+  id: string
+  status: 'queued' | 'running' | 'complete' | 'failed'
+  scope: 's1' | 's2'
+  strategies: string[]
+  files_total: number
+  passes_total: number
+  succeeded: number
+  failed: number
+  error?: string | null
+  created_at: string
+  updated_at: string
+  events: ExtractionJobEvent[]
+  next_offset: number
 }
 
 export interface ExecutionFile {

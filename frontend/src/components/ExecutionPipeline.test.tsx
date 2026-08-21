@@ -55,4 +55,26 @@ describe('ExecutionPipeline', () => {
 
     expect(screen.getByText('No execution in progress')).toBeInTheDocument()
   })
+
+  it('folds a six-year company batch into one active card and six report capsules', () => {
+    const reports: ExecutionFile[] = Array.from({ length: 6 }, (_, index) => ({
+      ...comparisonFile,
+      name: `3M_annual_report_${2020 + index}.pdf`,
+      state: index < 2 ? 'complete' : index === 2 ? 'running' : 'queued',
+      passes: [{
+        strategy: 's1',
+        strategyLabel: 'PyPDF',
+        state: index < 2 ? 'complete' : index === 2 ? 'running' : 'queued',
+        step: index < 2 ? 'output' : index === 2 ? 'extract' : undefined,
+      }],
+    }))
+
+    render(<LocaleProvider><ExecutionPipeline files={reports} running /></LocaleProvider>)
+
+    expect(screen.getAllByTestId('execution-file-card')).toHaveLength(1)
+    expect(screen.getByText('FY2020')).toBeInTheDocument()
+    expect(screen.getByText('FY2025')).toBeInTheDocument()
+    expect(screen.getByText('2 of 6 reports complete')).toBeInTheDocument()
+    expect(screen.getByText('3M_annual_report_2022.pdf')).toBeInTheDocument()
+  })
 })

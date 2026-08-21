@@ -10,11 +10,30 @@ from extraction import extract_with_pypdf
 
 
 PAGE_MARKER = re.compile(r"^--- PAGE (\d+) ---$", re.M)
-BALANCE_SHEET = re.compile(r"(?:consolidated\s+)?balance\s+sheets?|statement\s+of\s+financial\s+position", re.I)
+BALANCE_SHEET = re.compile(
+    r"(?:consolidated\s+)?balance\s+sheets?"
+    r"|statement\s+of\s+financial\s+position"
+    r"|貸借対照表"
+    r"|財政状態計算書",
+    re.I,
+)
 YEAR_PATTERNS = (
     re.compile(r"(?:at|as\s+of)\s+(?:december|january|september|june|march)[^\n]{0,45}\b((?:19|20)\d{2})\b", re.I),
     re.compile(r"for\s+the\s+year\s+ended[^\n]{0,45}\b((?:19|20)\d{2})\b", re.I),
     re.compile(r"fiscal\s+year\s+((?:19|20)\d{2})", re.I),
+    # Japanese securities reports identify the filing period on their cover as
+    # 【事業年度】... (自 2024年... 至 2024年...). Keep the match close to
+    # the label so unrelated comparative years do not satisfy the screen.
+    re.compile(r"事業年度[^\n]{0,100}?((?:19|20)\d{2})年"),
+    re.compile(r"((?:19|20)\d{2})年\s*\d{1,2}月期"),
+)
+
+FINANCIAL_TERM_GROUPS = (
+    (r"current\s+assets", r"流動資産"),
+    (r"cash\s+and\s+cash", r"現金及び(?:預金|現金同等物)"),
+    (r"inventor", r"(?:棚卸|たな卸)資産"),
+    (r"total\s+assets", r"資産(?:合計|の部合計)"),
+    (r"liabilit", r"負債(?:合計|の部)"),
 )
 
 
@@ -31,8 +50,8 @@ def _balance_sheet_page(text: str) -> int | None:
         end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
         page = text[marker.end():end]
         financial_terms = sum(
-            bool(re.search(term, page, re.I))
-            for term in (r"current\s+assets", r"cash\s+and\s+cash", r"inventor", r"total\s+assets", r"liabilit")
+            any(re.search(term, page, re.I) for term in alternatives)
+            for alternatives in FINANCIAL_TERM_GROUPS
         )
         if BALANCE_SHEET.search(page) and financial_terms >= 3:
             return int(marker.group(1))
@@ -44,7 +63,12 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
     mentions = _year_mentions(extracted.text)
     year_confirmed = str(expected_year) in mentions
     balance_page = _balance_sheet_page(extracted.text)
-    currency = "USD" if re.search(r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars", extracted.text, re.I) else "unknown"
+    if re.search(r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars", extracted.text, re.I):
+        currency = "USD"
+    elif re.search(r"(?:単位\s*[:：]?\s*)?(?:千円|百万円)|日本円", extracted.text):
+        currency = "JPY"
+    else:
+        currency = "unknown"
 
     reasons: list[str] = []
     if not year_confirmed:
@@ -52,7 +76,7 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
     if extracted.readable_pages == 0:
         reasons.append("No readable text layer.")
     if balance_page is None:
-        reasons.append("No consolidated balance sheet heading found.")
+        reasons.append("No balance sheet heading found.")
 
     verdict = "ok" if not reasons else "review"
     if extracted.readable_pages == 0:

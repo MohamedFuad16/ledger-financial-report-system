@@ -17,17 +17,23 @@ app: "Annual Report Extractor" {
   corpus: "Corpus builder"
   traffic: "Private visit reporter"
   storage: "Uploads / runs / manifest"
+  jobs: "Durable extraction jobs"
+  cohort: "Matched parser cohort"
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
   client -> api: "confirm corpus delete"
   api -> pipeline: "execute"
+  api -> jobs: "snapshot / rehydrate"
   api -> storage: "validate + stage durable PDF"
   api -> storage: "delete manifest-owned PDF"
   api -> corpus: "background job"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
   pipeline -> storage: "persist"
+  pipeline -> jobs: "phase events"
+  storage -> cohort: "latest parser/report result"
+  cohort -> client: "equal-weight comparison"
   corpus -> storage: "PDF + SHA-256 manifest"
 }
 

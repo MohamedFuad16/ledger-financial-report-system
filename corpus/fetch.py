@@ -82,12 +82,15 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
         "source_title": candidate.get("title", ""),
         "official_domain": candidate.get("official_domain", ""),
         "official_source_verified": bool(
-            candidate.get("official_domain")
-            and (
+            candidate.get("source_verified")
+            or (
+                candidate.get("official_domain")
+                and (
                 urlparse(str(candidate["url"])).netloc.lower().removeprefix("www.")
                 == str(candidate["official_domain"]).lower().removeprefix("www.")
                 or urlparse(str(candidate["url"])).netloc.lower().endswith(
                     "." + str(candidate["official_domain"]).lower().removeprefix("www.")
+                )
                 )
             )
         ),

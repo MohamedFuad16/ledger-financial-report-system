@@ -7,7 +7,7 @@ import {
   RotateCcw,
   Save,
 } from 'lucide-react'
-import { api, runStagedExtraction, type SseEvent } from '../lib/api'
+import { api, type SseEvent } from '../lib/api'
 import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
 import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor, parserMeta } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
@@ -49,6 +49,9 @@ export function StrategyPage({
   const [running, setRunning] = useState(false)
   const [executions, setExecutions] = useState<ExecutionFile[]>([])
   const [latestDetail, setLatestDetail] = useState<RunDetail | null>(null)
+  const storageKey = `ledger-active-extraction-${kind}`
+  const [activeJobId, setActiveJobId] = useState<string | null>(() => window.localStorage.getItem(storageKey))
+  const eventOffset = useRef(0)
   const successfulRunIds = useRef<string[]>([])
 
   useEffect(() => {
@@ -183,6 +186,9 @@ export function StrategyPage({
             message: data.ok ? `${formatMetric(data.metrics?.accuracy)} ${tr('accuracy', '正確率')} · ${formatDuration(data.total_seconds)}` : data.error,
             runId: data.run_id,
             metrics: data.metrics,
+            totalSeconds: data.total_seconds,
+            extractSeconds: data.extract_seconds,
+            fiscalYear: data.fiscal_year,
             error: data.error,
             steps: data.ok ? pass.steps : {
               ...pass.steps,
@@ -201,6 +207,66 @@ export function StrategyPage({
     }
   }
 
+  useEffect(() => {
+    if (activeJobId) return
+    api.extractionJobs().then(({ jobs }) => {
+      const resumable = jobs.find((job) => job.scope === kind && (job.status === 'queued' || job.status === 'running'))
+      if (resumable) {
+        window.localStorage.setItem(storageKey, resumable.id)
+        setActiveJobId(resumable.id)
+      }
+    }).catch(() => undefined)
+  }, [activeJobId, kind, storageKey])
+
+  useEffect(() => {
+    if (!activeJobId) return
+    let cancelled = false
+    let timer = 0
+    let finished = false
+    eventOffset.current = 0
+    successfulRunIds.current = []
+    setExecutions([])
+    setRunning(true)
+
+    const poll = async () => {
+      try {
+        const job = await api.extractionJob(activeJobId, eventOffset.current)
+        if (cancelled) return
+        job.events.forEach((record) => handleEvent({ event: record.event, data: record.data }))
+        eventOffset.current = job.next_offset
+        if ((job.status === 'complete' || job.status === 'failed') && !finished) {
+          finished = true
+          setRunning(false)
+          await onRefreshRuns()
+          const latestId = successfulRunIds.current.at(-1)
+          if (latestId) setLatestDetail(await api.run(latestId))
+          window.localStorage.removeItem(storageKey)
+          setActiveJobId(null)
+          if (job.status === 'failed') {
+            onNotify(job.error || tr('The extraction could not be completed.', '抽出を完了できませんでした。'), 'error')
+          } else {
+            onNotify(tr(`${job.succeeded} extraction pass${job.succeeded === 1 ? '' : 'es'} completed.`, `${job.succeeded}件の抽出処理が完了しました。`), 'success')
+          }
+          return
+        }
+        timer = window.setTimeout(poll, 800)
+      } catch (error) {
+        if (cancelled) return
+        setRunning(false)
+        window.localStorage.removeItem(storageKey)
+        setActiveJobId(null)
+        onNotify(error instanceof Error ? error.message : tr('Could not resume the extraction job.', '抽出ジョブを再開できませんでした。'), 'error')
+      }
+    }
+    void poll()
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  // Replaying the persisted event log intentionally rebuilds page-local presentation state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeJobId, storageKey])
+
   const startRun = async () => {
     const readyCount = inputSource === 'upload' ? files.length : selectedCorpusIds.length
     if (!readyCount || running) return
@@ -217,25 +283,53 @@ export function StrategyPage({
         : await api.stageCorpusDocuments(selectedCorpusIds)
       const usable = staged.files.filter((file) => file.id && !file.error)
       if (!usable.length) throw new Error(staged.files[0]?.error || tr('No readable PDF could be staged.', '読み取り可能なPDFを追加できませんでした。'))
-      await runStagedExtraction({
+      const job = await api.startExtractionJob({
         upload_ids: usable.map((file) => file.id),
         strategies: isS2 ? selectedParsers : ['s1'],
         system_prompt: prompt,
         reasoning_effort: reasoningEnabled ? 'high' : 'none',
         enable_reasoning: reasoningEnabled,
-      }, handleEvent)
-      await onRefreshRuns()
-      const latestId = successfulRunIds.current.at(-1)
-      if (latestId) setLatestDetail(await api.run(latestId))
-      onNotify(tr(`${successfulRunIds.current.length} extraction pass${successfulRunIds.current.length === 1 ? '' : 'es'} completed.`, `${successfulRunIds.current.length}件の抽出処理が完了しました。`), 'success')
+      })
+      window.localStorage.setItem(storageKey, job.job_id)
+      setActiveJobId(job.job_id)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : tr('The extraction could not be completed.', '抽出を完了できませんでした。'), 'error')
-    } finally {
       setRunning(false)
     }
   }
 
-  const comparison = executions.flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass }))).filter((pass) => pass.state === 'complete')
+  const completedComparison = executions
+    .flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass })))
+    .filter((pass) => pass.state === 'complete')
+  const expectedStrategies = executions[0]?.passes.map((pass) => pass.strategy) || []
+  const matchedExecutions = executions.filter((file) => expectedStrategies.length > 0 && expectedStrategies.every((strategy) =>
+    file.passes.some((pass) => pass.strategy === strategy && pass.state === 'complete'),
+  ))
+  const matchedComparison = matchedExecutions.flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass })))
+  const comparisonSummary = Object.values(matchedComparison.reduce<Record<string, {
+    strategy: string
+    passes: typeof matchedComparison
+  }>>((groups, pass) => {
+    const group = groups[pass.strategy] || { strategy: pass.strategy, passes: [] }
+    group.passes.push(pass)
+    groups[pass.strategy] = group
+    return groups
+  }, {})).map((group) => {
+    const average = (values: Array<number | null | undefined>) => {
+      const numeric = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      return numeric.length ? numeric.reduce((total, value) => total + value, 0) / numeric.length : null
+    }
+    return {
+      strategy: group.strategy,
+      count: group.passes.length,
+      scheduled: executions.length,
+      successful: executions.filter((file) => file.passes.some((pass) => pass.strategy === group.strategy && pass.state === 'complete')).length,
+      failed: executions.filter((file) => file.passes.some((pass) => pass.strategy === group.strategy && pass.state === 'failed')).length,
+      accuracy: average(group.passes.map((pass) => pass.metrics?.accuracy)),
+      coverage: average(group.passes.map((pass) => pass.metrics?.coverage)),
+      totalSeconds: average(group.passes.map((pass) => pass.totalSeconds)),
+    }
+  })
   const selectedInputCount = inputSource === 'upload' ? files.length : selectedCorpusIds.length
 
   return (
@@ -308,10 +402,20 @@ export function StrategyPage({
         </Card>
       </div>
 
-      {isS2 && comparison.length > 0 && (
+      {isS2 && completedComparison.length > 0 && (
         <Card className="comparison-card">
-          <SectionHeading eyebrow={tr('Controlled comparison', '統制比較')} title={tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={tr('Same PDF, schema, model, and prompt; only the parser differs.', 'PDF、スキーマ、モデル、プロンプトを固定し、パーサーだけを変えます。')} />
-          <div className="comparison-grid">{comparison.map((pass) => { const meta = parserFor(pass.strategy); return <article key={`${pass.file}-${pass.strategy}`}><i style={{ background: meta.color }} /><span>{meta.short}</span><strong>{formatMetric(pass.metrics?.accuracy)}</strong><small>{formatMetric(pass.metrics?.coverage)} {tr('coverage', 'カバレッジ')}</small></article> })}</div>
+          <SectionHeading eyebrow={tr('Controlled comparison', '統制比較')} title={tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={tr('Batch averages compare each parser across the same reports. Per-report results remain available below.', '同じレポート群に対するパーサーごとの平均を比較し、各レポートの結果も下に保持します。')} />
+          <div className="comparison-cohort-note">
+            <strong>{tr(`${matchedExecutions.length} of ${executions.length} reports in the matched cohort`, `${executions.length}件中${matchedExecutions.length}件が比較対象`)}</strong>
+            <span>{tr('A report enters the cumulative average only after every selected parser completes it, preventing partial-success bias.', '選択したすべてのパーサーが完了したレポートだけを累積平均に含め、部分成功による偏りを防ぎます。')}</span>
+          </div>
+          {comparisonSummary.length > 0 && <div className="comparison-grid">{comparisonSummary.map((summary) => { const meta = parserFor(summary.strategy); return <article key={summary.strategy}><i style={{ background: meta.color }} /><span>{meta.short}<small>{tr(`Matched average of ${summary.count} report${summary.count === 1 ? '' : 's'}`, `${summary.count}件の対応平均`)}</small></span><strong>{formatMetric(summary.accuracy)}</strong><small>{formatMetric(summary.coverage)} {tr('coverage', 'カバレッジ')} · {formatDuration(summary.totalSeconds)} {tr('average', '平均')}</small><small>{tr(`${summary.successful}/${summary.scheduled} successful · ${summary.failed} failed`, `成功 ${summary.successful}/${summary.scheduled} · 失敗 ${summary.failed}`)}</small></article> })}</div>}
+          <div className="comparison-detail-wrap">
+            <table className="comparison-detail-table">
+              <thead><tr><th>{tr('Report', 'レポート')}</th><th>{tr('Parser', 'パーサー')}</th><th>{tr('Accuracy', '正確度')}</th><th>{tr('Coverage', 'カバレッジ')}</th><th>{tr('Total time', '合計時間')}</th><th>{tr('Result', '結果')}</th></tr></thead>
+              <tbody>{completedComparison.map((pass) => <tr key={`${pass.file}-${pass.strategy}`}><td><strong>{pass.file}</strong></td><td>{parserFor(pass.strategy).short}</td><td>{formatMetric(pass.metrics?.accuracy)}</td><td>{formatMetric(pass.metrics?.coverage)}</td><td>{formatDuration(pass.totalSeconds)}</td><td><button disabled={!pass.runId} onClick={async () => { if (pass.runId) setLatestDetail(await api.run(pass.runId)) }}>{tr('View table', '表を表示')}</button></td></tr>)}</tbody>
+            </table>
+          </div>
         </Card>
       )}
 

@@ -16,7 +16,12 @@
 | ADR-0012 | — Keep visit telemetry private and backend-only | — |
 | ADR-0013 | — Publish the assignment mutation API without a browser token | — |
 | ADR-0014 | — Delete corpus files only through their pinned manifest identity | — |
+| ADR-0015 | — Remove the retired static client and orphaned experiment data | — |
+| ADR-0016 | — Reduce live comparison events to one card per report | — |
 | ADR-0017 | — Keep one canonical PDF per corpus company and fiscal year | — |
+| ADR-0018 | — Persist extraction jobs independently of browser routes | — |
+| ADR-0019 | — Aggregate parser results on a matched report cohort | — |
+| ADR-0020 | — Screen Japanese filings without weakening the M-USD contract | — |
 
 # Decisions (ADRs) — append-only
 
@@ -138,3 +143,24 @@
 - Context: Timestamped corpus download folders allowed repeated crawls of the same company/year to accumulate parallel PDFs, made the picker identity harder to understand, and obscured the user's expectation that the latest verified report replaces the prior copy.
 - Decision: Store exactly one manifest-owned PDF at `corpus_dataset/<company>/<year>/<company>_annual_report_<year>.pdf`. Download to a unique temporary file, screen it fully, then atomically replace the canonical target and upsert the manifest by company/year. On startup, safely migrate manifest-owned legacy timestamp paths to the canonical location and remove only superseded manifest-owned files.
 - Consequences: Refreshes and service restarts continue to see the same AWS EBS-backed corpus, and successful recrawls overwrite rather than fork a company/year. Failed downloads or screening cannot destroy the previous verified PDF. The current encrypted root EBS volume is still single-instance storage, not a cross-instance backup, and is configured with delete-on-termination.
+
+## ADR-0018 — Persist extraction jobs independently of browser routes
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Strategy 1/2 batches are long-running backend operations, but the client previously treated the active route and in-memory SSE reducer as the authoritative job state. Navigating away or refreshing could therefore hide an otherwise continuing extraction.
+- Decision: Assign every extraction a backend job identity, atomically snapshot its lifecycle under `runs/_extraction_jobs`, expose list/detail/event endpoints, and let the React client rehydrate unfinished jobs before resuming event consumption. The visible route is only an observer; it does not own execution lifetime.
+- Consequences: Jobs continue through route changes and refreshes and their terminal evidence is inspectable after disconnects. The current file-backed job registry shares the single-EC2 durability and availability limits of the rest of `runs/`.
+
+## ADR-0019 — Aggregate parser results on a matched report cohort
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Averaging every successful parser run independently rewards parsers that fail on difficult reports and allows repeated runs of one PDF to overweight that document.
+- Decision: Define a report identity from company, fiscal year and source file; keep only the newest result for each parser/report pair; admit a report to Strategy 2 aggregates only when every selected parser has a successful result; and average report-level metrics with equal report weight. Preserve per-PDF metrics and disclose scheduled, successful and failed counts.
+- Consequences: Dashboard and live comparison averages are directly comparable across parsers and avoid survivorship/rerun bias. A parser failure removes that report from the aggregate, so the UI must continue to surface the excluded/failed counts rather than presenting the matched average alone.
+
+## ADR-0020 — Screen Japanese filings without weakening the M-USD contract
+- Date: 2026-08-21
+- Status: Accepted
+- Context: Official Japanese filings use Japanese balance-sheet/fiscal-year vocabulary and commonly report JPY. English-only screening rejected valid documents, while silently sending JPY into the fixed M-USD extraction contract would produce invalid benchmark values.
+- Decision: Recognize Japanese balance-sheet, fiscal-year and currency evidence during corpus screening and record the detected currency in the manifest. Treat screening readiness as acquisition evidence only; do not reinterpret or convert currencies inside Strategy 1/2. A currency-aware benchmark contract must be introduced explicitly before Japanese reports enter M-USD evaluation runs.
+- Consequences: Official Japanese reports can be discovered, screened, stored and selected without false negatives, as demonstrated by AppBank FY2024. The current extractor still cannot validly score JPY filings against the M-USD schema, so bulk Bakuraku extraction remains gated on an explicit currency design and budget boundary.

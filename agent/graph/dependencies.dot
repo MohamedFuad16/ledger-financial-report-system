@@ -101,6 +101,10 @@ digraph dependencies {
   "frontend/src/lib/api.ts" -> "type";
   "frontend/src/lib/i18n.tsx" -> "react";
   "frontend/src/lib/format.ts" -> "../types";
+  "frontend/src/pages/DashboardPage.tsx" -> "frontend/src/lib/format.ts" [label="matched cohort"];
+  "frontend/src/pages/StrategyPage.tsx" -> "frontend/src/lib/format.ts" [label="matched cohort"];
+  "server.py" -> "runs/_extraction_jobs" [label="persist job snapshots"];
+  "frontend/src/lib/api.ts" -> "runs/_extraction_jobs" [label="rehydrate job API"];
   "frontend/src/lib/i18n.test.ts" -> "vitest";
   "frontend/src/lib/i18n.test.ts" -> "./i18n";
   "frontend/src/lib/api.test.ts" -> "vitest";

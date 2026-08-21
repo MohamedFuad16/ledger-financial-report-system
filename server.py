@@ -56,8 +56,11 @@ STAGED: dict[str, dict] = {}
 STAGED_LOCK = threading.Lock()
 CORPUS_JOBS: dict[str, dict] = {}
 CORPUS_JOBS_LOCK = threading.Lock()
+EXTRACTION_JOBS_ROOT = RUNS_DIR / "_extraction_jobs"
+EXTRACTION_JOBS_LOCK = threading.RLock()
 
 ensure_dirs()
+EXTRACTION_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 load_local_env()
 migrate_corpus_layout()
 LIMITER.resize(current_settings().get("max_concurrency", 6))
@@ -135,6 +138,68 @@ def prediction_response(prediction: dict) -> dict:
         "result_table": result_table(rows),
         "evidence_table": evidence_table(rows),
     }
+
+
+def _extraction_job_dir(job_id: str) -> Path:
+    if not job_id or any(char not in "0123456789abcdef" for char in job_id.lower()):
+        raise ValueError("Invalid extraction job id.")
+    path = (EXTRACTION_JOBS_ROOT / job_id).resolve()
+    if path.parent != EXTRACTION_JOBS_ROOT.resolve():
+        raise ValueError("Invalid extraction job id.")
+    return path
+
+
+def _write_extraction_job_state(job_id: str, state: dict) -> None:
+    job_dir = _extraction_job_dir(job_id)
+    job_dir.mkdir(parents=True, exist_ok=True)
+    state = {**state, "updated_at": datetime.now(timezone.utc).isoformat()}
+    temporary = job_dir / "state.json.tmp"
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(job_dir / "state.json")
+
+
+def _read_extraction_job_state(job_id: str) -> dict | None:
+    try:
+        path = _extraction_job_dir(job_id) / "state.json"
+    except ValueError:
+        return None
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _append_extraction_event(job_id: str, event: str, data: dict) -> None:
+    record = {
+        "event": event,
+        "data": data,
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    with EXTRACTION_JOBS_LOCK:
+        job_dir = _extraction_job_dir(job_id)
+        job_dir.mkdir(parents=True, exist_ok=True)
+        with (job_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _read_extraction_events(job_id: str, after: int = 0) -> tuple[list[dict], int]:
+    try:
+        path = _extraction_job_dir(job_id) / "events.jsonl"
+    except ValueError:
+        return [], 0
+    if not path.is_file():
+        return [], 0
+    records: list[dict] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    offset = max(0, min(after, len(records)))
+    return records[offset:], len(records)
 
 
 # --- Routes ---
@@ -612,6 +677,151 @@ def get_corpus_job(job_id):
         return jsonify(json.loads(json.dumps(job)))
 
 
+@app.route("/api/extraction/jobs", methods=["GET"])
+def list_extraction_jobs():
+    """Return recent durable extraction-job summaries for UI rehydration."""
+    jobs: list[dict] = []
+    for path in EXTRACTION_JOBS_ROOT.glob("*/state.json"):
+        try:
+            jobs.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue
+    jobs.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
+    return jsonify({"jobs": jobs[:20]})
+
+
+@app.route("/api/extraction/jobs/<job_id>", methods=["GET"])
+def get_extraction_job(job_id):
+    state = _read_extraction_job_state(job_id)
+    if not state:
+        return jsonify({"error": "Extraction job not found."}), 404
+    try:
+        after = max(0, int(request.args.get("after", "0")))
+    except ValueError:
+        after = 0
+    events, next_offset = _read_extraction_events(job_id, after)
+    return jsonify({**state, "events": events, "next_offset": next_offset})
+
+
+@app.route("/api/extraction/jobs", methods=["POST"])
+def start_extraction_job():
+    """Start a backend-owned extraction batch that survives browser navigation."""
+    settings = current_settings()
+    if not settings.get("api_key"):
+        return jsonify({"error": "API key not configured."}), 400
+    body = request.get_json(silent=True) or {}
+    upload_ids = body.get("upload_ids") or []
+    if not isinstance(upload_ids, list) or not upload_ids:
+        return jsonify({"error": "No staged uploads referenced."}), 400
+    with STAGED_LOCK:
+        staged_jobs = [STAGED[uid] for uid in upload_ids if uid in STAGED]
+    if not staged_jobs:
+        return jsonify({"error": "Staged uploads expired. Please re-select the files."}), 400
+
+    requested = body.get("strategies") or body.get("strategy") or "s1"
+    if isinstance(requested, str):
+        requested = [requested]
+    strategy_keys = [str(key).strip().lower() for key in requested if str(key).strip()] or ["s1"]
+    unknown = [key for key in strategy_keys if key not in STRATEGIES]
+    if unknown:
+        return jsonify({"error": f"Unknown strategy: {', '.join(unknown)}", "available": list(STRATEGIES)}), 400
+
+    options = {
+        "system_prompt": str(body.get("system_prompt") or "").strip() or ACTIVE_PROMPT,
+        "fiscal_year_hint": str(body.get("fiscal_year") or "").strip(),
+        "enable_reasoning": parse_bool(body.get("enable_reasoning"), settings.get("enable_reasoning", True)),
+        "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.1)),
+        "reasoning_effort": str(body.get("reasoning_effort") or "").strip().lower(),
+    }
+    plan = estimate_batch_plan(staged_jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
+    concurrency = plan["recommended_concurrency"]
+    job_id = uuid.uuid4().hex[:16]
+    created_at = datetime.now(timezone.utc).isoformat()
+    state = {
+        "id": job_id, "status": "queued", "created_at": created_at, "updated_at": created_at,
+        "scope": "s2" if any(key.startswith("s2") for key in strategy_keys) else "s1",
+        "strategies": strategy_keys, "files_total": len(staged_jobs),
+        "passes_total": len(staged_jobs) * len(strategy_keys), "succeeded": 0, "failed": 0,
+        "error": None,
+    }
+    with EXTRACTION_JOBS_LOCK:
+        _write_extraction_job_state(job_id, state)
+        _append_extraction_event(job_id, "batch_start", {
+            "job_id": job_id, "total": state["passes_total"], "files_total": len(staged_jobs),
+            "concurrency": concurrency,
+            "strategies": [{"key": key, "label": STRATEGIES[key].label} for key in strategy_keys],
+            "files": [{"index": index, "name": item["name"], "pages": item["pages"], "approx_tokens": item["approx_tokens"]} for index, item in enumerate(staged_jobs)],
+        })
+
+    def append(event: str, data: dict) -> None:
+        _append_extraction_event(job_id, event, data)
+
+    def run_job() -> None:
+        quota_hit: dict[str, str] = {}
+        counts = {"succeeded": 0, "failed": 0}
+        counts_lock = threading.Lock()
+        state["status"] = "running"
+        _write_extraction_job_state(job_id, state)
+
+        def increment_count(key: str) -> None:
+            with counts_lock:
+                counts[key] += 1
+
+        def run_one(index: int, staged: dict, key: str) -> None:
+            strategy = STRATEGIES[key]
+
+            def on_progress(update: dict) -> None:
+                append("progress", {"index": index, "file": staged["name"], "strategy": key, **update})
+
+            append("pass_start", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "pages": staged["pages"], "approx_tokens": staged["approx_tokens"]})
+            try:
+                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, **options)
+                increment_count("succeeded")
+                append("file_done", {
+                    "index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label,
+                    "input_tokens": prediction["approx_input_tokens"], "consistency": prediction["metrics"].get("consistency"),
+                    "extract_seconds": prediction.get("extract_seconds"), "total_seconds": prediction.get("total_seconds"),
+                    "ok": True, "run_id": prediction["run_id"], "fiscal_year": prediction["fiscal_year"],
+                    "api_elapsed_seconds": prediction["api_elapsed_seconds"], "page_count": prediction["page_count"],
+                    "approx_input_tokens": prediction["approx_input_tokens"], "metrics": prediction["metrics"],
+                    "warnings": prediction["warnings"], "contract_repairs": prediction["contract_repairs"],
+                })
+            except QuotaExhaustedError as exc:
+                quota_hit.setdefault("message", str(exc))
+                increment_count("failed")
+                append("quota_exhausted", {"message": str(exc)})
+                append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "ok": False, "error": str(exc)})
+            except Exception as exc:  # noqa: BLE001
+                increment_count("failed")
+                append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "ok": False, "error": str(exc)})
+
+        def run_file(index: int, staged: dict) -> None:
+            for key in strategy_keys:
+                if quota_hit:
+                    increment_count("failed")
+                    append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": STRATEGIES[key].label, "ok": False, "error": f"Skipped — {quota_hit['message']}"})
+                else:
+                    run_one(index, staged, key)
+            append("file_complete", {"index": index, "file": staged["name"]})
+
+        try:
+            with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                list(pool.map(lambda item: run_file(*item), list(enumerate(staged_jobs))))
+            with STAGED_LOCK:
+                for staged in staged_jobs:
+                    STAGED.pop(staged["id"], None)
+            state.update({"status": "complete", **counts})
+            append("batch_done", {"job_id": job_id, "quota_exhausted": quota_hit.get("message"), "total": state["passes_total"], **counts, "rate_limit": LIMITER.snapshot()})
+        except Exception as exc:  # noqa: BLE001
+            state.update({"status": "failed", "error": str(exc), **counts})
+            append("batch_failed", {"job_id": job_id, "error": str(exc)})
+        finally:
+            _write_extraction_job_state(job_id, state)
+
+    threading.Thread(target=run_job, daemon=True, name=f"extract-{job_id}").start()
+    return jsonify({"ok": True, "job_id": job_id, "status": "queued"}), 202
+
+
 def _sse(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
@@ -796,7 +1006,7 @@ def extract_stream():
 
 @app.route("/api/extract/batch", methods=["POST"])
 def batch_extract():
-    """Non-streaming batch, kept for scripted use. The UI uses /api/extract/stream."""
+    """Non-streaming multipart batch retained for scripted API clients."""
     settings = current_settings()
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400

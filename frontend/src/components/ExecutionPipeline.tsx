@@ -20,6 +20,14 @@ function activePassFor(file: ExecutionFile) {
   return file.passes.find((pass) => pass.state === 'queued') || file.passes.at(-1)
 }
 
+function reportIdentity(file: ExecutionFile) {
+  const match = file.name.match(/^(.*?)_annual_report_(\d{4})\.pdf$/i)
+  return {
+    company: match?.[1]?.replaceAll('_', ' ') || file.name.replace(/\.pdf$/i, ''),
+    year: match?.[2] || '',
+  }
+}
+
 function stateForStep(pass: ExecutionPass, step: Step): StepState {
   if (pass.steps?.[step]) return pass.steps[step].state
   const stepIndex = stepOrder.indexOf(step)
@@ -60,6 +68,19 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
     )
   }
 
+  const grouped = Array.from(files.reduce<Map<string, ExecutionFile[]>>((groups, file) => {
+    const key = reportIdentity(file).company
+    groups.set(key, [...(groups.get(key) || []), file])
+    return groups
+  }, new Map()).entries()).map(([company, reports]) => ({ company, reports }))
+  const currentGroup = grouped.find((group) => group.reports.some((file) => file.state === 'running'))
+    || grouped.find((group) => group.reports.some((file) => file.state === 'queued'))
+    || grouped.at(-1)!
+  const activeFile = currentGroup.reports.find((file) => file.state === 'running')
+    || currentGroup.reports.find((file) => file.state === 'queued')
+    || [...currentGroup.reports].reverse().find((file) => file.state === 'failed')
+    || currentGroup.reports.at(-1)!
+
   const timeLabel = (key: string, pass: ExecutionPass, step: Step, state: StepState) => {
     const stored = pass.steps?.[step]?.durationSeconds
     if (stored != null) return formatDuration(stored)
@@ -70,8 +91,19 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
 
   return (
     <div className="execution-file-list">
+      {currentGroup.reports.length > 1 && <motion.div className="execution-report-rail" layout aria-label={tr('Company report progress', '会社レポートの進捗')}>
+        <strong>{currentGroup.company}</strong>
+        <div>{currentGroup.reports.slice(0, 6).map((report) => {
+          const identity = reportIdentity(report)
+          return <span className={`execution-report-chip is-${report.state}${report === activeFile ? ' is-active' : ''}`} key={report.name}>
+            {report.state === 'complete' ? <Check size={12} strokeWidth={2.8} /> : report.state === 'failed' ? <X size={12} strokeWidth={2.8} /> : report.state === 'running' ? <LoaderCircle className="spin" size={12} /> : <FileText size={12} />}
+            <b>{identity.year ? `FY${identity.year}` : report.name}</b>
+          </span>
+        })}</div>
+        <small>{tr(`${currentGroup.reports.filter((file) => file.state === 'complete').length} of ${currentGroup.reports.length} reports complete`, `${currentGroup.reports.length}件中${currentGroup.reports.filter((file) => file.state === 'complete').length}件のレポートが完了`)}</small>
+      </motion.div>}
       <AnimatePresence initial={false}>
-        {files.map((file) => {
+        {[activeFile].map((file) => {
           const activePass = activePassFor(file)
           if (!activePass) return null
           const passIndex = Math.max(0, file.passes.indexOf(activePass))

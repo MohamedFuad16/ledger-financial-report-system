@@ -2,6 +2,7 @@ import type {
   ProviderInfo,
   CorpusJob,
   CorpusManifest,
+  ExtractionJob,
   RunDetail,
   RunSummary,
   SchemaRow,
@@ -94,6 +95,14 @@ export const api = {
     }),
   corpusJob: (id: string) => jsonRequest<CorpusJob>(`/api/corpus/jobs/${encodeURIComponent(id)}`),
   bakurakuCustomers: () => jsonRequest<{ count: number; customers: Array<Record<string, string>> }>('/api/bakuraku/customers'),
+  extractionJobs: () => jsonRequest<{ jobs: Array<Omit<ExtractionJob, 'events' | 'next_offset'>> }>('/api/extraction/jobs'),
+  extractionJob: (id: string, after = 0) => jsonRequest<ExtractionJob>(`/api/extraction/jobs/${encodeURIComponent(id)}?after=${Math.max(0, after)}`),
+  startExtractionJob: (body: Record<string, unknown>) =>
+    jsonRequest<{ ok: boolean; job_id: string; status: string }>('/api/extraction/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
 }
 
 export interface SseEvent<T = Record<string, unknown>> {

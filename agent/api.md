@@ -13,6 +13,8 @@
 | POST | `/api/uploads` | Stage PDFs and return a preflight plan |
 | POST | `/api/extract` | Run a single synchronous extraction |
 | POST | `/api/extract/stream` | Stream batch progress as SSE |
+| GET/POST | `/api/extraction/jobs` | List or start backend-owned, browser-rehydratable extraction batches |
+| GET | `/api/extraction/jobs/<job_id>` | Poll persisted job state and replay unseen execution events by offset |
 | GET | `/api/runs` | List stored predictions |
 | GET/DELETE | `/api/runs/<run_id>` | Read or remove one run |
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |

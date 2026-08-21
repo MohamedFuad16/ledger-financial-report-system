@@ -35,11 +35,13 @@ Every active parser follows the same pipeline. Only the document representation 
 2. **Extract locally.** The chosen parser converts every readable page and the backend inserts `--- PAGE n ---` markers. No LLM call has happened yet.
 3. **Build one prompt.** `prompts.build_user_prompt` combines the extraction note, parser diagnostics, the fixed 27-row schema, any detected fiscal context and the complete extracted report. The configured system prompt is sent separately as the first message.
 4. **Call the model once.** `api_client.run_extraction` sends an OpenAI-compatible `chat/completions` request with JSON-object output requested. Provider-specific reasoning controls are mapped in `providers.py`; temperature defaults to `0.1`.
-5. **Retry transport failures safely.** HTTP 429 responses reduce the shared concurrency gate and honor `Retry-After`; retryable 5xx responses use bounded backoff. Quota exhaustion fails immediately.
-6. **Normalize and validate.** `normalize.py` repairs representation-only issues such as currency strings, percentages, aliases and row order, recording each repair. `models.py` then requires the exact 27-row contract. If JSON or contract validation still fails, one bounded semantic repair request includes the original context, invalid answer and exact validation error.
+5. **Retry transport failures safely.** HTTP 429 responses reduce the shared concurrency gate and honor `Retry-After`; retryable 5xx responses use bounded backoff. Quota exhaustion fails immediately. These retries repeat the same request and are not semantic repairs.
+6. **Normalize and validate.** `normalize.py` repairs representation-only issues such as currency strings, percentages, aliases and row order, recording each repair. `models.py` then requires the exact 27-row contract. If JSON or Pydantic contract validation still fails, one bounded semantic repair request includes the original context, invalid answer and exact validation error.
 7. **Apply the confidence gate.** A row is accepted only when it has a value and confidence is at least `0.80`. The raw value remains stored for audit.
 8. **Verify and score.** `reconcile.py` checks deterministic balance-sheet identities without changing values. `compute_metrics` separately measures coverage, exact accuracy and precision against a golden set when one exists.
-9. **Persist the run.** Request, raw response, optional repair artifacts and `prediction.json` are filed under `runs/<strategy>/FY<year>/<run_id>/`. Real progress events update one animated live card per report; the card advances through the active parser and stage while a compact rail preserves overall comparison progress.
+9. **Persist the run and job.** Request, raw response, optional repair artifacts and `prediction.json` are filed under `runs/<strategy>/FY<year>/<run_id>/`. The extraction job itself is also written under `runs/_extraction_jobs/`, so it continues on the backend and can be rehydrated after navigation or refresh. Real progress events update one animated live card per report; the card advances through the active parser and stage while a compact rail preserves overall comparison progress.
+
+The repair boundary is intentionally narrow: confidence below `0.80` never triggers a model retry, and a failed arithmetic identity never triggers a model retry. Both are downstream measurements of a contract-valid answer.
 
 ## Strategy 1: direct LLM baseline
 
@@ -77,6 +79,8 @@ Strategy 2 keeps the prompt, model, schema, validation and scoring constant whil
 
 Each pass produces an independent model request and run artifact. This makes parser timing, token load, coverage and accuracy directly comparable on the same PDF. Docling is optional because its model load is CPU/memory heavy; its conversions are serialized.
 
+The live and historical comparison now uses a matched report cohort: a report contributes to parser averages only when every selected parser completed that report. Repeated observations are averaged within each report before reports are averaged, preventing a parser rerun or a failed pass from silently changing the comparison population. Scheduled, successful and failed pass counts remain visible, and each PDF's individual values remain in its run history.
+
 ## Model response and output contract
 
 The model must return one JSON object containing a detected fiscal year and exactly 27 rows. Each row carries the canonical classification, subclassification, item, description, value in millions of USD, confidence and evidence metadata. The main assignment result sheet intentionally displays only:
@@ -105,11 +109,15 @@ Company + official site + FY2020–FY2025
 
 Crawling never starts a model extraction. A verified recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF.
 
-### Verified corpus smoke test
+### Verified corpus smoke tests
 
 On 21 August 2026, the Firecrawl workflow discovered the official 3M FY2022 SEC filing on `investors.3m.com`. Ledger downloaded and normalized it to `3M_annual_report_2022.pdf`, matched SHA-256 `d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d`, confirmed FY2022 and the balance sheet on page 38, and screened all 252 pages as readable. The same manifest identity was then selected through the production `/api/corpus/stage` contract: it returned HTTP 200 as a `source: corpus` staged file with 252 pages, no browser access token, and no copied PDF.
 
 Firecrawl credential persistence was also verified against production using an empty replacement field: the backend reused the masked saved credential, completed the read-only credit probe, returned HTTP 200, and kept the key server-side.
+
+The same workflow was then tested against AppBank's official Japanese IR library. Firecrawl followed the official securities-report page to the FY2024 filing, downloaded `AppBank_annual_report_2024.pdf`, verified the official source, screened all 105 pages as readable, detected FY2024 and found the balance sheet on page 68. The file is visible as `Ready` in the Strategy 2 corpus selector and reuses the canonical company/year path rather than creating duplicates.
+
+This successful Japanese crawl also exposes an important experiment boundary: the AppBank filing is denominated in JPY, while the assignment's fixed output contract requires M USD and forbids external facts. It is therefore valid corpus data but not yet a valid M-USD benchmark input. Ledger should introduce an explicit currency-aware contract and a documented conversion source before running this or other Japanese filings through the accuracy comparison.
 
 ## Frontend responsibilities
 
@@ -148,3 +156,6 @@ Firecrawl credential persistence was also verified against production using an e
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
+- Strategy 2 is best described as an end-to-end parser capability bake-off, not a perfectly isolated representation-only ablation, because parser-specific diagnostics are included in the prompt.
+- Final accuracy can include deterministic normalization and one contract-repair call. Research reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
+- Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

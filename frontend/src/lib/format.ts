@@ -62,17 +62,57 @@ export function displayReportName(name?: string, fiscalYear?: string | number | 
   return `${company}_annual_report_${year}.pdf`
 }
 
+export function reportCohortKey(run: RunSummary) {
+  const file = (run.pdf_file || '').split(/[\\/]/).pop()?.trim().toLowerCase()
+  const year = String(run.fiscal_year || run.detected_fiscal_year || '').match(/(?:19|20)\d{2}/)?.[0] || ''
+  return file ? `${file}::${year}` : ''
+}
+
+/**
+ * Return only reports represented by every parser that has scored data.
+ * Repeated runs stay in the cohort, but parser statistics first average those
+ * repeats per report so rerunning one parser cannot silently weight it more.
+ */
+export function matchedParserCohort(runs: RunSummary[]) {
+  const scored = runs.filter((run) => run.accuracy != null && reportCohortKey(run))
+  const strategies = [...new Set(scored.map((run) => run.strategy))]
+  if (!strategies.length) return []
+  const strategiesByReport = scored.reduce<Map<string, Set<string>>>((groups, run) => {
+    const key = reportCohortKey(run)
+    const present = groups.get(key) || new Set<string>()
+    present.add(run.strategy)
+    groups.set(key, present)
+    return groups
+  }, new Map())
+  const matchedReports = new Set(
+    [...strategiesByReport.entries()]
+      .filter(([, present]) => strategies.every((strategy) => present.has(strategy)))
+      .map(([key]) => key),
+  )
+  return scored.filter((run) => matchedReports.has(reportCohortKey(run)))
+}
+
 export function groupParserStats(runs: RunSummary[]) {
+  const cohort = matchedParserCohort(runs)
   return Object.entries(parserMeta).map(([key, meta]) => {
-    const relevant = runs.filter((run) => run.strategy === key && run.accuracy != null)
+    const relevant = cohort.filter((run) => run.strategy === key)
+    const byReport = Object.values(relevant.reduce<Record<string, RunSummary[]>>((groups, run) => {
+      const report = reportCohortKey(run)
+      ;(groups[report] ||= []).push(run)
+      return groups
+    }, {}))
     const average = (field: keyof RunSummary) => {
-      const values = relevant.map((run) => run[field]).filter((value) => value != null).map(Number).filter(Number.isFinite)
-      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      const reportMeans = byReport.map((reportRuns) => {
+        const values = reportRuns.map((run) => run[field]).filter((value) => value != null).map(Number).filter(Number.isFinite)
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      }).filter((value): value is number => value != null)
+      return reportMeans.length ? reportMeans.reduce((sum, value) => sum + value, 0) / reportMeans.length : null
     }
     return {
       key,
       ...meta,
-      runs: relevant.length,
+      runs: byReport.length,
+      observations: relevant.length,
       accuracy: average('accuracy'),
       coverage: average('coverage'),
       precision: average('precision'),

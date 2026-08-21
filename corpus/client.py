@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 import time
 from typing import Any, Callable
 
@@ -116,4 +117,50 @@ class FirecrawlClient:
                 normalized.append({"url": item, "title": "", "description": ""})
             elif isinstance(item, dict) and item.get("url"):
                 normalized.append(item)
+        return normalized
+
+    def scrape_links(self, url: str) -> list[dict[str, Any]]:
+        """Read links from one official library page, preserving anchor labels.
+
+        The links format is useful for raw destinations while markdown keeps
+        the visible Japanese/English filing label that often carries the
+        fiscal year even when a disclosure CDN URL does not.
+        """
+        body = self._post("scrape", {
+            "url": url,
+            "formats": ["markdown", "links"],
+            "onlyMainContent": False,
+            "timeout": 60000,
+        })
+        data = body.get("data") or {}
+        if not isinstance(data, dict):
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        markdown = str(data.get("markdown") or "")
+        for match in re.finditer(r"\[([^\]]+)\]\((https?://[^)\s]+)", markdown):
+            title, link = match.group(1).strip(), match.group(2).strip()
+            # Disclosure-library links frequently use the same label (for
+            # example 有価証券報告書) beneath a year heading.  Carry the nearest
+            # preceding year into the candidate so discovery can assign the
+            # CDN URL to the correct fiscal year.
+            nearby = markdown[max(0, match.start() - 180):match.start()]
+            nearby_years = re.findall(r"(?:FY\s*)?(20\d{2})(?:年|\b)", nearby, re.I)
+            if nearby_years and nearby_years[-1] not in title:
+                title = f"{nearby_years[-1]} {title}".strip()
+            if link not in seen:
+                seen.add(link)
+                normalized.append({"url": link, "title": title, "description": ""})
+        for item in data.get("links") or []:
+            if isinstance(item, str):
+                link, title = item, ""
+            elif isinstance(item, dict):
+                link = str(item.get("url") or "")
+                title = str(item.get("text") or item.get("title") or "")
+            else:
+                continue
+            if link and link not in seen:
+                seen.add(link)
+                normalized.append({"url": link, "title": title, "description": ""})
         return normalized

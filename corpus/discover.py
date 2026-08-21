@@ -10,7 +10,11 @@ from urllib.parse import urlparse
 from .client import FirecrawlClient
 
 
-REPORT_WORDS = re.compile(r"annual[-_\s]?report|form[-_\s]?10[-_\s]?k|10-k", re.I)
+REPORT_WORDS = re.compile(
+    r"annual[-_\s]?report|form[-_\s]?10[-_\s]?k|10-k|"
+    r"有価証券報告書|有報|統合報告書|年次報告書",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -22,6 +26,7 @@ class ReportCandidate:
     description: str = ""
     discovery: str = "search"
     official_domain: str = ""
+    source_verified: bool = False
     score: int = 0
 
     def as_dict(self) -> dict:
@@ -49,6 +54,14 @@ def _score(item: dict, year: int, official_domain: str) -> int:
     return score
 
 
+def _matches_domain(url: str, official_domain: str) -> bool:
+    """Return true only for the supplied official host or one of its subdomains."""
+    if not official_domain:
+        return False
+    candidate_domain = _domain(url)
+    return candidate_domain == official_domain or candidate_domain.endswith(f".{official_domain}")
+
+
 def discover_company_reports(
     client: FirecrawlClient,
     *,
@@ -61,11 +74,24 @@ def discover_company_reports(
     official_domain = _domain(official_url)
     pool: list[tuple[dict, str]] = []
 
+    is_japanese = country.strip().upper() == "JP"
+    map_search = "有価証券報告書 統合報告書 annual report" if is_japanese else "annual report 10-k"
+
     if official_url:
         try:
-            pool.extend((item, "map") for item in client.map(official_url, search="annual report 10-k"))
+            pool.extend((item, "map") for item in client.map(official_url, search=map_search))
         except Exception:
             # Search below is the supported fallback for thin/blocked maps.
+            pass
+
+    found_years = {
+        year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
+    }
+    if official_url and found_years != set(years):
+        try:
+            pool.extend((item, "page") for item in client.scrape_links(official_url))
+        except Exception:
+            # Some IR pages block a full scrape while still exposing a sitemap.
             pass
 
     found_years = {
@@ -74,7 +100,10 @@ def discover_company_reports(
     for year in years:
         if year in found_years:
             continue
-        query = f'"{company}" official investor relations annual report {year} filetype:pdf'
+        if is_japanese:
+            query = f'"{company}" IR 有価証券報告書 統合報告書 {year} PDF'
+        else:
+            query = f'"{company}" official investor relations annual report {year} filetype:pdf'
         pool.extend((item, "search") for item in client.search(query, limit=8, country=country))
 
     output: dict[int, list[ReportCandidate]] = {year: [] for year in years}
@@ -82,6 +111,14 @@ def discover_company_reports(
     for item, discovery in pool:
         url = str(item.get("url") or "").strip()
         if not url.startswith(("https://", "http://")):
+            continue
+        matches_official = _matches_domain(url, official_domain)
+        # Search results are untrusted.  A high-scoring PDF from another
+        # company must never be downloaded merely because its title contains
+        # the requested fiscal year.  Map results are different: Firecrawl
+        # reached them by following the supplied official site, which commonly
+        # delegates filings to a disclosure/CDN host.
+        if discovery == "search" and official_domain and not matches_official:
             continue
         for year in years:
             if not _looks_like_report(item, year) or (year, url) in seen:
@@ -95,6 +132,7 @@ def discover_company_reports(
                 description=str(item.get("description") or ""),
                 discovery=discovery,
                 official_domain=official_domain,
+                source_verified=bool(official_domain and (matches_official or discovery in {"map", "page"})),
                 score=_score(item, year, official_domain),
             ))
     for candidates in output.values():

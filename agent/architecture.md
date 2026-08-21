@@ -12,7 +12,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 - **Quality** — `reconcile.py` checks arithmetic identities; `pipeline.compute_metrics` compares accepted rows with year-specific golden data.
 - **Provider boundary** — `api_client.py`, `providers.py`, and `ratelimit.py` handle compatible LLM APIs and adaptive concurrency.
 - **Corpus boundary** — `corpus/` discovers official Annual Reports through Firecrawl, downloads directly, screens locally, and atomically updates a SHA-256 manifest. `corpus_worker.py` exposes the same service to long-lived CLI jobs.
-- **Persistence** — uploads and runs use company/year/timestamp namespaces; each corpus company/year has one canonical manifest-owned PDF that is atomically replaced after a successful recrawl.
+- **Persistence** — uploads and runs use company/year/timestamp namespaces; each corpus company/year has one canonical manifest-owned PDF that is atomically replaced after a successful recrawl. Extraction job snapshots live under `runs/_extraction_jobs` and are rehydrated independently of browser route state.
 - **Private traffic boundary** — `traffic.py` writes bounded per-session metadata and counters to Upstash and uses the EC2 role to send owner-only SES notifications. Connector values are loaded from SSM and never enter Vercel.
 - **Production runtime** — Caddy terminates TLS on one SSM-managed Tokyo EC2 instance and proxies to Gunicorn on loopback. SSM Parameter Store holds private connector values; no secret is bundled into Vercel. The assignment API has no browser access token, while CORS remains limited to approved UI origins.
 
@@ -20,7 +20,7 @@ The app turns Annual Report PDFs into a fixed 27-row asset-side balance sheet. A
 
 1. The React client stages one or more PDFs with the API and renders real SSE lifecycle events.
 2. `pipeline.run_pipeline` extracts text, builds the prompt, calls the selected provider, parses and normalizes JSON, validates the contract, and makes at most one context-preserving repair call when JSON/Pydantic validation fails. It then applies the confidence gate, reconciles, scores, and files the run.
-3. Streaming endpoints emit per-file phase events. The client reduces those events into one live card per report, advancing that card through the current parser and stage while a compact rail retains comparison progress; completed predictions are served to the UI and exports.
+3. Streaming endpoints emit per-file phase events and persist job snapshots. The client rehydrates unfinished jobs after navigation or refresh, then reduces events into one current-company surface with up to six fiscal-year chips and one active report card. Completed predictions are served to the UI and exports; Strategy 2 aggregates use only reports completed by every selected parser and weight each report once.
 
 Corpus flow is deliberately separate: React or the CLI supplies companies and FY2020–FY2025, Firecrawl discovers candidates, direct download verifies the PDF, local screening records health, and only a later explicit extraction action may consume it.
 

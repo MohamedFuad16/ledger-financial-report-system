@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-21T04:43:32.445313+00:00",
+  "updated_at": "2026-08-21T10:16:17.650070+00:00",
   "documents": [
     {
       "company": "3M",
@@ -38,6 +38,39 @@
         "2021",
         "2022",
         "2023"
+      ],
+      "warnings": []
+    },
+    {
+      "company": "AppBank株式会社",
+      "company_slug": "AppBank",
+      "fiscal_year": 2024,
+      "source_url": "https://data.swcms.net/file/appbank/dam/jcr:2626068c-2a6e-4d69-bf25-38ea495e6931/S100VI2R.pdf",
+      "source_title": "2024 有価証券報告書",
+      "official_domain": "ir.appbank.co.jp",
+      "official_source_verified": true,
+      "discovery": "page",
+      "downloaded_at": "2026-08-21T10:11:15.047991+00:00",
+      "local_path": "corpus_dataset/AppBank/2024/AppBank_annual_report_2024.pdf",
+      "filename": "AppBank_annual_report_2024.pdf",
+      "sha256": "5f970a359aa1549dc0aff4f863d0fe7fa892e496a8ee11e97275878520eee59c",
+      "size_bytes": 643148,
+      "golden_answers": null,
+      "screened": "ok",
+      "screen_reasons": [],
+      "pages": 105,
+      "readable_pages": 105,
+      "garbled_pages": [],
+      "balance_sheet_page": 68,
+      "currency": "JPY",
+      "fiscal_year_confirmed": true,
+      "internal_year_mentions": [
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
       ],
       "warnings": []
     }
