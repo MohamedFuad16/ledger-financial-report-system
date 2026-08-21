@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-22 · Strategy 3 implemented locally; production backend deployment awaiting AWS login
+> Last updated: 2026-08-22 · Strategy 3 frontend and backend deployed and production-verified
 
 ## Current state summary
 
@@ -12,6 +12,7 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Deployed commit `1ce7c41a20e67a90d9d368bc90b31e9b53c16365` to the Tokyo EC2 backend, verified pdf-inspector 1.15.0 and the live Strategy 3 registry, passed a production FY2020 intelligent-gate smoke test (5/160 pages, 97.25% Markdown reduction), and restored the exact SHA-verified FY2022 pinned PDF so range requests work again — why: finish the backend rollout and leave the corpus review path operational rather than merely code-complete — by: leader — session: Strategy 3 backend deployment
 - 2026-08-22 — Verified pdf-inspector's official Python/GitHub API and implemented the finalized Strategy 3 pipeline: parser classification, per-page OCR routing/replacement, unified Markdown, explainable complete-page scoring, top-three-to-five semantic mapping and unchanged deterministic validation; activated its full execution UI and locked the package at 1.15+ — why: turn the approved architecture into an observable, test-backed extraction path without RAG or token chunks — by: leader — session: Strategy 3 final architecture
 - 2026-08-22 — Deployed and visually verified the three-strategy dashboard, Strategy 3 specification page, corpus badge/activity layout, and enlarged 27-row review sheet on the production domain; also restored the missing `os` import used by credential fallback in corpus discovery — why: close the live UI sweep and prevent keyless discovery startup from raising `NameError` — by: leader — session: Strategy 3 + final UI clean sweep
 - 2026-08-22 — Restored Strategy 3 as a schema-guided complete-page filtering roadmap, corrected public Strategy 1/2 OCR numbering, removed the dashboard arm switch, separated Firecrawl discovery from configured-LLM answer prefill, and enlarged/search-enabled the corpus review workspace — why: reduce model input without overclaiming vector RAG and make human verification match the extract-correct-approve workflow — by: leader — session: Strategy 3 + final UI clean sweep
