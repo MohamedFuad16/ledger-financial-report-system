@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-22 · pending deployment
+> Last updated: 2026-08-22 · frontend deployed; backend deployment awaiting AWS login
 
 ## Current state summary
 
@@ -12,6 +12,7 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Deployed and visually verified the three-strategy dashboard, Strategy 3 specification page, corpus badge/activity layout, and enlarged 27-row review sheet on the production domain; also restored the missing `os` import used by credential fallback in corpus discovery — why: close the live UI sweep and prevent keyless discovery startup from raising `NameError` — by: leader — session: Strategy 3 + final UI clean sweep
 - 2026-08-22 — Restored Strategy 3 as a schema-guided complete-page filtering roadmap, corrected public Strategy 1/2 OCR numbering, removed the dashboard arm switch, separated Firecrawl discovery from configured-LLM answer prefill, and enlarged/search-enabled the corpus review workspace — why: reduce model input without overclaiming vector RAG and make human verification match the extract-correct-approve workflow — by: leader — session: Strategy 3 + final UI clean sweep
 - 2026-08-22 — Restricted the complete product surface to Overview, Strategy 1, Strategy 2, History, Report corpus, Target schema, and Settings; deleted the two out-of-scope planned routes/pages and their documentation, and added navigation regression coverage — why: align the implementation with the assignment's direct model semantic-mapping and human-verification workflow — by: leader — session: final scope correction
 - 2026-08-22 — Completed the clean-sweep implementation for extracted-first human review, three-pass candidate consensus, anonymous workspace isolation, side-by-side PDF correction/approval UI, and regression/documentation coverage; full local contract, unittest, Vitest, build, desktop/mobile and console checks pass — why: eliminate blank manual review tables and finish the interrupted public-state work — by: leader — session: final clean sweep
