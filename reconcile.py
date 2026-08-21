@@ -17,7 +17,7 @@ Two properties make this worth having:
 2. **It never changes a value.** Repairing a mismatch means guessing which side
    is wrong; guessing here would corrupt the very measurement the benchmark
    exists to produce. This module reports, and nothing else. Re-asking the model
-   about failed identities belongs to Strategy 4.
+   about failed identities is outside this project's two-strategy scope.
 """
 
 from __future__ import annotations

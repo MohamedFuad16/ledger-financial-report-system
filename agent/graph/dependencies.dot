@@ -45,7 +45,6 @@ digraph dependencies {
   "frontend/src/App.tsx" -> "./pages/DashboardPage";
   "frontend/src/App.tsx" -> "./pages/HistoryPage";
   "frontend/src/App.tsx" -> "./pages/CorpusPage";
-  "frontend/src/App.tsx" -> "./pages/PlannedPage";
   "frontend/src/App.tsx" -> "./pages/SchemaPage";
   "frontend/src/App.tsx" -> "./pages/SettingsPage";
   "frontend/src/App.tsx" -> "./pages/StrategyPage";
@@ -138,10 +137,6 @@ digraph dependencies {
   "frontend/src/pages/SettingsPage.tsx" -> "../types";
   "frontend/src/pages/SettingsPage.tsx" -> "../components/ui";
   "frontend/src/pages/SettingsPage.tsx" -> "../lib/i18n";
-  "frontend/src/pages/PlannedPage.tsx" -> "lucide-react";
-  "frontend/src/pages/PlannedPage.tsx" -> "../types";
-  "frontend/src/pages/PlannedPage.tsx" -> "../components/ui";
-  "frontend/src/pages/PlannedPage.tsx" -> "../lib/i18n";
   "frontend/src/pages/SchemaPage.tsx" -> "react";
   "frontend/src/pages/SchemaPage.tsx" -> "lucide-react";
   "frontend/src/pages/SchemaPage.tsx" -> "../types";

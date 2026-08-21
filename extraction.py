@@ -237,7 +237,7 @@ def extract_with_pypdf(pdf_path: Path) -> ExtractedText:
     STRATEGY 1: basic local text extraction.
 
     No layout-aware conversion, OCR, table reconstruction, page selection,
-    semantic chunking, or retrieval — the deliberately plain baseline.
+    semantic chunking, or external context lookup — the deliberately plain baseline.
     """
     reader = PdfReader(str(pdf_path))
     pages = [

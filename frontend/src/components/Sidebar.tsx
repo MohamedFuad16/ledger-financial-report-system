@@ -3,7 +3,6 @@ import {
   BarChart3,
   Beaker,
   BookOpen,
-  BrainCircuit,
   FileClock,
   FolderSearch2,
   FlaskConical,
@@ -14,7 +13,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Sparkles,
   Sun,
   X,
 } from 'lucide-react'
@@ -49,13 +47,6 @@ export function Sidebar({
         { key: 'dashboard', label: tr('Overview', '概要'), icon: BarChart3 },
         { key: 'strategy1', label: tr('Strategy 1', '戦略 1'), icon: Beaker, count: '01' },
         { key: 'strategy2', label: tr('Strategy 2', '戦略 2'), icon: FlaskConical, count: '02' },
-      ],
-    },
-    {
-      label: tr('Research roadmap', '研究ロードマップ'),
-      items: [
-        { key: 'strategy3', label: tr('Hybrid retrieval', 'ハイブリッド検索'), icon: BrainCircuit, count: '03' },
-        { key: 'strategy4', label: tr('Agentic checks', 'エージェント検証'), icon: Sparkles, count: '04' },
       ],
     },
     {

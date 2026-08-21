@@ -2,8 +2,6 @@ export type PanelKey =
   | 'dashboard'
   | 'strategy1'
   | 'strategy2'
-  | 'strategy3'
-  | 'strategy4'
   | 'history'
   | 'corpus'
   | 'schema'

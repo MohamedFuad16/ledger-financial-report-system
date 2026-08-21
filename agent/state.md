@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-22
+> Last updated: 2026-08-22 · HEAD: 280e45d
 
 ## Current state summary
 
@@ -12,6 +12,7 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Restricted the complete product surface to Overview, Strategy 1, Strategy 2, History, Report corpus, Target schema, and Settings; deleted the two out-of-scope planned routes/pages and their documentation, and added navigation regression coverage — why: align the implementation with the assignment's direct model semantic-mapping and human-verification workflow — by: leader — session: final scope correction
 - 2026-08-22 — Completed the clean-sweep implementation for extracted-first human review, three-pass candidate consensus, anonymous workspace isolation, side-by-side PDF correction/approval UI, and regression/documentation coverage; full local contract, unittest, Vitest, build, desktop/mobile and console checks pass — why: eliminate blank manual review tables and finish the interrupted public-state work — by: leader — session: final clean sweep
 - 2026-08-21 — Reverified the final OCR/gold/corpus contract with 34 backend tests, the full extraction contract suite, 15 frontend tests and a production build; aligned README/API/error records with the shipped matrix — why: eliminate stale pre-OCR claims before AWS/Vercel deployment — by: leader — session: final OCR deployment
 - 2026-08-21 — Implemented the final four-by-two OCR experiment contract, exact 200-DPI pdf-inspector/GLM-OCR routing, two-phase Firecrawl candidate generation, SHA-bound human approval, assignment-only default gold, cross-process manifest locking, and unverified-run accuracy exclusion — why: distinguish no-OCR and OCR-enabled arms cleanly without promoting machine-populated candidates to ground truth — by: leader + strategy audit subagent — session: final OCR/gold contract

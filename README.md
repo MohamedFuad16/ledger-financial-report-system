@@ -20,15 +20,13 @@
   <a href="https://assignment.mohamedfuad.com">Open Ledger</a>
   ·
   <a href="docs/CURRENT_STATUS.md">Architecture report</a>
-  ·
-  <a href="ROADMAP.md">Research roadmap</a>
 </p>
 
 ---
 
 ## Overview
 
-Ledger is a bilingual Annual Report research workspace. It converts a PDF into a fixed 27-row asset-side balance-sheet contract, calls an OpenAI-compatible model, validates the result, applies a measured confidence gate and benchmarks it against maintained golden answers.
+Ledger is a bilingual Annual Report benchmark workspace. It converts a PDF into a fixed 27-row asset-side balance-sheet contract, calls an OpenAI-compatible model for semantic mapping, validates the result, applies a measured confidence gate and benchmarks it against maintained golden answers.
 
 The current assignment uses 3M reports as the initial benchmark, while the corpus pipeline is company-independent and supports official FY2020–FY2025 reports.
 
@@ -209,7 +207,6 @@ The assignment API has no browser access token. CORS limits approved browser ori
 ## Documentation
 
 - [Current architecture and detailed extraction status](docs/CURRENT_STATUS.md)
-- [Research roadmap](ROADMAP.md)
 - [Evaluation dataset notes](test_dataset/README.md)
 - [Agent-maintained architecture index](agent/agent.md)
 
@@ -219,7 +216,7 @@ Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, 
 
 ## License
 
-Built as a technical assignment and research prototype. Add an explicit license before third-party reuse.
+Built as a technical assignment and benchmark prototype. Add an explicit license before third-party reuse.
 
 ---
 

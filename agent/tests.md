@@ -23,11 +23,12 @@ cd frontend && npm test -- --run && npm run build
 
 ## Current baseline
 
-The full extraction contract, 41 unittest cases, 17 Vitest checks, production
+The full extraction contract, 41 unittest cases, 18 Vitest checks, production
 TypeScript/Vite build, Python compile checks, and in-app browser visual/DOM sweep
 passed on 2026-08-22. The newest browser pass covers the Japanese dark-theme
-extracted-answer review at desktop and 390×844: embedded pinned PDF, 27 prefilled
-rows, responsive scrolling, immutable assignment values, and zero console warnings.
+extracted-answer review at desktop and 390×844 plus the two-strategy-only dashboard:
+embedded pinned PDF, 27 prefilled rows, responsive scrolling, immutable assignment
+values, cleaned navigation/dashboard scope, and zero console warnings.
 Automated review tests cover extraction-before-input, correction, confirmation,
 approval, retry, consensus artifacts and anonymous-workspace run isolation. No
 paid model or Firecrawl extraction was launched during this verification.

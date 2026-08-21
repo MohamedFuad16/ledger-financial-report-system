@@ -28,6 +28,7 @@
 | ADR-0024 | — Coordinate Firecrawl pacing and manifest writes across processes | — |
 | ADR-0025 | — Isolate public run state by anonymous browser workspace | — |
 | ADR-0026 | — Require PDF extraction before human answer review | — |
+| ADR-0027 | — Limit the product to two extraction strategies | — |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -210,3 +211,10 @@
 - Context: The review API synthesized 27 schema rows even when no candidate artifact existed, and the corpus list counted those placeholders as candidates. The UI therefore opened a blank table and effectively asked the reviewer to author the benchmark key from scratch, contradicting the intended extract-review-correct-approve workflow.
 - Decision: Treat candidate-artifact existence as a first-class state. Run up to three uncached Firecrawl PDF passes, retain each pass, form a provisional consensus with agreement metadata, and expose an idempotent on-demand extraction route for legacy documents. Do not render editable review inputs until extraction succeeds. Present the pinned PDF beside the prefilled table, allow corrections, then require a separate confirmation to save SHA-bound human approval.
 - Consequences: “Human review required” now means machine extraction is ready for validation, not manual data entry. A failed or unavailable extractor produces an explicit retry state and cannot be approved as a blank table. Multi-pass agreement measures repeatability only and never promotes candidates to gold automatically.
+
+## ADR-0027 — Limit the product to two extraction strategies
+- Date: 2026-08-22
+- Status: Accepted
+- Context: Two planned navigation branches described future architectures that are not part of this assignment. Keeping them in the sidebar, dashboard, route type and public documentation made unfinished work look like required product scope.
+- Decision: Keep only the Overview, Strategy 1, Strategy 2, History, Report corpus, Target schema and Settings surfaces. Delete the unused planned-strategy page and roadmap document. Both active strategies retain the same direct lifecycle: parse the PDF, send its representation to the configured model for semantic mapping, validate the fixed 27-row result, and let a reviewer verify corpus candidates against the pinned PDF.
+- Consequences: The navigation and public documentation now describe only implemented assignment behavior. Any additional extraction architecture would require a new scoped decision and implementation rather than a dormant public stub.

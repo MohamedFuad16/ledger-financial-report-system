@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, CheckCircle2, Database, Gauge, Layers3 } from 'lucide-react'
+import { ArrowRight, Gauge, Layers3 } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
 import { type BenchmarkExperiment, formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
@@ -66,13 +66,11 @@ export function DashboardPage({
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastest?.short || '—'} detail={fastest ? `${formatDuration(fastest.extractSeconds)} ${tr('mean parse time', '平均解析時間')}` : tr('No timing data yet', '時間データはまだありません')} />
       </div>
 
-      <SectionHeading eyebrow={tr('Research tracks', '研究トラック')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
+      <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
       <div className="strategy-grid dashboard-strategy-grid">
         {[
           { number: '01', title: tr('No-OCR parser control', 'OCRなしパーサー対照実験'), body: tr('PyPDF, PyMuPDF4LLM, pdf-inspector, and Docling with OCR disabled.', 'PyPDF、PyMuPDF4LLM、pdf-inspector、DoclingをOCRなしで比較します。'), status: tr('Active', '有効'), tone: 'green' as const, panel: 'strategy1' as PanelKey, icon: Gauge },
           { number: '02', title: tr('OCR-enabled bake-off', 'OCR有効ベイクオフ'), body: tr('The same four parsers: adaptive OCR where page detection exists, otherwise OCR is compulsory.', '同じ4パーサーで、ページ判定がある場合は適応OCR、ない場合はOCRを必須化します。'), status: tr('Active', '有効'), tone: 'blue' as const, panel: 'strategy2' as PanelKey, icon: Layers3 },
-          { number: '03', title: tr('Hybrid retrieval & RAG', 'ハイブリッド検索とRAG'), body: tr('Retrieve the balance sheet and relevant notes before extraction.', '抽出前に貸借対照表と関連注記を検索します。'), status: tr('Planned', '予定'), tone: 'neutral' as const, panel: 'strategy3' as PanelKey, icon: Database },
-          { number: '04', title: tr('Agentic accounting', 'エージェント会計検証'), body: tr('Re-ask only about rows implicated by failed identities.', '不一致に関係する行だけを再確認します。'), status: tr('Planned', '予定'), tone: 'neutral' as const, panel: 'strategy4' as PanelKey, icon: CheckCircle2 },
         ].map((strategy) => {
           const Icon = strategy.icon
           return (

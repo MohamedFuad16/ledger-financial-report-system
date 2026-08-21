@@ -176,12 +176,12 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 
 ## Current limitations
 
-- Strategies 3 and 4 remain planned.
+- The product scope is limited to Strategy 1 and Strategy 2; both send a parser-produced document representation through the configured model for semantic mapping, then validate and verify the fixed result contract.
 - Strategy 1 is intentionally text-only; Strategy 2 provides compulsory or page-adaptive OCR for every corresponding parser.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public assignment API has no end-user authentication. CORS is a browser boundary, not authentication.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
 - Only 3M FY2022 has an assignment-supplied complete answer key. Every other report remains unscored until its 27-row candidate sheet is manually approved for the exact PDF SHA-256.
 - Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
-- Final accuracy can include deterministic normalization and one contract-repair call. Research reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
+- Final accuracy can include deterministic normalization and one contract-repair call. Benchmark reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.
