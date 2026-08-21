@@ -13,9 +13,28 @@ import type {
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '')
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`
+const WORKSPACE_KEY = 'ledger_anonymous_workspace_v1'
+
+export function workspaceId(): string {
+  if (typeof window === 'undefined') return 'legacy-public'
+  const existing = window.localStorage.getItem(WORKSPACE_KEY)
+  if (existing && /^[A-Za-z0-9_-]{8,64}$/.test(existing)) return existing
+  const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID().replace(/-/g, '')
+    : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+  const created = `ws_${random}`.slice(0, 64)
+  window.localStorage.setItem(WORKSPACE_KEY, created)
+  return created
+}
+
+function withWorkspace(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers)
+  headers.set('X-Ledger-Workspace', workspaceId())
+  return { ...init, headers }
+}
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(url), init)
+  const response = await fetch(apiUrl(url), withWorkspace(init))
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
     throw new Error(payload.error || `Request failed with HTTP ${response.status}`)
@@ -80,6 +99,10 @@ export const api = {
   corpusPdfUrl: (documentId: string) => apiUrl(`/api/corpus/${encodeURIComponent(documentId)}/pdf`),
   corpusVerification: (documentId: string) =>
     jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification`),
+  extractCorpusVerification: (documentId: string) =>
+    jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification/extract`, {
+      method: 'POST',
+    }),
   approveCorpusVerification: (documentId: string, rows: CorpusVerification['rows']) =>
     jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification`, {
       method: 'PUT',
@@ -165,7 +188,7 @@ export async function runStagedExtraction(
 ): Promise<void> {
   const response = await fetch(apiUrl('/api/extract/stream'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Ledger-Workspace': workspaceId() },
     body: JSON.stringify(body),
   })
   return consumeEventStream(response, onEvent)

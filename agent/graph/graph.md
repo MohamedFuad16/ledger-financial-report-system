@@ -32,4 +32,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-21 via tree-sitter/heuristic fallback.
+- 2026-08-22 via tree-sitter/heuristic fallback.

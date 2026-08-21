@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import queue
+import re
 import shutil
 import threading
 import uuid
@@ -23,7 +24,7 @@ from corpus.manifest import (
     migrate_corpus_layout,
     verification_payload,
 )
-from corpus.service import build_corpus
+from corpus.service import build_corpus, extract_document_candidates
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
 from ratelimit import LIMITER, estimate_batch_plan
@@ -68,6 +69,7 @@ CORPUS_JOBS_ROOT = RUNS_DIR / "_corpus_jobs"
 CORPUS_WORKER_INSTANCE_ID = uuid.uuid4().hex
 EXTRACTION_JOBS_ROOT = RUNS_DIR / "_extraction_jobs"
 EXTRACTION_JOBS_LOCK = threading.RLock()
+WORKSPACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 ensure_dirs()
 CORPUS_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
@@ -109,6 +111,31 @@ def parse_float(value, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def request_workspace_id() -> str:
+    """Return the anonymous browser workspace that owns private run state."""
+    candidate = str(request.headers.get("X-Ledger-Workspace") or "legacy-public").strip()
+    return candidate if WORKSPACE_ID_PATTERN.fullmatch(candidate) else "legacy-public"
+
+
+def _workspace_matches(record: dict | None, workspace_id: str) -> bool:
+    return bool(record) and str(record.get("workspace_id") or "legacy-public") == workspace_id
+
+
+def _workspace_prediction_count(directory: Path, workspace_id: str) -> int:
+    """Count only readable run artifacts owned by one anonymous workspace."""
+    if not directory.is_dir():
+        return 0
+    count = 0
+    for prediction_path in directory.rglob("prediction.json"):
+        try:
+            payload = json.loads(prediction_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict) and _workspace_matches(payload, workspace_id):
+            count += 1
+    return count
 
 
 def request_run_options(settings: dict) -> dict:
@@ -526,11 +553,13 @@ def extract_pipeline():
     options = request_run_options(settings)
 
     try:
+        workspace_id = request_workspace_id()
         pdf_path = save_upload(file)
         prediction = run_pipeline(
             pdf_path=pdf_path,
             settings=settings,
             display_name=file.filename,
+            workspace_id=workspace_id,
             **options,
         )
         return jsonify(prediction_response(prediction))
@@ -554,6 +583,7 @@ def stage_uploads():
         return jsonify({"error": "No PDF files provided."}), 400
 
     settings = current_settings()
+    workspace_id = request_workspace_id()
     requested_concurrency = settings.get("max_concurrency", 6)
 
     staged = []
@@ -574,6 +604,7 @@ def stage_uploads():
             "pages": estimate["pages"],
             "approx_tokens": estimate["approx_tokens"],
             "estimated": True,
+            "workspace_id": workspace_id,
         }
         with STAGED_LOCK:
             STAGED[upload_id] = record
@@ -594,17 +625,22 @@ def get_rate_limit():
 def get_corpus():
     manifest = load_manifest()
     documents = []
+    workspace_id = request_workspace_id()
     for item in manifest.get("documents", []):
         company = safe_filename(str(item.get("company") or item.get("company_slug") or "unknown"))
         fiscal_year = int(item.get("fiscal_year") or 0)
         output_directory = RUNS_DIR / company / f"FY{fiscal_year}"
+        verification = verification_payload(item)
         documents.append({
             **item,
-            "verification_status": verification_payload(item).get("status"),
-            "candidate_count": len(verification_payload(item).get("rows") or []),
-            "approved_at": verification_payload(item).get("approved_at"),
+            "verification_status": verification.get("status"),
+            "candidate_extracted": verification.get("candidate_extracted", False),
+            "candidate_count": verification.get("extracted_row_count", 0),
+            "candidate_method": verification.get("candidate_method"),
+            "consensus_summary": verification.get("consensus_summary"),
+            "approved_at": verification.get("approved_at"),
             "output_directory": str(output_directory),
-            "output_count": len(list(output_directory.rglob("prediction.json"))) if output_directory.is_dir() else 0,
+            "output_count": _workspace_prediction_count(output_directory, workspace_id),
         })
     return jsonify({
         **manifest,
@@ -656,6 +692,39 @@ def corpus_verification(document_id):
     return jsonify({"ok": True, **payload})
 
 
+@app.route("/api/corpus/<document_id>/verification/extract", methods=["POST"])
+def extract_corpus_verification(document_id):
+    """Create the PDF-derived prefill required before human review.
+
+    Reviewers correct extracted values; they are never asked to author a blank
+    benchmark table. The provisional rows remain non-authoritative until the
+    separate approval call succeeds.
+    """
+    document = find_document(document_id)
+    if document is None:
+        return jsonify({"error": "Corpus document not found."}), 404
+    existing = verification_payload(document)
+    if existing.get("candidate_extracted"):
+        return jsonify({"ok": True, "reused": True, **existing})
+
+    settings = current_settings()
+    if not settings.get("firecrawl_api_key"):
+        return jsonify({
+            "error": "PDF answer extraction is unavailable until the Firecrawl key is configured."
+        }), 400
+    try:
+        updated = extract_document_candidates(
+            document,
+            api_key=settings["firecrawl_api_key"],
+            firecrawl_pdf_mode=settings.get("firecrawl_pdf_mode", "auto"),
+            candidate_passes=3,
+        )
+        payload = verification_payload(updated)
+    except (FirecrawlError, RuntimeError, ValueError, OSError) as exc:
+        return jsonify({"error": f"Could not extract review answers from the PDF: {exc}"}), 502
+    return jsonify({"ok": True, "reused": False, **payload}), 201
+
+
 @app.route("/api/corpus/<document_id>", methods=["DELETE"])
 def delete_corpus_document(document_id):
     """Remove one downloaded corpus PDF and its pinned manifest entry.
@@ -684,6 +753,7 @@ def delete_corpus_document(document_id):
 def stage_corpus_documents():
     """Stage durable corpus PDFs through the same extraction contract as uploads."""
     body = request.get_json(silent=True) or {}
+    workspace_id = request_workspace_id()
     document_ids = body.get("document_ids") or []
     if not isinstance(document_ids, list) or not document_ids:
         return jsonify({"error": "Select at least one corpus document."}), 400
@@ -728,6 +798,7 @@ def stage_corpus_documents():
             "fiscal_year": document.get("fiscal_year"),
             "source_pdf_sha256": document.get("sha256"),
             "verification_status": verification_payload(document).get("status"),
+            "workspace_id": workspace_id,
         }
         with STAGED_LOCK:
             STAGED[upload_id] = record
@@ -870,10 +941,11 @@ def get_corpus_job(job_id):
 def list_extraction_jobs():
     """Return recent durable extraction-job summaries for UI rehydration."""
     jobs: list[dict] = []
+    workspace_id = request_workspace_id()
     for path in EXTRACTION_JOBS_ROOT.glob("*/state.json"):
         try:
             state = _read_extraction_job_state(path.parent.name)
-            if state:
+            if _workspace_matches(state, workspace_id):
                 jobs.append(state)
         except (OSError, json.JSONDecodeError):
             continue
@@ -884,7 +956,7 @@ def list_extraction_jobs():
 @app.route("/api/extraction/jobs/<job_id>", methods=["GET"])
 def get_extraction_job(job_id):
     state = _read_extraction_job_state(job_id)
-    if not state:
+    if not _workspace_matches(state, request_workspace_id()):
         return jsonify({"error": "Extraction job not found."}), 404
     try:
         after = max(0, int(request.args.get("after", "0")))
@@ -898,6 +970,7 @@ def get_extraction_job(job_id):
 def start_extraction_job():
     """Start a backend-owned extraction batch that survives browser navigation."""
     settings = current_settings()
+    workspace_id = request_workspace_id()
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400
     body = request.get_json(silent=True) or {}
@@ -905,7 +978,10 @@ def start_extraction_job():
     if not isinstance(upload_ids, list) or not upload_ids:
         return jsonify({"error": "No staged uploads referenced."}), 400
     with STAGED_LOCK:
-        staged_jobs = [STAGED[uid] for uid in upload_ids if uid in STAGED]
+        staged_jobs = [
+            STAGED[uid] for uid in upload_ids
+            if uid in STAGED and _workspace_matches(STAGED[uid], workspace_id)
+        ]
     if not staged_jobs:
         return jsonify({"error": "Staged uploads expired. Please re-select the files."}), 400
 
@@ -935,6 +1011,7 @@ def start_extraction_job():
         "passes_total": len(staged_jobs) * len(strategy_keys), "succeeded": 0, "failed": 0,
         "error": None,
         "worker_pid": os.getpid(),
+        "workspace_id": workspace_id,
     }
     with EXTRACTION_JOBS_LOCK:
         _write_extraction_job_state(job_id, state)
@@ -967,7 +1044,7 @@ def start_extraction_job():
 
             append("pass_start", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "pages": staged["pages"], "approx_tokens": staged["approx_tokens"]})
             try:
-                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, **options)
+                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, workspace_id=workspace_id, **options)
                 increment_count("succeeded")
                 append("file_done", {
                     "index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label,
@@ -1029,6 +1106,7 @@ def extract_stream():
     lowers the effective value if the provider starts returning 429.
     """
     settings = current_settings()
+    workspace_id = request_workspace_id()
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400
 
@@ -1038,7 +1116,10 @@ def extract_stream():
         return jsonify({"error": "No staged uploads referenced."}), 400
 
     with STAGED_LOCK:
-        jobs = [STAGED[uid] for uid in upload_ids if uid in STAGED]
+        jobs = [
+            STAGED[uid] for uid in upload_ids
+            if uid in STAGED and _workspace_matches(STAGED[uid], workspace_id)
+        ]
     if not jobs:
         return jsonify({"error": "Staged uploads expired. Please re-select the files."}), 400
 
@@ -1109,6 +1190,7 @@ def extract_stream():
                 strategy_key=key,
                 display_name=job["name"],
                 on_progress=on_progress,
+                workspace_id=workspace_id,
                 **options,
             )
             events.put(("file_done", {
@@ -1200,6 +1282,7 @@ def extract_stream():
 def batch_extract():
     """Non-streaming multipart batch retained for scripted API clients."""
     settings = current_settings()
+    workspace_id = request_workspace_id()
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400
 
@@ -1218,7 +1301,7 @@ def batch_extract():
     def process_single(filename: str, pdf_path):
         try:
             prediction = run_pipeline(
-                pdf_path=pdf_path, settings=settings, display_name=filename, **options
+                pdf_path=pdf_path, settings=settings, display_name=filename, workspace_id=workspace_id, **options
             )
             return {
                 "ok": True,
@@ -1246,23 +1329,26 @@ def batch_extract():
 
 @app.route("/api/runs", methods=["GET"])
 def get_runs():
-    return jsonify({"runs": list_runs()})
+    return jsonify({"runs": list_runs(request_workspace_id())})
 
 
 @app.route("/api/runs/all", methods=["DELETE"])
 def delete_all_runs():
-    count = sum(1 for _ in iter_run_dirs())
-    if RUNS_DIR.exists():
-        for directory in RUNS_DIR.iterdir():
-            if directory.is_dir():
-                shutil.rmtree(directory)
+    workspace_id = request_workspace_id()
+    owned = [
+        directory for directory in iter_run_dirs()
+        if _workspace_matches(load_prediction(directory.name), workspace_id)
+    ]
+    count = len(owned)
+    for directory in owned:
+        shutil.rmtree(directory)
     return jsonify({"ok": True, "deleted": count})
 
 
 @app.route("/api/runs/<run_id>", methods=["GET"])
 def get_run(run_id):
     prediction = load_prediction(run_id)
-    if prediction is None:
+    if not _workspace_matches(prediction, request_workspace_id()):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     return jsonify(prediction_response(prediction))
 
@@ -1270,7 +1356,8 @@ def get_run(run_id):
 @app.route("/api/runs/<run_id>", methods=["DELETE"])
 def delete_run(run_id):
     target_dir = find_run_dir(run_id)
-    if target_dir is None or not target_dir.is_dir():
+    prediction = load_prediction(run_id)
+    if target_dir is None or not target_dir.is_dir() or not _workspace_matches(prediction, request_workspace_id()):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     try:
         shutil.rmtree(target_dir)
@@ -1322,7 +1409,7 @@ def save_golden_answers(fiscal_year):
 def evaluate_run(run_id):
     """Re-score a stored run, optionally against a different fiscal year."""
     prediction = load_prediction(run_id)
-    if prediction is None:
+    if not _workspace_matches(prediction, request_workspace_id()):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     fiscal_year = request.args.get("fiscal_year") or prediction.get("fiscal_year", "")
     return jsonify({
@@ -1341,7 +1428,7 @@ def no_store(response):
     origin = _allowed_origin(request.headers.get("Origin", ""))
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Ledger-Workspace"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Vary"] = "Origin"
     return response

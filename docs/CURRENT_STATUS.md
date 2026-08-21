@@ -1,6 +1,6 @@
 # Ledger: current system status
 
-Last verified: 21 August 2026
+Last verified: 22 August 2026
 
 ## What is running
 
@@ -104,7 +104,7 @@ There are three different checks, and they must not be conflated:
 
 1. **Corpus screening** proves that the downloaded bytes are a PDF from the expected official domain, records a SHA-256 identity, checks the expected fiscal year inside the file, counts readable/garbled pages, and looks for a balance-sheet page and currency. This is document identity and health evidence, not an answer-key audit.
 2. **Arithmetic reconciliation** proves that a set of 27 values obeys the schema's subtotal identities. It catches inconsistent totals, but an internally consistent set can still be copied from the wrong column or year.
-3. **Golden-set verification** requires source-level provenance for every value. Only the 3M FY2022 27-row answer key supplied by the assignment is authoritative by default. Every other company/year begins as Firecrawl-generated candidate data and has no exact-accuracy score until a person reviews all 27 rows against the source PDF and saves approval. Approval is bound to the exact PDF SHA-256, so replacing the PDF invalidates that approval.
+3. **Golden-set verification** requires source-level provenance for every value. Only the 3M FY2022 27-row answer key supplied by the assignment is authoritative by default. Every other company/year begins as Firecrawl-generated candidate data and has no exact-accuracy score until a person reviews all 27 rows against the source PDF and saves approval. The review workspace is extracted-first: it embeds the pinned PDF beside 27 prefilled rows, permits corrections, and exposes Save & Approve only after a candidate artifact exists. Approval is bound to the exact PDF SHA-256, so replacing the PDF invalidates that approval.
 
 For a defensible manual audit, one reviewer should transcribe each leaf value from the rendered official PDF and record the printed page/table/column/unit; a second reviewer should independently re-enter it; computed subtotals should be regenerated from the leaves; disagreements should be resolved against the rendered page; and the final key should be pinned to the same PDF SHA-256 used by the run. Exact accuracy should not be reported as authoritative for a provisional key without that qualifier.
 
@@ -121,14 +121,15 @@ Company + official site + FY2020–FY2025
   → Firecrawl call 1: map/search for candidate official-report URLs
   → direct PDF download to the canonical company/year path
   → MIME/signature, year, balance-sheet and text-health screening
-  → Firecrawl call 2: structured extraction of 27 candidate answers
+  → three uncached Firecrawl structured-extraction passes
+  → provisional 27-row consensus with per-row agreement metadata
   → SHA-256-bound manifest + candidate review artifact
   → human review in the Corpus UI (optional before execution, required for accuracy)
 ```
 
 Crawling never starts a Strategy 1/2 model extraction. A screened recrawl atomically replaces the canonical company/year file, while a failed replacement leaves the prior PDF intact. Strategy 1 and Strategy 2 expose an Upload/Corpus switch; a corpus search can stage one document or a batch through the same extraction API without duplicating the PDF. Unverified documents are usable, but the picker warns that their candidate answers are not gold and their runs will not contribute to exact-accuracy leadership.
 
-The corpus worker is deterministic Python orchestration running inside the single Gunicorn service process on EC2. Firecrawl supplies link discovery and the non-authoritative structured candidate table. Ledger spaces all credit-consuming Firecrawl calls through one process-wide gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent. Strategy model calls happen only after a user explicitly stages a report in Strategy 1 or Strategy 2.
+The corpus worker is deterministic Python orchestration running in the EC2 Gunicorn service. Firecrawl supplies link discovery and the non-authoritative structured candidate table. Ledger spaces all credit-consuming Firecrawl calls through one cross-process gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. Repeated candidate passes measure service repeatability, not truth. For legacy documents without a candidate artifact, the Review action runs the same PDF extraction before rendering editable inputs; failures stay in a retry state instead of falling back to manual transcription. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent. Strategy model calls happen only after a user explicitly stages a report in Strategy 1 or Strategy 2.
 
 Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live separately on EBS and remain available.
 
@@ -146,6 +147,7 @@ This successful Japanese crawl also exposes an important experiment boundary: th
 
 - English/Japanese locale state and localized display labels
 - responsive desktop rail and mobile drawer
+- side-by-side pinned-PDF and extracted-answer human review with correction and SHA-bound approval
 - report upload or corpus selection
 - provider/runtime settings forms without exposing saved secret values
 - real-time SSE reduction into one animated report card with current parser, stage, message, elapsed time and compact pass progress

@@ -1,5 +1,11 @@
 # Errors, gotchas & known issues
 
+## Human review opened a blank manual-entry table (resolved)
+- Symptom: A pinned report with no candidate artifact still rendered 27 empty number inputs, while the small “Review answers” text link implied that extraction had already happened.
+- Cause: `verification_payload` always synthesized the schema rows, and `/api/corpus` counted those placeholders as candidates even when no PDF extraction artifact existed. The UI had no extraction-on-review state.
+- Resolution: Track `candidate_extracted` separately from schema shape, add an idempotent PDF-candidate extraction endpoint, and block editable review until the prefill exists. The review workspace now embeds the source PDF beside extracted values, supports corrections and Save & Approve, and shows a retry state on extraction failure. Backend and Vitest regressions cover the full flow.
+- First seen: 2026-08-22
+
 ## Stored corpus runs still requested a deployment token (resolved)
 
 The token form had been removed from Settings, but the shared client adapter and

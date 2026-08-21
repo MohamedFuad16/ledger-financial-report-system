@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ClipboardCheck, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, Save, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
+import { CheckCircle2, ClipboardCheck, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, Save, ScanText, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
 import type { CorpusDocument, CorpusJob, CorpusManifest, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
@@ -20,7 +20,8 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const [reviewing, setReviewing] = useState<CorpusDocument | null>(null)
   const [verification, setVerification] = useState<CorpusVerification | null>(null)
   const [reviewRows, setReviewRows] = useState<CorpusVerificationRow[]>([])
-  const [loadingReview, setLoadingReview] = useState(false)
+  const [reviewPhase, setReviewPhase] = useState<'idle' | 'loading' | 'extracting'>('idle')
+  const [reviewError, setReviewError] = useState<string | null>(null)
   const [savingReview, setSavingReview] = useState(false)
   const [confirmApprove, setConfirmApprove] = useState(false)
 
@@ -99,18 +100,30 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     } finally { setDeleting(false) }
   }
 
-  const openReview = async (document: CorpusDocument) => {
-    setReviewing(document)
-    setLoadingReview(true)
+  const loadReview = async (document: CorpusDocument) => {
+    setReviewPhase('loading')
+    setReviewError(null)
     setVerification(null)
+    setReviewRows([])
     try {
-      const payload = await api.corpusVerification(document.sha256)
+      let payload = await api.corpusVerification(document.sha256)
+      if (payload.status !== 'assignment_supplied' && !payload.candidate_extracted) {
+        setReviewPhase('extracting')
+        payload = await api.extractCorpusVerification(document.sha256)
+      }
+      if (!payload.candidate_extracted) throw new Error(tr('The PDF extraction did not produce a review table. Retry extraction before reviewing.', 'PDF抽出で確認表を生成できませんでした。確認前に抽出を再試行してください。'))
       setVerification(payload)
       setReviewRows(payload.rows)
     } catch (error) {
-      setReviewing(null)
-      onNotify(error instanceof Error ? error.message : tr('Could not load the verification sheet.', '検証シートを読み込めませんでした。'), 'error')
-    } finally { setLoadingReview(false) }
+      const message = error instanceof Error ? error.message : tr('Could not extract the verification sheet from the PDF.', 'PDFから検証シートを抽出できませんでした。')
+      setReviewError(message)
+      onNotify(message, 'error')
+    } finally { setReviewPhase('idle') }
+  }
+
+  const openReview = (document: CorpusDocument) => {
+    setReviewing(document)
+    void loadReview(document)
   }
 
   const updateReviewAnswer = (index: number, value: string) => {
@@ -120,7 +133,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   }
 
   const approveReview = async () => {
-    if (!reviewing) return
+    if (!reviewing || !verification?.candidate_extracted) return
     setSavingReview(true)
     try {
       const payload = await api.approveCorpusVerification(reviewing.sha256, reviewRows)
@@ -142,7 +155,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
         <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies ?? 0}</strong><small>{tr('official-source targets', '公式ソース対象')}</small></Card>
         <Card><span>{tr('Documents', '文書')}</span><strong>{manifest?.summary.documents ?? 0}</strong><small>FY2020–FY2025</small></Card>
         <Card><span>{tr('Benchmark verified', 'ベンチマーク検証済み')}</span><strong>{manifest?.summary.verified ?? 0}</strong><small>{tr('assignment gold or human approved', '課題正解または人による承認')}</small></Card>
-        <Card><span>{tr('Human review required', '人の確認が必要')}</span><strong>{manifest?.summary.human_review_required ?? 0}</strong><small>{tr('usable with an unverified warning', '未検証警告付きで使用可能')}</small></Card>
+        <Card><span>{tr('Ready for human review', '人による確認待ち')}</span><strong>{manifest?.summary.human_review_required ?? 0}</strong><small>{tr('PDF answers are extracted and prefilled', 'PDF回答を抽出して入力済み')}</small></Card>
       </div>
 
       <div className="corpus-layout">
@@ -171,7 +184,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
           <td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td>
           <td>FY{document.fiscal_year}</td>
           <td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened}</Badge></td>
-          <td><Badge tone={document.verification_status === 'human_review_required' ? 'amber' : 'green'}>{document.verification_status === 'assignment_supplied' ? tr('Assignment gold', '課題正解') : document.verification_status === 'human_verified' ? tr('Human verified', '人による確認済み') : tr('Human review required', '人の確認が必要')}</Badge><button className="corpus-review-button" type="button" onClick={() => void openReview(document)}><ClipboardCheck size={14} /> {tr('Review answers', '回答を確認')}</button></td>
+          <td><div className="corpus-verification-cell"><Badge tone={document.verification_status === 'human_review_required' ? 'amber' : 'green'}>{document.verification_status === 'assignment_supplied' ? tr('Assignment gold', '課題正解') : document.verification_status === 'human_verified' ? tr('Human verified', '人による確認済み') : document.candidate_extracted ? tr('Extracted · review required', '抽出済み・確認待ち') : tr('Extraction required', '抽出が必要')}</Badge><button className="corpus-review-button" type="button" onClick={() => openReview(document)}><ClipboardCheck size={14} /> {document.verification_status === 'human_verified' || document.verification_status === 'assignment_supplied' ? tr('View reviewed answers', '確認済み回答を表示') : tr('Review extracted answers', '抽出済み回答を確認')}</button></div></td>
           <td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td>
           <td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td>
           <td><code>{document.local_path}</code></td>
@@ -181,13 +194,18 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
       </Card>
       {reviewing && <div className="review-sheet-backdrop" role="presentation">
         <section className="review-sheet" role="dialog" aria-modal="true" aria-labelledby="review-sheet-title">
-          <header><div><div className="eyebrow">{tr('PDF-hash-pinned review', 'PDFハッシュ固定レビュー')}</div><h2 id="review-sheet-title">{reviewing.company} · FY{reviewing.fiscal_year}</h2><p>{tr('Compare each candidate value with the source PDF. Saving approval makes this exact PDF SHA eligible for benchmark accuracy.', '各候補値を元PDFと比較してください。承認を保存すると、このPDF SHAがベンチマーク正確度の対象になります。')}</p></div><button type="button" onClick={() => { setReviewing(null); setConfirmApprove(false) }} aria-label={tr('Close review', 'レビューを閉じる')}><X size={18} /></button></header>
-          <div className="review-sheet-actions"><a className="button secondary" href={api.corpusPdfUrl(reviewing.sha256)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {tr('Open source PDF', '元PDFを開く')}</a>{verification && <Badge tone={verification.status === 'human_review_required' ? 'amber' : 'green'}>{verification.status === 'assignment_supplied' ? tr('Assignment supplied', '課題提供') : verification.status === 'human_verified' ? tr('Human verified', '人による確認済み') : tr('Approval required', '承認が必要')}</Badge>}</div>
-          {loadingReview ? <div className="review-sheet-loading"><LoaderCircle className="spin" size={20} /> {tr('Loading candidate answers…', '候補回答を読み込んでいます…')}</div> : <div className="review-table-wrap"><table className="review-table"><thead><tr><th>#</th><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer (M USD)', '回答（百万USD）')}</th><th>{tr('Page', 'ページ')}</th><th>{tr('Candidate evidence', '候補根拠')}</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={row.item}><td>{String(index + 1).padStart(2, '0')}</td><td>{row.classification}</td><td>{row.subclassification || '—'}</td><td><strong>{row.item}</strong></td><td><input type="number" step="any" value={row.answer_m_usd ?? ''} disabled={verification?.status === 'assignment_supplied'} onChange={(event) => updateReviewAnswer(index, event.target.value)} aria-label={`${row.item} answer`} /></td><td>{row.source_page ?? '—'}</td><td>{row.evidence || '—'}</td></tr>)}</tbody></table></div>}
-          <footer><span>{tr('Firecrawl values are candidate data, never automatic gold.', 'Firecrawlの値は候補データであり、自動的に正解データにはなりません。')}</span>{verification?.status !== 'assignment_supplied' && <Button onClick={() => setConfirmApprove(true)} disabled={loadingReview || savingReview}><Save size={15} /> {verification?.status === 'human_verified' ? tr('Update approval', '承認を更新') : tr('Save & approve', '保存して承認')}</Button>}</footer>
+          <header><div><div className="eyebrow">{tr('Extracted-answer review', '抽出済み回答の確認')}</div><h2 id="review-sheet-title">{reviewing.company} · FY{reviewing.fiscal_year}</h2><p>{tr('Ledger extracts and pre-fills all 27 rows from the pinned PDF first. Compare the values with the PDF, correct any mistakes, then save and approve the reviewed table.', 'Ledgerが固定PDFから27項目を先に抽出して入力します。PDFと照合し、誤りを修正してから確認表を保存・承認してください。')}</p></div><button type="button" onClick={() => { setReviewing(null); setConfirmApprove(false); setReviewError(null) }} aria-label={tr('Close review', 'レビューを閉じる')}><X size={18} /></button></header>
+          <div className="review-sheet-actions"><a className="button secondary" href={api.corpusPdfUrl(reviewing.sha256)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {tr('Open PDF in new tab', 'PDFを新しいタブで開く')}</a>{reviewPhase === 'extracting' ? <Badge tone="blue">{tr('Extracting from PDF…', 'PDFから抽出中…')}</Badge> : verification && <Badge tone={verification.status === 'human_review_required' ? 'amber' : 'green'}>{verification.status === 'assignment_supplied' ? tr('Assignment supplied', '課題提供') : verification.status === 'human_verified' ? tr('Human verified', '人による確認済み') : tr('Extracted · approval required', '抽出済み・承認待ち')}</Badge>}{verification?.candidate_extracted && <span className="candidate-row-summary">{tr(`27 rows extracted · ${reviewRows.filter((row) => row.answer_m_usd !== null).length} values found`, `27項目を抽出・${reviewRows.filter((row) => row.answer_m_usd !== null).length}件の値を検出`)}</span>}{verification?.consensus_summary && <span className="candidate-consensus-summary">{tr(`${verification.consensus_summary.successful_passes}/${verification.consensus_summary.requested_passes} extraction passes · ${verification.consensus_summary.exact_agreement_rows + verification.consensus_summary.stable_rows}/27 stable rows`, `抽出 ${verification.consensus_summary.successful_passes}/${verification.consensus_summary.requested_passes}回 · 安定行 ${verification.consensus_summary.exact_agreement_rows + verification.consensus_summary.stable_rows}/27`)}</span>}</div>
+          <div className="review-workspace">
+            <aside className="review-pdf-pane"><div><ScanText size={16} /><strong>{tr('Pinned source PDF', '固定元PDF')}</strong><small>SHA-256 {reviewing.sha256.slice(0, 12)}…</small></div><object data={api.corpusPdfUrl(reviewing.sha256)} type="application/pdf" aria-label={tr('Source annual report PDF', '元の年次報告書PDF')}><a href={api.corpusPdfUrl(reviewing.sha256)} target="_blank" rel="noreferrer">{tr('Open the source PDF', '元PDFを開く')}</a></object></aside>
+            <div className="review-answer-pane">
+              {reviewPhase !== 'idle' ? <div className="review-sheet-loading" role="status"><LoaderCircle className="spin" size={22} /><strong>{reviewPhase === 'extracting' ? tr('Extracting and prefilling 27 answers from the PDF…', 'PDFから27項目を抽出して入力しています…') : tr('Loading the extracted answer sheet…', '抽出済み回答表を読み込んでいます…')}</strong><span>{reviewPhase === 'extracting' && tr('This may take a minute. No manual entry is required.', '1分ほどかかる場合があります。手入力は不要です。')}</span></div> : reviewError ? <div className="review-extraction-error"><TriangleAlert size={24} /><strong>{tr('PDF extraction did not complete', 'PDF抽出が完了しませんでした')}</strong><p>{reviewError}</p><Button variant="secondary" onClick={() => void loadReview(reviewing)}><RefreshCw size={15} /> {tr('Retry PDF extraction', 'PDF抽出を再試行')}</Button></div> : <><div className="review-prefill-note"><ScanText size={17} /><div><strong>{tr('Extracted prefill — verify, then correct', '抽出済み入力 — 照合して修正')}</strong><span>{tr('These values came from the PDF. Edit only the rows that do not match the source, then approve the full table.', 'これらの値はPDFから抽出されています。元資料と一致しない行のみ修正し、表全体を承認してください。')}</span></div></div><div className="review-table-wrap"><table className="review-table"><thead><tr><th>#</th><th>{tr('Classification', '分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Extracted answer (M USD)', '抽出回答（百万USD）')}</th><th>{tr('Agreement', '一致度')}</th><th>{tr('Page', 'ページ')}</th><th>{tr('Extracted evidence', '抽出根拠')}</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={row.item}><td>{String(index + 1).padStart(2, '0')}</td><td>{row.classification}<small>{row.subclassification || '—'}</small></td><td><strong>{row.item}</strong></td><td><input type="number" step="any" value={row.answer_m_usd ?? ''} disabled={verification?.status === 'assignment_supplied'} onChange={(event) => updateReviewAnswer(index, event.target.value)} aria-label={`${row.item} answer`} /></td><td>{row.agreement_count !== undefined ? <Badge tone={row.stability === 'disagreement' || row.stability === 'missing' ? 'amber' : 'green'}>{row.agreement_count}/{verification?.consensus_summary?.requested_passes ?? row.successful_passes ?? 1}</Badge> : '—'}</td><td>{row.source_page ?? '—'}</td><td>{row.evidence || '—'}</td></tr>)}</tbody></table></div></>}
+            </div>
+          </div>
+          <footer><span>{tr('Extracted answers are provisional, never automatic gold. Approval confirms that you checked the complete table against this exact PDF.', '抽出回答は暫定値であり、自動的な正解データにはなりません。承認すると、このPDFと表全体を照合済みであることを確認します。')}</span>{verification?.status !== 'assignment_supplied' && <Button onClick={() => setConfirmApprove(true)} disabled={reviewPhase !== 'idle' || Boolean(reviewError) || !verification?.candidate_extracted || savingReview}><Save size={15} /> {verification?.status === 'human_verified' ? tr('Save updated approval', '更新した承認を保存') : tr('Save & approve reviewed answers', '確認済み回答を保存・承認')}</Button>}</footer>
         </section>
       </div>}
-      {confirmApprove && reviewing && <div className="confirm-dialog-backdrop review-confirm" role="presentation" onMouseDown={() => !savingReview && setConfirmApprove(false)}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="approve-review-title" onMouseDown={(event) => event.stopPropagation()}><div className="confirm-dialog-icon approve"><ShieldCheck size={20} /></div><div className="eyebrow">{tr('Benchmark approval', 'ベンチマーク承認')}</div><h2 id="approve-review-title">{tr('Approve all 27 values?', '27項目すべてを承認しますか？')}</h2><p>{tr('You are confirming that you manually checked this table against the opened source PDF. The approved answers will be bound to this PDF SHA-256.', 'この表を元PDFと手作業で照合したことを確認します。承認済み回答はこのPDFのSHA-256に紐づきます。')}</p><div className="confirm-dialog-actions"><Button variant="ghost" onClick={() => setConfirmApprove(false)} disabled={savingReview}>{tr('Keep reviewing', '確認を続ける')}</Button><Button onClick={approveReview} disabled={savingReview}><ShieldCheck size={15} /> {savingReview ? tr('Saving…', '保存中…') : tr('Confirm approval', '承認を確定')}</Button></div></section></div>}
+      {confirmApprove && reviewing && <div className="confirm-dialog-backdrop review-confirm" role="presentation" onMouseDown={() => !savingReview && setConfirmApprove(false)}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="approve-review-title" onMouseDown={(event) => event.stopPropagation()}><div className="confirm-dialog-icon approve"><ShieldCheck size={20} /></div><div className="eyebrow">{tr('Benchmark approval', 'ベンチマーク承認')}</div><h2 id="approve-review-title">{tr('Save and approve all 27 rows?', '27項目すべてを保存・承認しますか？')}</h2><p>{tr('You are confirming that you checked the prefilled answers against the source PDF and corrected any mistakes. The approved table will be bound to this PDF SHA-256.', '入力済み回答を元PDFと照合し、誤りを修正したことを確認します。承認済み表はこのPDFのSHA-256に紐づきます。')}</p><div className="confirm-dialog-actions"><Button variant="ghost" onClick={() => setConfirmApprove(false)} disabled={savingReview}>{tr('Keep reviewing', '確認を続ける')}</Button><Button onClick={approveReview} disabled={savingReview}><ShieldCheck size={15} /> {savingReview ? tr('Saving…', '保存中…') : tr('Save & confirm approval', '保存して承認を確定')}</Button></div></section></div>}
       {pendingDelete && <div className="confirm-dialog-backdrop" role="presentation" onMouseDown={() => !deleting && setPendingDelete(null)}>
         <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" onMouseDown={(event) => event.stopPropagation()}>
           <button className="confirm-dialog-close" type="button" onClick={() => setPendingDelete(null)} disabled={deleting} aria-label={tr('Close dialog', 'ダイアログを閉じる')}><X size={18} /></button>

@@ -313,6 +313,9 @@ class FirecrawlClient:
             "url": url,
             "formats": [{"type": "json", "schema": output_schema, "prompt": prompt}],
             "parsers": [{"type": "pdf", "mode": normalized_mode}],
+            # Candidate passes measure current service repeatability. Reusing
+            # Firecrawl's default cache would make three calls one cached call.
+            "maxAge": 0,
             "timeout": 300000,
         })
         data = body.get("data") or {}

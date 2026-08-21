@@ -22,12 +22,14 @@ app: "Annual Report Extractor" {
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
+  client -> api: "review prefilled answers"
   client -> api: "confirm corpus delete"
   api -> pipeline: "execute"
   api -> jobs: "snapshot / rehydrate"
   api -> storage: "validate + stage durable PDF"
   api -> storage: "delete manifest-owned PDF"
   api -> corpus: "background job"
+  api -> corpus: "on-demand review prefill"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
   pipeline -> storage: "persist"
@@ -39,7 +41,7 @@ app: "Annual Report Extractor" {
 
 parsers: "PDF parsers" {shape: cloud}
 llm: "LLM provider" {shape: cloud}
-firecrawl: "Firecrawl discovery" {shape: cloud}
+firecrawl: "Firecrawl discovery + PDF extraction" {shape: cloud}
 official: "Official company sites" {shape: cloud}
 upstash: "Upstash Redis" {shape: cloud}
 ses: "AWS SES" {shape: cloud}
@@ -47,7 +49,7 @@ ses: "AWS SES" {shape: cloud}
 user -> app.client: "configure / inspect"
 app.pipeline -> parsers: "extract"
 app.pipeline -> llm: "chat completion"
-app.corpus -> firecrawl: "map / search"
+app.corpus -> firecrawl: "map / search / candidate passes"
 app.api -> firecrawl: "credential probe"
 app.corpus -> official: "direct PDF download"
 app.traffic -> upstash: "bounded log + counters"

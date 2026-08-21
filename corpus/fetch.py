@@ -8,6 +8,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import median
 from typing import Any
 from urllib.parse import urlparse
 
@@ -108,12 +109,8 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
     return upsert_document(document)
 
 
-def pin_candidate_answers(document: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
-    """Persist one source-bound, non-authoritative 27-row review candidate."""
-    pdf_path = Path(str(document["local_path"])).resolve()
-    if not pdf_path.is_relative_to(CORPUS_ROOT.resolve()) or not pdf_path.is_file():
-        raise ValueError("The canonical PDF is outside corpus storage or missing.")
-
+def _normalize_candidate_rows(parsed: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalize one Firecrawl response to the canonical 27-row schema."""
     returned = {
         str(row.get("item") or ""): row
         for row in (parsed.get("rows") or [])
@@ -129,41 +126,173 @@ def pin_candidate_answers(document: dict[str, Any], parsed: dict[str, Any]) -> d
             "classification": schema_row["classification"],
             "subclassification": schema_row["subclassification"],
             "item": schema_row["item"],
-            "answer_m_usd": float(answer) if isinstance(answer, (int, float)) else None,
-            "confidence": float(confidence) if isinstance(confidence, (int, float)) else None,
-            "source_page": int(source_page) if isinstance(source_page, (int, float)) and source_page >= 1 else None,
+            "answer_m_usd": float(answer) if isinstance(answer, (int, float)) and not isinstance(answer, bool) else None,
+            "confidence": float(confidence) if isinstance(confidence, (int, float)) and not isinstance(confidence, bool) else None,
+            "source_page": int(source_page) if isinstance(source_page, (int, float)) and not isinstance(source_page, bool) and source_page >= 1 else None,
             "evidence": str(candidate.get("evidence") or "").strip() or None,
         })
+    return rows
+
+
+def _consensus_rows(pass_rows: list[list[dict[str, Any]]], *, requested_passes: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Build a conservative provisional key and expose disagreement explicitly.
+
+    Repeated Firecrawl answers measure repeatability, not truth.  The median is
+    therefore only a review convenience; no row becomes benchmark gold here.
+    """
+    consensus: list[dict[str, Any]] = []
+    exact_count = stable_count = disagreement_count = missing_count = 0
+    for index, schema_row in enumerate(ASSET_SCHEMA):
+        candidates = [rows[index] for rows in pass_rows]
+        numeric = [
+            (pass_index, float(row["answer_m_usd"]))
+            for pass_index, row in enumerate(candidates)
+            if isinstance(row.get("answer_m_usd"), (int, float)) and not isinstance(row.get("answer_m_usd"), bool)
+        ]
+        if not numeric:
+            selected_index = 0
+            selected_answer = None
+            agreeing_indexes: list[int] = []
+            stability = "missing"
+            missing_count += 1
+        else:
+            center = float(median(value for _, value in numeric))
+            tolerance = max(0.5, abs(center) * 0.001)
+            agreeing_indexes = [pass_index for pass_index, value in numeric if abs(value - center) <= tolerance]
+            selected_index = min(numeric, key=lambda pair: abs(pair[1] - center))[0]
+            selected_answer = center
+            if len(numeric) == requested_passes and all(value == numeric[0][1] for _, value in numeric):
+                stability = "exact"
+                exact_count += 1
+            elif len(agreeing_indexes) >= 2:
+                stability = "stable"
+                stable_count += 1
+            else:
+                stability = "disagreement"
+                disagreement_count += 1
+        selected = candidates[selected_index]
+        confidence_values = [
+            float(candidates[pass_index]["confidence"])
+            for pass_index in agreeing_indexes
+            if isinstance(candidates[pass_index].get("confidence"), (int, float))
+        ]
+        agreement_count = len(agreeing_indexes)
+        consensus.append({
+            "classification": schema_row["classification"],
+            "subclassification": schema_row["subclassification"],
+            "item": schema_row["item"],
+            "answer_m_usd": selected_answer,
+            "confidence": (
+                round((sum(confidence_values) / len(confidence_values)) * (agreement_count / requested_passes), 6)
+                if confidence_values else None
+            ),
+            "source_page": selected.get("source_page"),
+            "evidence": selected.get("evidence"),
+            "pass_values": [row.get("answer_m_usd") for row in candidates],
+            "agreement_count": agreement_count,
+            "successful_passes": len(pass_rows),
+            "agreement_ratio": round(agreement_count / requested_passes, 6),
+            "stability": stability,
+        })
+    return consensus, {
+        "requested_passes": requested_passes,
+        "successful_passes": len(pass_rows),
+        "exact_agreement_rows": exact_count,
+        "stable_rows": stable_count,
+        "disagreement_rows": disagreement_count,
+        "missing_rows": missing_count,
+    }
+
+
+def pin_candidate_answers(
+    document: dict[str, Any],
+    parsed: dict[str, Any] | list[dict[str, Any]],
+    *,
+    requested_passes: int = 1,
+) -> dict[str, Any]:
+    """Persist source-bound Firecrawl passes and a non-authoritative consensus."""
+    pdf_path = Path(str(document["local_path"])).resolve()
+    if not pdf_path.is_relative_to(CORPUS_ROOT.resolve()) or not pdf_path.is_file():
+        raise ValueError("The canonical PDF is outside corpus storage or missing.")
+
+    parsed_passes = parsed if isinstance(parsed, list) else [parsed]
+    parsed_passes = [item for item in parsed_passes if isinstance(item, dict)]
+    if not parsed_passes:
+        raise ValueError("At least one successful Firecrawl candidate pass is required.")
+    requested_passes = max(int(requested_passes), len(parsed_passes))
+    candidate_method = (
+        "firecrawl_pdf_extraction"
+        if requested_passes == 1
+        else "firecrawl_multi_pass_consensus"
+    )
+    normalized_passes = [_normalize_candidate_rows(item) for item in parsed_passes]
+    rows, consensus_summary = _consensus_rows(normalized_passes, requested_passes=requested_passes)
 
     verification_dir = pdf_path.parent / "verification"
     verification_dir.mkdir(parents=True, exist_ok=True)
+    # Replace the candidate session as one unit so a shorter later session
+    # cannot inherit an old third pass and overstate agreement.
+    for stale_pass in verification_dir.glob("candidate_pass_*.json"):
+        stale_pass.unlink(missing_ok=True)
+    pass_paths: list[str] = []
+    for pass_number, (pass_payload, normalized_rows) in enumerate(zip(parsed_passes, normalized_passes), start=1):
+        pass_path = verification_dir / f"candidate_pass_{pass_number}.json"
+        pass_artifact = {
+            "status": "provisional_candidate_pass",
+            "authoritative_golden_set": False,
+            "provider": "firecrawl",
+            "pass_number": pass_number,
+            "pdf_sha256": document.get("sha256"),
+            "source_url": document.get("source_url"),
+            "mode": str(pass_payload.get("mode") or "auto"),
+            "detected_fiscal_year": pass_payload.get("detected_fiscal_year"),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "rows": normalized_rows,
+            "response_metadata": pass_payload.get("metadata") or {},
+        }
+        pass_temporary = pass_path.with_suffix(".json.tmp")
+        pass_temporary.write_text(json.dumps(pass_artifact, ensure_ascii=False, indent=2), encoding="utf-8")
+        pass_temporary.replace(pass_path)
+        pass_paths.append(str(pass_path))
     candidate_path = verification_dir / "candidate_answers.json"
     generated_at = datetime.now(timezone.utc).isoformat()
     artifact = {
         "status": "human_review_required",
         "authoritative_golden_set": False,
         "provider": "firecrawl",
+        "candidate_method": candidate_method,
         "pdf_sha256": document.get("sha256"),
         "source_url": document.get("source_url"),
-        "mode": str(parsed.get("mode") or "auto"),
-        "detected_fiscal_year": parsed.get("detected_fiscal_year"),
+        "mode": str(parsed_passes[0].get("mode") or "auto"),
+        "detected_fiscal_year": parsed_passes[0].get("detected_fiscal_year"),
         "generated_at": generated_at,
         "rows": rows,
-        "response_metadata": parsed.get("metadata") or {},
+        "consensus_summary": consensus_summary,
+        "candidate_pass_paths": pass_paths,
     }
     temporary = candidate_path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(candidate_path)
+    existing_verification = document.get("verification") if isinstance(document.get("verification"), dict) else {}
+    preserve_approval = (
+        existing_verification.get("status") == "human_verified"
+        and existing_verification.get("source_sha256") == document.get("sha256")
+        and bool(existing_verification.get("approved_path"))
+    )
     updated = {
         **document,
         "verification": {
-            "status": "human_review_required",
+            **existing_verification,
+            "status": "human_verified" if preserve_approval else "human_review_required",
             "source_sha256": document.get("sha256"),
             "provider": "firecrawl",
             "candidate_path": str(candidate_path),
-            "approved_path": None,
+            "candidate_pass_paths": pass_paths,
+            "candidate_method": candidate_method,
+            "consensus_summary": consensus_summary,
+            "approved_path": existing_verification.get("approved_path") if preserve_approval else None,
             "generated_at": generated_at,
-            "approved_at": None,
+            "approved_at": existing_verification.get("approved_at") if preserve_approval else None,
         },
     }
     return upsert_document(updated)

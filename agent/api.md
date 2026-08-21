@@ -20,6 +20,9 @@
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |
 | GET | `/api/corpus` | Read the pinned local corpus manifest and screening summary |
+| GET/PUT | `/api/corpus/<sha256>/verification` | Read extracted review rows or save the reviewer's SHA-bound approval |
+| POST | `/api/corpus/<sha256>/verification/extract` | Ensure a legacy/missing review sheet is extracted and prefilled from the pinned PDF before editing |
+| GET | `/api/corpus/<sha256>/pdf` | Serve the pinned source PDF inside the review workspace |
 | DELETE | `/api/corpus/<sha256>` | Delete one manifest-owned corpus PDF after an explicit client confirmation; extraction runs remain intact |
 | POST | `/api/corpus/stage` | Validate selected SHA-256 corpus entries and stage their durable PDFs for the normal extraction stream |
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
@@ -27,7 +30,10 @@
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
 | GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
-The assignment API has no browser access-token layer. Browser preflight is
+The assignment API has no browser access-token layer. The client assigns one
+random anonymous `X-Ledger-Workspace` ID per browser storage profile so staged
+uploads, extraction jobs, run history and deletions do not mix across ordinary
+visitors. This is isolation, not identity or authentication. Browser preflight is
 allowed only for configured `CORS_ALLOWED_ORIGINS`, while the traffic endpoint
 also enforces the configured production origins, accepts a small metadata-only
 JSON body, and never returns connector details. CORS is not authentication:
@@ -40,8 +46,11 @@ OpenAI-compatible chat-completions providers configured in `providers.py`:
 OpenRouter, OpenAI, Z.AI, Z.AI Coding, or a custom endpoint. Authentication uses
 an API key from local environment settings. No credentials belong in this file.
 
-Firecrawl v2 map/search is used for link discovery, followed by a structured
-PDF scrape that prepopulates an unverified 27-row candidate table. All credit-consuming
+Firecrawl v2 map/search is used for link discovery, followed by three uncached
+structured PDF passes that prepopulate an unverified 27-row consensus table and
+retain per-row agreement metadata. The review endpoint runs this extraction on
+demand for older pinned documents that have no candidate artifact; it never
+returns a blank table as a substitute for extraction. All credit-consuming
 calls share one cross-process 12.5-second request gate and an account-wide
 `Retry-After` cooldown. Candidate PDFs are downloaded directly, validated,
 hashed and screened locally; crawling never starts an LLM extraction

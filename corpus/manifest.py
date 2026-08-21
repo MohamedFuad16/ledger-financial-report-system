@@ -65,6 +65,9 @@ def _document_owned_paths(document: dict[str, Any]) -> list[Path]:
             str(verification.get("candidate_path") or ""),
             str(verification.get("approved_path") or ""),
         ])
+        pass_paths = verification.get("candidate_pass_paths")
+        if isinstance(pass_paths, list):
+            raw_paths.extend(str(path or "") for path in pass_paths)
     paths: list[Path] = []
     for raw_path in raw_paths:
         owned = _manifest_owned_path(raw_path)
@@ -196,6 +199,8 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
             "filename": document.get("filename"),
             "status": "assignment_supplied",
             "authoritative_golden_set": True,
+            "candidate_extracted": True,
+            "extracted_row_count": len(ASSET_SCHEMA),
             "source_sha256": document.get("sha256"),
             "rows": [
                 {**row, "answer_m_usd": answers.get(str(row["item"])), "confidence": 1.0, "source_page": None, "evidence": None}
@@ -211,9 +216,11 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
     if artifact is None:
         artifact = _read_json_owned(str(verification.get("candidate_path") or ""))
         status = "human_review_required"
+    artifact_rows = (artifact or {}).get("rows") or []
+    candidate_extracted = isinstance(artifact_rows, list) and len(artifact_rows) == len(ASSET_SCHEMA)
     rows_by_item = {
         str(row.get("item") or ""): row
-        for row in ((artifact or {}).get("rows") or [])
+        for row in artifact_rows
         if isinstance(row, dict)
     }
     rows = []
@@ -225,6 +232,11 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
             "confidence": candidate.get("confidence"),
             "source_page": candidate.get("source_page"),
             "evidence": candidate.get("evidence"),
+            "pass_values": candidate.get("pass_values"),
+            "agreement_count": candidate.get("agreement_count"),
+            "successful_passes": candidate.get("successful_passes"),
+            "agreement_ratio": candidate.get("agreement_ratio"),
+            "stability": candidate.get("stability"),
         })
     return {
         "document_id": document.get("sha256"),
@@ -233,9 +245,13 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
         "filename": document.get("filename"),
         "status": status,
         "authoritative_golden_set": status == "human_verified",
+        "candidate_extracted": candidate_extracted,
+        "extracted_row_count": len(artifact_rows) if isinstance(artifact_rows, list) else 0,
         "source_sha256": document.get("sha256"),
         "generated_at": verification.get("generated_at"),
         "approved_at": verification.get("approved_at"),
+        "candidate_method": verification.get("candidate_method"),
+        "consensus_summary": verification.get("consensus_summary"),
         "rows": rows,
     }
 

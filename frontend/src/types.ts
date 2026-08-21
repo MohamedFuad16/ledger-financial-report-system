@@ -164,8 +164,20 @@ export interface CorpusDocument {
   output_directory?: string
   output_count?: number
   verification_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  candidate_extracted?: boolean
   candidate_count?: number
+  candidate_method?: string | null
+  consensus_summary?: CorpusConsensusSummary | null
   approved_at?: string | null
+}
+
+export interface CorpusConsensusSummary {
+  requested_passes: number
+  successful_passes: number
+  exact_agreement_rows: number
+  stable_rows: number
+  disagreement_rows: number
+  missing_rows: number
 }
 
 export interface CorpusManifest {
@@ -182,6 +194,11 @@ export interface CorpusVerificationRow {
   answer_m_usd: number | null
   source_page?: number | null
   evidence?: string | null
+  pass_values?: Array<number | null>
+  agreement_count?: number
+  successful_passes?: number
+  agreement_ratio?: number
+  stability?: 'exact' | 'stable' | 'disagreement' | 'missing'
 }
 
 export interface CorpusVerification {
@@ -192,7 +209,11 @@ export interface CorpusVerification {
   sha256: string
   status: 'assignment_supplied' | 'human_verified' | 'human_review_required'
   immutable?: boolean
+  candidate_extracted?: boolean
+  extracted_row_count?: number
   approved_at?: string | null
+  candidate_method?: string | null
+  consensus_summary?: CorpusConsensusSummary | null
   rows: CorpusVerificationRow[]
 }
 

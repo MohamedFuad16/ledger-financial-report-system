@@ -167,10 +167,57 @@ class CorpusManifestTests(unittest.TestCase):
                 self.assertFalse(candidate["authoritative_golden_set"])
                 self.assertEqual(27, len(candidate["rows"]))
                 self.assertEqual(123.0, candidate["rows"][0]["answer_m_usd"])
+                review = manifest_module.verification_payload(pinned)
+                self.assertTrue(review["candidate_extracted"])
+                self.assertEqual(27, review["extracted_row_count"])
 
                 manifest_module.delete_pinned_document(document["sha256"])
                 self.assertFalse(pdf_path.exists())
                 self.assertFalse(candidate_path.exists())
+
+    def test_multi_pass_candidates_prefill_a_non_authoritative_consensus(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "corpus_dataset"
+            pdf_path = root / "Example" / "2024" / "Example_annual_report_2024.pdf"
+            pdf_path.parent.mkdir(parents=True)
+            pdf_path.write_bytes(b"%PDF-test")
+            document = {
+                "sha256": "9" * 64,
+                "company": "Example",
+                "company_slug": "Example",
+                "fiscal_year": 2024,
+                "filename": pdf_path.name,
+                "local_path": str(pdf_path),
+                "source_url": "https://example.com/report.pdf",
+            }
+            passes = [{
+                "mode": "auto",
+                "detected_fiscal_year": 2024,
+                "rows": [{
+                    "item": row["item"],
+                    "answer_m_usd": 100.0 + pass_number if index == 0 else None,
+                    "confidence": 0.9,
+                    "source_page": 10,
+                    "evidence": "Extracted from the PDF",
+                } for index, row in enumerate(ASSET_SCHEMA)],
+            } for pass_number in (0, 0, 1)]
+
+            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
+                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            ), patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
+                fetch_module, "upsert_document", side_effect=manifest_module.upsert_document
+            ):
+                manifest_module.upsert_document(document)
+                pinned = fetch_module.pin_candidate_answers(document, passes, requested_passes=3)
+                review = manifest_module.verification_payload(pinned)
+
+            self.assertEqual("human_review_required", review["status"])
+            self.assertTrue(review["candidate_extracted"])
+            self.assertFalse(review["authoritative_golden_set"])
+            self.assertEqual(100.0, review["rows"][0]["answer_m_usd"])
+            self.assertEqual(2, review["rows"][0]["agreement_count"])
+            self.assertEqual("stable", review["rows"][0]["stability"])
+            self.assertEqual(3, review["consensus_summary"]["requested_passes"])
 
     def test_human_approval_is_sha_bound_and_does_not_survive_changed_pdf(self):
         with tempfile.TemporaryDirectory() as temp_dir:

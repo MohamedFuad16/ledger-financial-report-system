@@ -338,6 +338,7 @@ def run_pipeline(
     temperature: float = 0.1,
     reasoning_effort: str = "",
     display_name: Optional[str] = None,
+    workspace_id: str = "legacy-public",
     on_progress=None,
 ) -> dict[str, Any]:
     """
@@ -357,7 +358,7 @@ def run_pipeline(
             system_prompt=system_prompt, fiscal_year_hint=fiscal_year_hint,
             enable_reasoning=enable_reasoning, temperature=temperature,
             reasoning_effort=reasoning_effort,
-            display_name=display_name, on_progress=on_progress,
+            display_name=display_name, workspace_id=workspace_id, on_progress=on_progress,
         )
     except Exception:
         # A run that failed before writing anything leaves an empty directory
@@ -386,6 +387,7 @@ def _run_pipeline_inner(
     temperature: float,
     reasoning_effort: str,
     display_name: Optional[str],
+    workspace_id: str,
     on_progress,
 ) -> dict[str, Any]:
     step_started: dict[str, float] = {}
@@ -541,6 +543,7 @@ def _run_pipeline_inner(
     progress("output", "Saving extraction result")
     prediction: dict[str, Any] = {
         "run_id": run_dir.name,
+        "workspace_id": workspace_id,
         "strategy": strategy.key,
         "strategy_label": strategy.label,
         "parser": strategy.parser,
@@ -618,7 +621,7 @@ def run_timestamp(run_id: str) -> str:
     return match.group(1) if match else ""
 
 
-def list_runs() -> list[dict[str, Any]]:
+def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
     """Summarize every stored run, newest first."""
     summaries: list[dict[str, Any]] = []
     if not RUNS_DIR.exists():
@@ -627,6 +630,8 @@ def list_runs() -> list[dict[str, Any]]:
     for directory in iter_run_dirs():
         prediction = load_prediction(directory.name)
         if prediction is None:
+            continue
+        if workspace_id is not None and str(prediction.get("workspace_id") or "legacy-public") != workspace_id:
             continue
 
         rows = apply_confidence_gate(prediction.get("rows", []))

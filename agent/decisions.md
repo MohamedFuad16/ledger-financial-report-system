@@ -26,8 +26,8 @@
 | ADR-0022 | — Treat answer-key provenance separately from reconciliation | — |
 | ADR-0023 | — Separate the no-OCR and OCR-enabled parser arms | — |
 | ADR-0024 | — Coordinate Firecrawl pacing and manifest writes across processes | — |
-
-# Decisions (ADRs) — append-only
+| ADR-0025 | — Isolate public run state by anonymous browser workspace | — |
+| ADR-0026 | — Require PDF extraction before human answer review | — |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -196,3 +196,17 @@
 - Context: ADR-0021's process-local seven-second gate was still vulnerable to a second worker process and exceeded the observed account limit once request timing and retries overlapped. The JSON manifest's thread-only lock had the same cross-process lost-update risk.
 - Decision: Reserve every credit-consuming Firecrawl call through an OS-file-locked, cross-process 12.5-second gate, extend the same shared state with account-wide `Retry-After` cooldowns, and protect manifest read-modify-write operations with a separate OS file lock. Keep the implementation file-backed while the worker remains single-host.
 - Consequences: Gunicorn threads and local worker processes on the EC2 host cannot bypass pacing or overwrite each other's manifest updates. A horizontally scaled deployment still requires a distributed lease/transaction store such as Redis or DynamoDB; the local lock is not a multi-host queue.
+
+## ADR-0025 — Isolate public run state by anonymous browser workspace
+- Date: 2026-08-22
+- Status: Accepted; refines ADR-0013 and ADR-0018
+- Context: Removing the browser access token made the assignment usable, but all visitors still shared staged-upload IDs, extraction-job listings, run history, output counts and destructive run actions through one public API surface.
+- Decision: Generate one random stable workspace identifier in browser local storage and send it as `X-Ledger-Workspace`. Stamp staged files, extraction jobs and predictions with that identifier; filter job/run reads and require the same workspace for run deletion and evaluation. Keep corpus documents shared because they are the public benchmark library.
+- Consequences: Ordinary visitors no longer see or delete each other's run state, while legacy artifacts remain in the `legacy-public` workspace. The header is an isolation hint, not authentication: a caller that knows another identifier can impersonate it, so real identity and quota controls remain required for a multi-tenant product.
+
+## ADR-0026 — Require PDF extraction before human answer review
+- Date: 2026-08-22
+- Status: Accepted; refines ADR-0023
+- Context: The review API synthesized 27 schema rows even when no candidate artifact existed, and the corpus list counted those placeholders as candidates. The UI therefore opened a blank table and effectively asked the reviewer to author the benchmark key from scratch, contradicting the intended extract-review-correct-approve workflow.
+- Decision: Treat candidate-artifact existence as a first-class state. Run up to three uncached Firecrawl PDF passes, retain each pass, form a provisional consensus with agreement metadata, and expose an idempotent on-demand extraction route for legacy documents. Do not render editable review inputs until extraction succeeds. Present the pinned PDF beside the prefilled table, allow corrections, then require a separate confirmation to save SHA-bound human approval.
+- Consequences: “Human review required” now means machine extraction is ready for validation, not manual data entry. A failed or unavailable extractor produces an explicit retry state and cannot be approved as a blank table. Multi-pass agreement measures repeatability only and never promotes candidates to gold automatically.

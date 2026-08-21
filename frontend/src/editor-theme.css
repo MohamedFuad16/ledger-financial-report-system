@@ -572,8 +572,9 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .corpus-delete-column { width: 94px; text-align: right; }
 .corpus-delete-button { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid color-mix(in srgb, var(--red) 34%, var(--line)); border-radius: 9px; background: var(--surface-raised); color: var(--red); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .corpus-delete-button:hover { border-color: var(--red); background: color-mix(in srgb, var(--red) 6%, var(--surface-raised)); }
-.corpus-review-button { margin-top: 7px; padding: 0; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
-.corpus-review-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.corpus-verification-cell { min-width: 185px; display: flex; align-items: flex-start; flex-direction: column; gap: 8px; }
+.corpus-review-button { min-height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised)); color: var(--accent-ink); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.corpus-review-button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-raised)); }
 .confirm-dialog-backdrop { position: fixed; z-index: 100; inset: 0; padding: 24px; display: grid; place-items: center; background: rgba(15, 23, 42, .34); backdrop-filter: blur(5px); }
 .confirm-dialog { position: relative; width: min(100%, 440px); padding: 30px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface-raised); box-shadow: 0 24px 80px rgba(15, 23, 42, .25); }
 .confirm-dialog-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--muted); cursor: pointer; }
@@ -614,15 +615,34 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .review-sheet > header h2 { margin: 5px 0 7px; color: var(--text); font-size: 24px; letter-spacing: -.035em; }
 .review-sheet > header p { max-width: 850px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .review-sheet > header > button { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--muted); cursor: pointer; }
-.review-sheet-actions { padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
+.review-sheet-actions { padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
+.candidate-row-summary { color: var(--text); font-size: 11px; font-weight: 700; }
+.candidate-consensus-summary { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 650; }
 .review-sheet-actions .button { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
-.review-sheet-loading { min-height: 360px; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--muted); font-size: 12px; }
+.review-workspace { min-height: 0; display: grid; grid-template-columns: minmax(330px, .72fr) minmax(620px, 1.28fr); overflow: hidden; }
+.review-pdf-pane { min-width: 0; min-height: 0; padding: 12px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; border-right: 1px solid var(--line); background: var(--surface-soft); }
+.review-pdf-pane > div { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; color: var(--muted); }
+.review-pdf-pane strong { color: var(--text); font-size: 11px; }
+.review-pdf-pane small { color: var(--faint); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.review-pdf-pane object { width: 100%; height: 100%; min-height: 420px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
+.review-answer-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.review-prefill-note { padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised)); color: var(--accent-ink); }
+.review-prefill-note div { display: flex; flex-direction: column; gap: 3px; }
+.review-prefill-note strong { color: var(--text); font-size: 11px; }
+.review-prefill-note span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.review-sheet-loading { min-height: 360px; padding: 24px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--muted); font-size: 12px; text-align: center; }
+.review-sheet-loading strong { color: var(--text); font-size: 13px; }
+.review-sheet-loading span { max-width: 420px; color: var(--muted); font-size: 11px; }
+.review-extraction-error { min-height: 360px; padding: 32px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; color: var(--amber); text-align: center; }
+.review-extraction-error strong { color: var(--text); font-size: 14px; }
+.review-extraction-error p { max-width: 520px; margin: 0 0 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .review-table-wrap { min-height: 0; overflow: auto; }
-.review-table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+.review-table { width: 100%; min-width: 910px; border-collapse: collapse; }
 .review-table th { position: sticky; z-index: 1; top: 0; padding: 11px 12px; border-bottom: 1px solid var(--line); background: var(--surface-soft); color: var(--faint); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
 .review-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.45; vertical-align: middle; }
 .review-table td:first-child { width: 42px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .review-table td strong { color: var(--text); font-size: 11.5px; }
+.review-table td small { margin-top: 3px; display: block; color: var(--faint); font-size: 9px; }
 .review-table input { width: 130px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-raised); color: var(--text); font: inherit; font-variant-numeric: tabular-nums; }
 .review-table input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-color: var(--accent); }
 .review-table input:disabled { background: var(--surface-soft); color: var(--muted); }
@@ -724,6 +744,10 @@ html[lang='ja'] .creator-link strong { font-size: 13px; }
   .page { width: 100%; min-width: 0; overflow: hidden; }
   .page > *, .dashboard-layout > *, .dashboard-lower > *, .strategy-workspace > *, .settings-layout > * { min-width: 0; }
   .table-shell, .table-scroll, .run-table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .review-workspace { display: block; overflow: auto; }
+  .review-pdf-pane { height: 38dvh; min-height: 280px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .review-pdf-pane object { min-height: 220px; }
+  .review-answer-pane { min-height: 440px; overflow: visible; }
 }
 
 @media (max-width: 720px) {
@@ -768,6 +792,12 @@ html[lang='ja'] .creator-link strong { font-size: 13px; }
   .review-sheet > header { padding: 18px 16px 13px; gap: 12px; }
   .review-sheet > header h2 { font-size: 21px; }
   .review-sheet-actions { padding: 10px 16px; }
+  .candidate-row-summary { width: 100%; }
+  .candidate-consensus-summary { width: 100%; margin-left: 0; }
+  .review-pdf-pane { height: 34dvh; min-height: 240px; padding: 10px; }
+  .review-pdf-pane > div { grid-template-columns: auto 1fr; }
+  .review-pdf-pane small { grid-column: 2; }
+  .review-prefill-note { padding: 10px 12px; }
   .review-sheet > footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); align-items: stretch; flex-direction: column; }
   .review-sheet > footer .button { width: 100%; justify-content: center; }
 }

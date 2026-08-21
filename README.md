@@ -98,7 +98,7 @@ model JSON
   → score only when an authoritative or SHA-bound human-approved golden set exists
 ```
 
-The answer key is never model input. A low-confidence value stays in the audit artifact but is displayed and scored as unanswered. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Firecrawl-generated candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256.
+The answer key is never model input. A low-confidence value stays in the audit artifact but is displayed and scored as unanswered. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Firecrawl-generated candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256. Human review never starts from a blank form: Ledger first extracts and prefills the complete schema, shows the pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
 
 | Metric | Meaning |
 |---|---|
@@ -118,7 +118,7 @@ corpus_dataset/
         └── <company>_annual_report_<year>.pdf
 ```
 
-`corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. The worker persists the PDF first, then asks Firecrawl for a structured 27-row candidate table. Candidate answers are never promoted to gold automatically. Unverified reports may still be used for extraction with a visible warning, but they do not receive an exact-accuracy score.
+`corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. The worker persists the PDF first, then asks Firecrawl for three uncached structured extraction passes and stores their provisional consensus with explicit agreement metadata. If a legacy pinned PDF has no candidate artifact, opening **Review extracted answers** runs the same extraction before displaying editable fields; a failed extraction shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically. Unverified reports may still be used for extraction with a visible warning, but they do not receive an exact-accuracy score.
 
 The standalone worker accepts a CSV or JSON company list:
 

@@ -14,6 +14,67 @@ from .fetch import fetch_report, pin_candidate_answers
 Progress = Callable[[dict[str, Any]], None]
 
 
+def extract_document_candidates(
+    document: dict[str, Any],
+    *,
+    api_key: str = "",
+    firecrawl_pdf_mode: str = "auto",
+    candidate_passes: int = 3,
+    on_event: Progress | None = None,
+    client: FirecrawlClient | None = None,
+) -> dict[str, Any]:
+    """Extract and persist a review-ready answer sheet for one pinned PDF.
+
+    The result is intentionally provisional. It pre-fills the human review UI,
+    but it does not become benchmark gold until the reviewer approves it.
+    """
+    emit = on_event or (lambda _event: None)
+    source_url = str(document.get("source_url") or "").strip()
+    if not source_url:
+        raise ValueError("The pinned report has no source PDF URL to extract.")
+    if client is None:
+        client = FirecrawlClient(
+            api_key or os.getenv("FIRECRAWL_API_KEY", ""),
+            on_retry=lambda attempt, delay, error: emit({
+                "type": "retry", "attempt": attempt, "delay": round(delay, 1), "message": error,
+            }),
+        )
+
+    requested_passes = max(1, min(int(candidate_passes), 3))
+    parsed_passes: list[dict[str, Any]] = []
+    for pass_number in range(1, requested_passes + 1):
+        emit({
+            "type": "candidate_pass_started",
+            "company": document.get("company"),
+            "year": document.get("fiscal_year"),
+            "pass": pass_number,
+            "passes": requested_passes,
+        })
+        try:
+            parsed_passes.append(client.extract_candidate_answers(source_url, mode=firecrawl_pdf_mode))
+        except Exception as exc:
+            emit({
+                "type": "candidate_pass_failed",
+                "company": document.get("company"),
+                "year": document.get("fiscal_year"),
+                "pass": pass_number,
+                "passes": requested_passes,
+                "message": str(exc),
+            })
+            continue
+        emit({
+            "type": "candidate_pass_ready",
+            "company": document.get("company"),
+            "year": document.get("fiscal_year"),
+            "pass": pass_number,
+            "passes": requested_passes,
+        })
+
+    if not parsed_passes:
+        raise RuntimeError("The PDF answer extraction failed on every attempt.")
+    return pin_candidate_answers(document, parsed_passes, requested_passes=requested_passes)
+
+
 def build_corpus(
     companies: list[dict[str, str]],
     years: Iterable[int] = range(2020, 2026),
@@ -21,6 +82,7 @@ def build_corpus(
     api_key: str = "",
     max_downloads: int = 3,
     firecrawl_pdf_mode: str = "auto",
+    candidate_passes: int = 3,
     on_event: Progress | None = None,
 ) -> dict[str, Any]:
     years = sorted({int(year) for year in years if 2020 <= int(year) <= 2025})
@@ -90,11 +152,13 @@ def build_corpus(
                     "mode": firecrawl_pdf_mode,
                 })
                 try:
-                    parsed = client.extract_candidate_answers(
-                        str(document["source_url"]),
-                        mode=firecrawl_pdf_mode,
+                    document = extract_document_candidates(
+                        document,
+                        firecrawl_pdf_mode=firecrawl_pdf_mode,
+                        candidate_passes=candidate_passes,
+                        on_event=emit,
+                        client=client,
                     )
-                    document = pin_candidate_answers(document, parsed)
                 except Exception as exc:
                     emit({
                         "type": "candidate_extraction_failed",
@@ -112,6 +176,7 @@ def build_corpus(
                         "provider": "firecrawl",
                         "mode": firecrawl_pdf_mode,
                         "rows": len(document.get("verification", {})) and 27,
+                        "consensus": document.get("verification", {}).get("consensus_summary"),
                     })
                 downloaded.append(document)
 
