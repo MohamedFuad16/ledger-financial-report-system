@@ -12,6 +12,8 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Expanded the answer-review workspace to the full viewport, gave the searchable source PDF 46% of the width with a single-page vertical fit, widened and wrapped extracted evidence, and made English mode normalize legacy Japanese schema labels back to the canonical English contract — why: keep one balance-sheet page legible beside an evidence table without clipping or mixed-locale schema labels — by: leader — session: 50-company corpus rebuild
+
 - 2026-08-22 — Crawled and pinned five additional official FY2022 annual reports, checked their statement figures independently with Poppler and PyMuPDF, and materialized 116 defensible SHA-bound M-JPY gold rows while marking 19 combined/undisclosed schema splits unscorable — why: expand the benchmark without fabricating values merely to fill all 27 rows — by: leader — session: five-company FY2022 gold expansion
 
 - 2026-08-22 — Added a source-verified public benchmark feed, changed speed/accuracy charts to exactly two equal-weight OCR/no-OCR arm means, fixed the empty quality-composition overlap, sorted discovery activity by actual update time, grouped company/year corpus rows, widened the review table and constrained the searchable PDF to one detected A4 page, and exposed exactly 100 evidence-backed company targets with pending acquisition states — why: align dashboard statistics and review/corpus UI with the requested experiment while preventing private runs or research seeds from being mislabeled as benchmark evidence — by: leader — session: dashboard and 100-company corpus sweep

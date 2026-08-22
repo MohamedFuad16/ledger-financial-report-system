@@ -66,9 +66,14 @@ const japaneseSchemaText: Record<string, string> = {
   'Current Assets + Fixed Assets + Deferred Charges': '流動資産、固定資産、繰延資産の合計。',
 }
 
+const englishSchemaText = Object.fromEntries(
+  Object.entries(japaneseSchemaText).map(([english, japanese]) => [japanese, english]),
+)
+
 export function localizeSchemaText(value: string | null | undefined, locale: Locale): string {
   if (!value) return ''
-  return locale === 'ja' ? japaneseSchemaText[value] || value : value
+  const english = englishSchemaText[value] || value
+  return locale === 'ja' ? japaneseSchemaText[english] || value : english
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null)

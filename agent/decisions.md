@@ -291,3 +291,10 @@
 - Context: A second independently audited FY2022 cohort should become runtime gold without folding unrelated public controls into the Bakuraku fixture. Several filings disclose a requested subtotal but combine child categories that the 27-row schema asks to split.
 - Decision: Load only an explicit filename allowlist of reviewed fixtures, merge by exact PDF SHA-256, and fail on duplicate source authority. For every partial key, require `answers` and `unscorable_rows` to be disjoint and together partition all 27 canonical rows. Preserve directly disclosed subtotals while omitting unsupported child splits; do not infer them from model candidates or force them to zero.
 - Consequences: Five new exact sources contribute 116 scorable rows without weakening provenance. Adding another fixture requires a deliberate loader edit, and incomplete audits fail the contract test if any schema row is silently unaccounted for.
+
+## ADR-0038 — Normalize schema locale independently from source language
+- Date: 2026-08-22
+- Status: Accepted
+- Context: Source-bound rows can outlive the UI locale that created them. The prior schema helper translated canonical English labels into Japanese but could not recover canonical English when a stored row already contained a Japanese schema label. The review workspace also constrained the source PDF more aggressively than the evidence table needed.
+- Decision: Treat the 27 canonical English labels as the storage/output contract and make UI localization bidirectional for known schema labels. Preserve raw source evidence in its filing language. Use nearly the full viewport for review, assign 46% to the searchable native PDF with single-page vertical fit, and reserve a fixed 42% table column for wrapping evidence.
+- Consequences: Selecting English consistently shows English schema labels even for legacy Japanese rows, while Japanese quotations remain faithful evidence rather than machine-translated text. The modal fits substantially more source and evidence content without introducing a second horizontal table scrollbar.
