@@ -46,6 +46,7 @@ def _year_mentions(text: str) -> list[str]:
 
 def _balance_sheet_page(text: str) -> int | None:
     markers = list(PAGE_MARKER.finditer(text))
+    candidates: list[tuple[float, int]] = []
     for index, marker in enumerate(markers):
         end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
         page = text[marker.end():end]
@@ -53,9 +54,21 @@ def _balance_sheet_page(text: str) -> int | None:
             any(re.search(term, page, re.I) for term in alternatives)
             for alternatives in FINANCIAL_TERM_GROUPS
         )
-        if BALANCE_SHEET.search(page) and financial_terms >= 3:
-            return int(marker.group(1))
-    return None
+        if not BALANCE_SHEET.search(page) or financial_terms < 3:
+            continue
+        # Management discussion often contains a prose heading named
+        # "Balance Sheet" before the audited statement. Rank all candidates
+        # and prefer the page that actually carries the asset-side statement.
+        # These are document-shape signals only; they contain no answer values.
+        score = float(financial_terms)
+        score += 8.0 if re.search(r"consolidated\s+balance\s+sheets?", page, re.I) else 0.0
+        score += 3.0 if re.search(r"\bassets\s*\n\s*current\s+assets\b", page, re.I) else 0.0
+        score += 3.0 if re.search(r"\btotal\s+assets\b", page, re.I) else 0.0
+        score += 1.5 if re.search(r"\b(?:goodwill|intangible\s+assets)\b", page, re.I) else 0.0
+        score += 1.5 if re.search(r"\baccumulated\s+depreciation\b", page, re.I) else 0.0
+        score += min(3.0, len(re.findall(r"(?m)^.*\d[\d,().$ -]*$", page)) / 8.0)
+        candidates.append((score, int(marker.group(1))))
+    return max(candidates, default=(0.0, None), key=lambda item: (item[0], -item[1]))[1]
 
 
 def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:

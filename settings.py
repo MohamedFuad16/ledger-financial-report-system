@@ -51,9 +51,9 @@ def current_settings() -> dict[str, Any]:
     provider = get_provider(provider_key)
 
     try:
-        temp = float(os.getenv("LLM_TEMPERATURE") or os.getenv("GLM_TEMPERATURE", "0.1"))
+        temp = float(os.getenv("LLM_TEMPERATURE") or os.getenv("GLM_TEMPERATURE", "0.0"))
     except ValueError:
-        temp = 0.1
+        temp = 0.0
 
     effort = _reasoning_effort_from_env()
     try:
@@ -78,13 +78,6 @@ def current_settings() -> dict[str, Any]:
         "auto_concurrency": auto_concurrency,
         "firecrawl_api_key": os.getenv("FIRECRAWL_API_KEY", ""),
         "firecrawl_pdf_mode": firecrawl_pdf_mode,
-        # Hosted page OCR is a separate Z.AI tool endpoint. A dedicated key can
-        # be supplied without exposing it to the browser; otherwise the active
-        # Z.AI gateway key is reused.
-        "glm_ocr_api_key": os.getenv("GLM_OCR_API_KEY", "") or api_key,
-        "glm_ocr_endpoint": os.getenv(
-            "GLM_OCR_ENDPOINT", "https://api.z.ai/api/paas/v4/layout_parsing"
-        ),
     }
 
 
@@ -93,7 +86,7 @@ def save_verified_settings(
     model: str,
     base_url: str,
     enable_reasoning: bool = True,
-    temperature: float = 0.1,
+    temperature: float = 0.0,
     provider: str = "",
     reasoning_effort: str = "",
 ) -> None:

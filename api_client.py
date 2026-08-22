@@ -210,7 +210,7 @@ def run_extraction(
     user_prompt: str,
     run_dir: Path,
     enable_reasoning: bool = True,
-    temperature: float = 0.1,
+    temperature: float = 0.0,
     timeout: int = 600,
     on_retry=None,
     provider: str = "",

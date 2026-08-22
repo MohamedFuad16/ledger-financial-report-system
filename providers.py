@@ -44,16 +44,15 @@ PROVIDERS: dict[str, Provider] = {
         label="OpenRouter",
         base_url="https://openrouter.ai/api/v1",
         reasoning_style="reasoning",
-        # DeepSeek V4 Flash: a 1.3M-token context at roughly $0.065 / M input
-        # tokens, with cache reads about 4.6x cheaper again. An annual report is
-        # ~130k tokens, so context size and cache pricing both matter here.
-        default_model="deepseek/deepseek-v4-flash-latest",
+        # Pin the GA snapshot for benchmark reproducibility. Mutable "latest"
+        # aliases can silently change accuracy between otherwise identical runs.
+        default_model="deepseek/deepseek-v4-flash-0731",
         suggested_models=[
-            "deepseek/deepseek-v4-flash-latest",
             "deepseek/deepseek-v4-flash-0731",
-            "deepseek/deepseek-v4-pro-0813",
-            "openai/gpt-5.6-sol",
-            "anthropic/claude-opus-5",
+            "openai/gpt-5.4-nano",
+            "mistralai/mistral-small-2603",
+            "google/gemini-3.7-flash",
+            "qwen/qwen3.7-plus",
             "z-ai/glm-5.3",
         ],
         extra_headers={

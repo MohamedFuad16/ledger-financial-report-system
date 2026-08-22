@@ -114,7 +114,7 @@ with st.container(border=True):
             )
 
     enable_reasoning = st.toggle("Enable model reasoning", value=settings.get("enable_reasoning", True))
-    temperature = st.slider("Temperature", 0.0, 1.0, float(settings.get("temperature", 0.1)), 0.05)
+    temperature = st.slider("Temperature", 0.0, 1.0, float(settings.get("temperature", 0.0)), 0.05)
 
     if st.button("Test connection & save", use_container_width=True):
         candidate_key = api_key_input.strip() or settings["api_key"]
@@ -192,7 +192,7 @@ if uploaded_file is not None:
                     system_prompt=SYSTEM_PROMPT,
                     fiscal_year_hint=fiscal_year,
                     enable_reasoning=settings.get("enable_reasoning", True),
-                    temperature=settings.get("temperature", 0.1),
+                    temperature=settings.get("temperature", 0.0),
                     display_name=uploaded_file.name,
                     on_progress=lambda update: st.write(update.get("message", "")),
                 )

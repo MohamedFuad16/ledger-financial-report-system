@@ -8,17 +8,13 @@ pipeline is strategy-agnostic.
 
 from __future__ import annotations
 
-import base64
-import os
 import re
 import threading
-import time
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import requests
 from pypdf import PdfReader
 
 from intelligent_scan import select_evidence_pages
@@ -594,81 +590,42 @@ def extract_with_pdf_inspector(pdf_path: Path) -> ExtractedText:
     return extracted
 
 
-_GLM_OCR_REQUEST_LOCK = threading.Lock()
-_GLM_OCR_NEXT_REQUEST_AT = 0.0
+_LOCAL_OCR_LOCK = threading.Lock()
+_LOCAL_OCR_ENGINE: Any | None = None
 
 
-def _glm_ocr_markdown(
+def _local_ocr_markdown(
     image_bytes: bytes,
     *,
-    api_key: str,
-    endpoint: str,
     page_no: int,
-    timeout: float = 180.0,
 ) -> str:
-    """Return GLM-OCR Markdown for one rendered page with bounded retries.
+    """Return locally recognized, layout-preserving text for one rendered page.
 
-    The official layout-parsing API accepts an image data URL. Calls are kept
-    sequential and lightly spaced because a scanned report can otherwise turn
-    one user action into a burst of dozens of OCR requests.
+    RapidOCR bundles PP-OCRv6 ONNX detector/recognizer models, so no report
+    image or credential leaves the worker. The engine is loaded lazily once
+    and guarded because concurrent ONNX calls on a small CPU worker increase
+    latency without improving throughput.
     """
-    if not api_key.strip():
-        raise RuntimeError(
-            "GLM-OCR requires a Z.AI API key. Configure GLM_OCR_API_KEY or "
-            "save a Z.AI model gateway key in Settings."
-        )
-    data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
-    url = endpoint.rstrip("/")
-    headers = {"Authorization": f"Bearer {api_key.strip()}", "Content-Type": "application/json"}
-    payload = {
-        "model": "glm-ocr",
-        "file": data_url,
-        "return_crop_images": False,
-        "need_layout_visualization": False,
-    }
-    last_error = "Unknown GLM-OCR error"
-    for attempt in range(1, 5):
-        global _GLM_OCR_NEXT_REQUEST_AT
-        with _GLM_OCR_REQUEST_LOCK:
-            delay = max(0.0, _GLM_OCR_NEXT_REQUEST_AT - time.monotonic())
-            if delay:
-                time.sleep(delay)
-            _GLM_OCR_NEXT_REQUEST_AT = time.monotonic() + float(
-                os.getenv("GLM_OCR_REQUEST_INTERVAL_SECONDS", "1.25")
-            )
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=timeout)
-            except requests.RequestException as exc:
-                response = None
-                last_error = str(exc)
+    try:
+        from rapidocr import RapidOCR
+    except ImportError as exc:  # pragma: no cover - depends on install
+        raise RuntimeError("Local OCR requires RapidOCR. Run: pip install rapidocr") from exc
 
-        if response is not None:
-            try:
-                body = response.json()
-            except ValueError:
-                body = {}
-            if response.ok:
-                data = body.get("data") if isinstance(body.get("data"), dict) else body
-                markdown = data.get("md_results") if isinstance(data, dict) else None
-                if isinstance(markdown, list):
-                    parts: list[str] = []
-                    for item in markdown:
-                        if isinstance(item, str):
-                            parts.append(item)
-                        elif isinstance(item, dict):
-                            parts.append(str(item.get("markdown") or item.get("text") or ""))
-                    markdown = "\n\n".join(part for part in parts if part.strip())
-                if isinstance(markdown, str) and markdown.strip():
-                    return normalize_text(markdown)
-                last_error = "GLM-OCR returned no Markdown."
-            else:
-                message = body.get("error") or body.get("message") or response.text[:300]
-                last_error = f"HTTP {response.status_code}: {message}"
-                if response.status_code not in {408, 409, 425, 429, 500, 502, 503, 504}:
-                    break
-        if attempt < 4:
-            time.sleep(min(12.0, 2.0 ** attempt))
-    raise RuntimeError(f"GLM-OCR failed on page {page_no}: {last_error}")
+    global _LOCAL_OCR_ENGINE
+    with _LOCAL_OCR_LOCK:
+        if _LOCAL_OCR_ENGINE is None:
+            _LOCAL_OCR_ENGINE = RapidOCR()
+        try:
+            result = _LOCAL_OCR_ENGINE(image_bytes)
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(f"Local RapidOCR failed on page {page_no}: {exc}") from exc
+
+    if not result or not getattr(result, "txts", None):
+        raise RuntimeError(f"Local RapidOCR returned no text for page {page_no}.")
+    markdown = result.to_markdown()
+    if not isinstance(markdown, str) or not markdown.strip():
+        markdown = "\n".join(str(value) for value in result.txts if str(value).strip())
+    return normalize_text(markdown)
 
 
 def extract_with_pdf_inspector_ocr(
@@ -677,25 +634,18 @@ def extract_with_pdf_inspector_ocr(
     ocr_policy: str = "adaptive",
     ocr_context: dict[str, Any] | None = None,
 ) -> ExtractedText:
-    """Rust page classification plus selective 200-DPI GLM-OCR.
+    """Rust page classification plus selective 200-DPI local RapidOCR.
 
     pdf-inspector owns the page decision and native Markdown representation.
     Only pages marked ``needs_ocr`` are rasterized and replaced by hosted
-    GLM-OCR Markdown. This keeps the adaptive treatment observable per page.
+    local PP-OCRv6 text. This keeps the adaptive treatment observable per page.
     """
     try:
         import pdf_inspector
         import pymupdf
     except ImportError as exc:  # pragma: no cover - depends on install
-        raise RuntimeError("pdf-inspector and PyMuPDF are required for adaptive GLM-OCR.") from exc
+        raise RuntimeError("pdf-inspector and PyMuPDF are required for adaptive local OCR.") from exc
     policy = str(ocr_policy or "adaptive").lower()
-    context = ocr_context or {}
-    api_key = str(context.get("glm_ocr_api_key") or context.get("api_key") or "")
-    endpoint = str(
-        context.get("glm_ocr_endpoint")
-        or os.getenv("GLM_OCR_ENDPOINT")
-        or "https://api.z.ai/api/paas/v4/layout_parsing"
-    )
     try:
         result = pdf_inspector.extract_pages_markdown(str(pdf_path))
     except Exception as exc:  # noqa: BLE001
@@ -729,14 +679,12 @@ def extract_with_pdf_inspector_ocr(
                     matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
                     alpha=False,
                 )
-                markdown = _glm_ocr_markdown(
+                markdown = _local_ocr_markdown(
                     pixmap.tobytes("png"),
-                    api_key=api_key,
-                    endpoint=endpoint,
                     page_no=page_no,
                 )
                 ocr_pages.append(page_no)
-                source = "glm_ocr"
+                source = "rapidocr_local"
             else:
                 markdown = native_markdown
                 source = "pdf_inspector_native_rust"
@@ -746,20 +694,20 @@ def extract_with_pdf_inspector_ocr(
                 "classification_decision": "ocr_needed" if classifier_decision else "text_page",
                 "source": source,
                 "render_dpi": 200 if use_ocr else None,
-                "ocr_model": "glm-ocr" if use_ocr else None,
+                "ocr_model": "PP-OCRv6 ONNX" if use_ocr else None,
             })
 
     diagnostics = {
-        "source": "pdf-inspector native Rust + GLM-OCR",
+        "source": "pdf-inspector native Rust + local RapidOCR",
         "ocr_policy": policy,
         "ocr_router": "pdf-inspector per-page classification",
         "render_dpi": 200,
-        "ocr_engine": "glm-ocr",
+        "ocr_engine": "RapidOCR PP-OCRv6 ONNX (local)",
         "ocr_pages": _compress_pages(ocr_pages),
         "ocr_page_count": len(ocr_pages),
         "page_provenance": page_provenance,
     }
-    return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive GLM-OCR", diagnostics)
+    return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive local OCR", diagnostics)
 
 
 def extract_with_intelligent_scanning_gate(
@@ -771,7 +719,7 @@ def extract_with_intelligent_scanning_gate(
     """Strategy 3: selective OCR, unified Markdown, then whole-page ranking.
 
     pdf-inspector owns PDF classification, layout metadata, native Markdown,
-    and the per-page OCR decision.  GLM-OCR replaces only routed page bodies.
+    and the per-page OCR decision. Local RapidOCR replaces only routed page bodies.
     The deterministic intelligent scanning gate then sends the best three to
     five *complete pages* to the semantic-mapping model.
     """
@@ -781,13 +729,6 @@ def extract_with_intelligent_scanning_gate(
     except ImportError as exc:  # pragma: no cover - depends on install
         raise RuntimeError("Strategy 3 requires pdf-inspector and PyMuPDF.") from exc
 
-    context = ocr_context or {}
-    api_key = str(context.get("glm_ocr_api_key") or context.get("api_key") or "")
-    endpoint = str(
-        context.get("glm_ocr_endpoint")
-        or os.getenv("GLM_OCR_ENDPOINT")
-        or "https://api.z.ai/api/paas/v4/layout_parsing"
-    )
     try:
         result = pdf_inspector.extract_pages_markdown(str(pdf_path))
         classification = pdf_inspector.detect_pdf(str(pdf_path))
@@ -831,14 +772,12 @@ def extract_with_intelligent_scanning_gate(
                     matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
                     alpha=False,
                 )
-                markdown = _glm_ocr_markdown(
+                markdown = _local_ocr_markdown(
                     pixmap.tobytes("png"),
-                    api_key=api_key,
-                    endpoint=endpoint,
                     page_no=page_no,
                 )
                 routed_pages.append(page_no)
-                source = "glm_ocr"
+                source = "rapidocr_local"
             else:
                 markdown = native_markdown
                 source = "pdf_inspector_native_rust"
@@ -862,13 +801,13 @@ def extract_with_intelligent_scanning_gate(
         raise RuntimeError("The intelligent scanning gate found no readable Markdown pages.")
 
     diagnostics = {
-        "source": "pdf-inspector + selective GLM-OCR + intelligent scanning gate",
+        "source": "pdf-inspector + selective local RapidOCR + intelligent scanning gate",
         "document_type": str(getattr(classification, "pdf_type", "") or "unknown"),
         "type_confidence": round(float(getattr(classification, "confidence", 0.0) or 0.0), 3),
         "has_encoding_issues": bool(getattr(classification, "has_encoding_issues", False)),
         "ocr_policy": str(ocr_policy or "adaptive").lower(),
         "ocr_router": "pdf-inspector per-page needs_ocr",
-        "ocr_engine": "glm-ocr",
+        "ocr_engine": "RapidOCR PP-OCRv6 ONNX (local)",
         "render_dpi": 200,
         "ocr_pages": _compress_pages(routed_pages),
         "ocr_page_count": len(routed_pages),
@@ -1022,7 +961,7 @@ STRATEGIES: dict[str, Strategy] = {
         label="Strategy 2 - pdf-inspector with adaptive OCR",
         extraction_note=(
             "pdf-inspector classifies every page. Text pages keep native Rust Markdown; OCR-needed pages "
-            "are rendered at 200 DPI and replaced by GLM-OCR Markdown before page-ordered assembly."
+            "are rendered at 200 DPI and replaced by local RapidOCR PP-OCRv6 text before page-ordered assembly."
         ),
         extract=extract_with_pdf_inspector_ocr,
         parser="inspector",
@@ -1036,7 +975,7 @@ STRATEGIES: dict[str, Strategy] = {
         label="Strategy 3 - intelligent scanning gate",
         extraction_note=(
             "a three-to-five-page evidence packet. pdf-inspector produced complete per-page Markdown; "
-            "only pages it marked as needing OCR were replaced by 200-DPI GLM-OCR Markdown; the unified "
+            "only pages it marked as needing OCR were replaced by 200-DPI local RapidOCR text; the unified "
             "pages were then ranked by the deterministic intelligent scanning gate using table presence, "
             "financial headings, the fixed 27-field vocabulary, and layout metadata. Page markers identify "
             "the original source PDF pages."

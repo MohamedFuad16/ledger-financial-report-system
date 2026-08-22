@@ -150,7 +150,7 @@ def request_run_options(settings: dict) -> dict:
         ),
         "reasoning_effort": (request.form.get("reasoning_effort") or "").strip().lower(),
         "temperature": parse_float(
-            request.form.get("temperature"), settings.get("temperature", 0.1)
+            request.form.get("temperature"), settings.get("temperature", 0.0)
         ),
     }
 
@@ -400,7 +400,7 @@ def get_settings():
         "reasoning_style": provider.reasoning_style,
         "prompt_caching": provider.automatic_prompt_caching,
         "enable_reasoning": settings.get("enable_reasoning", True),
-        "temperature": settings.get("temperature", 0.1),
+        "temperature": settings.get("temperature", 0.0),
         "max_concurrency": settings.get("max_concurrency", 6),
         "auto_concurrency": settings.get("auto_concurrency", True),
         "firecrawl_key_masked": mask_key(settings.get("firecrawl_api_key") or ""),
@@ -458,7 +458,7 @@ def update_settings():
     api_key = str(data.get("api_key", "")).strip()
     model = str(data.get("model", "")).strip() or provider.default_model
     base_url = str(data.get("base_url", "")).strip() or provider.base_url
-    temperature = max(0.0, min(parse_float(data.get("temperature"), 0.1), 1.0))
+    temperature = max(0.0, min(parse_float(data.get("temperature"), 0.0), 1.0))
 
     effort = str(data.get("reasoning_effort", "")).strip().lower()
     if effort not in REASONING_EFFORTS:
@@ -727,7 +727,7 @@ def extract_corpus_verification(document_id):
             workspace_id=request_workspace_id(),
             enable_reasoning=bool(settings.get("enable_reasoning", True)),
             reasoning_effort=str(settings.get("reasoning_effort") or ""),
-            temperature=float(settings.get("temperature", 0.1)),
+            temperature=float(settings.get("temperature", 0.0)),
         )
         updated = pin_candidate_answers(
             document,
@@ -1021,7 +1021,7 @@ def start_extraction_job():
         "system_prompt": str(body.get("system_prompt") or "").strip() or ACTIVE_PROMPT,
         "fiscal_year_hint": str(body.get("fiscal_year") or "").strip(),
         "enable_reasoning": parse_bool(body.get("enable_reasoning"), settings.get("enable_reasoning", True)),
-        "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.1)),
+        "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.0)),
         "reasoning_effort": str(body.get("reasoning_effort") or "").strip().lower(),
     }
     plan = estimate_batch_plan(staged_jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
@@ -1166,7 +1166,7 @@ def extract_stream():
         "system_prompt": str(body.get("system_prompt") or "").strip() or ACTIVE_PROMPT,
         "fiscal_year_hint": str(body.get("fiscal_year") or "").strip(),
         "enable_reasoning": parse_bool(body.get("enable_reasoning"), settings.get("enable_reasoning", True)),
-        "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.1)),
+        "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.0)),
         "reasoning_effort": str(body.get("reasoning_effort") or "").strip().lower(),
     }
     plan = estimate_batch_plan(jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))

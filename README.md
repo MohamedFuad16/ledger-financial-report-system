@@ -28,7 +28,7 @@
 
 ## Overview
 
-Ledger is a bilingual Annual Report benchmark workspace. It converts a PDF into a fixed 27-row asset-side balance-sheet contract, calls an OpenAI-compatible model for semantic mapping, validates the result, applies a measured confidence gate and benchmarks it against maintained golden answers.
+Ledger is a bilingual Annual Report benchmark workspace. It converts a PDF into a fixed 27-row asset-side balance-sheet contract, calls an OpenAI-compatible model for semantic mapping, validates the result, flags low-confidence rows for review and benchmarks the extracted values against maintained golden answers.
 
 The current assignment uses 3M reports as the initial benchmark, while the corpus pipeline is company-independent and supports official FY2020–FY2025 reports.
 
@@ -82,16 +82,16 @@ The report is independently represented by the selected parser passes. OCR is pa
 |---|---|---|
 | PyPDF | Compulsory | OCR text assembled in page order |
 | PyMuPDF4LLM | Adaptive | Layout-aware Markdown with integrated OCR fallback |
-| pdf-inspector | Adaptive | Per-page classification; native Rust extraction for text pages; OCR-needed pages rendered at exactly 200 DPI, processed by neural layout detection and GLM-OCR/VLM, then assembled as page-ordered Markdown |
+| pdf-inspector | Adaptive | Per-page classification; native Rust extraction for text pages; OCR-needed pages rendered at exactly 200 DPI, processed locally by RapidOCR PP-OCRv6 ONNX, then assembled as page-ordered text |
 | Docling | Compulsory | OCR-backed ML document graph exported as Markdown |
 
 Each pass gets its own provider response, validation result, timing and persisted run, making the comparison inspectable rather than inferred.
 
 ### Strategy 3 · pdf-inspector intelligent scanning gate
 
-Strategy 3 is active and uses pdf-inspector as the finalized parser. `detect_pdf` records document type, confidence, encoding health and OCR routing; `extract_pages_markdown` supplies complete page Markdown plus table, column, complexity and per-page OCR metadata. Pages marked for OCR are rendered at 200 DPI and replaced in place with GLM-OCR Markdown. The resulting unified page sequence is scored deterministically using BM25-style schema vocabulary, financial headings, table presence, column/layout signals, numeric density and bounded boilerplate penalties. Only the top three to five complete pages—preserving their original PDF page numbers and order—enter the existing semantic-mapping call.
+Strategy 3 is active and uses pdf-inspector as the finalized parser. `detect_pdf` records document type, confidence, encoding health and OCR routing; `extract_pages_markdown` supplies complete page Markdown plus table, column, complexity and per-page OCR metadata. Pages marked for OCR are rendered at 200 DPI and replaced in place with text produced locally by RapidOCR PP-OCRv6 ONNX. The resulting unified page sequence is scored deterministically using BM25-style schema vocabulary, financial headings, table presence, column/layout signals, numeric density and bounded boilerplate penalties. Only the top three to five complete pages—preserving their original PDF page numbers and order—enter the existing semantic-mapping call.
 
-There is no vector store, embedding index, arbitrary token chunking, iterative search or agentic loop. PDF-Inspector decides native text versus OCR; Ledger's gate decides schema relevance; the configured LLM maps the selected evidence packet to JSON; Pydantic validation, the confidence gate and arithmetic reconciliation remain unchanged. Diagnostics store every selected page, score component, OCR provenance and Markdown-character reduction. See [ROADMAP.md](ROADMAP.md).
+There is no vector store, embedding index, arbitrary token chunking, iterative search or agentic loop. PDF-Inspector decides native text versus OCR; Ledger's gate decides schema relevance; the configured LLM maps the selected evidence packet to JSON; Pydantic validation and arithmetic reconciliation then verify the response. Diagnostics store every selected page, score component, OCR provenance and Markdown-character reduction. See [ROADMAP.md](ROADMAP.md).
 
 ## Quality contract
 
@@ -100,18 +100,18 @@ model JSON
   → normalize representation-only defects
   → validate the exact Pydantic contract
   → reject contract-invalid model output without changing the experiment request
-  → mark confidence < 0.80 as unaccepted
+  → flag confidence < 0.80 for review without suppressing its value
   → check deterministic balance-sheet identities
   → score only when an authoritative or SHA-bound human-approved golden set exists
 ```
 
-The answer key is never model input. A low-confidence value stays in the audit artifact but is displayed and scored as unanswered. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Model-mapped candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256. Human review never starts from a blank form: Ledger first runs the configured LLM semantic mapping and prefills the complete schema, shows the searchable pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
+The answer key is never model input. A low-confidence value remains visible, is checked arithmetically, and is prioritized for review; confidence does not decide correctness. The assignment-provided 3M FY2022 table is the only built-in authoritative golden set. Model-mapped candidate answers for every other report remain unverified until a reviewer checks all 27 rows against the original PDF and approves them; the approval is bound to that exact PDF SHA-256. Human review never starts from a blank form: Ledger first runs the configured LLM semantic mapping and prefills the complete schema, shows the searchable pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
 
 | Metric | Meaning |
 |---|---|
-| Exact accuracy | Share of golden rows that are both correct and accepted |
-| Field coverage | Share of 27 rows returned with accepted confidence |
-| Precision | Share of accepted, comparable rows that are correct |
+| Exact accuracy | Share of golden rows whose returned values are correct |
+| Field coverage | Share of 27 rows for which the model returned a value |
+| Precision | Share of returned, comparable values that are correct |
 | Consistency | Share of testable arithmetic identities that hold |
 
 ## Annual Report corpus

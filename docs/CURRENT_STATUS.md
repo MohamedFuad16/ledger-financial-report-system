@@ -34,11 +34,11 @@ Every active parser follows the same pipeline. Only the document representation 
 1. **Stage the PDF.** A browser upload is saved under `uploads/<company>/<year>/<timestamp>/`, or a selected corpus document is referenced in place after its manifest SHA-256 and path are validated.
 2. **Extract locally.** The chosen parser converts readable pages and the backend inserts `--- PAGE n ---` markers. Strategy 3 additionally replaces only pdf-inspector-routed OCR pages and selects three to five complete pages. No semantic-mapping LLM call has happened yet.
 3. **Build one prompt.** `prompts.build_user_prompt` combines the extraction note, parser diagnostics, the fixed 27-row schema, any detected fiscal context and that strategy's complete page-marked representation. The configured system prompt is sent separately as the first message.
-4. **Call the model once.** `api_client.run_extraction` sends an OpenAI-compatible `chat/completions` request with JSON-object output requested. Provider-specific reasoning controls are mapped in `providers.py`; temperature defaults to `0.1`.
+4. **Call the model once.** `api_client.run_extraction` sends an OpenAI-compatible `chat/completions` request with JSON-object output requested. Provider-specific reasoning controls are mapped in `providers.py`; temperature defaults to `0.0` for reproducible extraction.
 5. **Retry transport failures safely.** HTTP 429 responses reduce the shared concurrency gate and honor `Retry-After`; retryable 5xx responses use bounded backoff. Quota exhaustion fails immediately. These retries repeat the same request and are not semantic repairs.
 6. **Normalize and validate.** `normalize.py` repairs representation-only issues such as currency strings, percentages, aliases and row order, recording each repair. `models.py` then requires the exact 27-row contract. If JSON or Pydantic contract validation still fails, one bounded semantic repair request includes the original context, invalid answer and exact validation error.
-7. **Apply the confidence gate.** A row is accepted only when it has a value and confidence is at least `0.80`. The raw value remains stored for audit.
-8. **Verify and score.** `reconcile.py` checks deterministic balance-sheet identities without changing values. `compute_metrics` separately measures coverage, exact accuracy and precision against a golden set when one exists.
+7. **Flag review priority.** A row is confidence-accepted when it has a value and confidence is at least `0.80`, but lower-confidence values remain visible and usable. Confidence never determines correctness.
+8. **Verify and score.** `reconcile.py` checks every returned value against deterministic balance-sheet identities without changing it. `compute_metrics` measures raw field coverage, exact accuracy and precision; confidence-accepted coverage and precision remain separate diagnostics.
 9. **Persist the run and job.** Request, raw response, optional repair artifacts and `prediction.json` are filed under `runs/<strategy>/FY<year>/<run_id>/`. The extraction job itself is also written under `runs/_extraction_jobs/`, so it continues on the backend and can be rehydrated after navigation or refresh. Real progress events update one animated live card per report; the card advances through the active parser and stage while a compact rail preserves overall comparison progress.
 
 The repair boundary is intentionally narrow: confidence below `0.80` never triggers a model retry, and a failed arithmetic identity never triggers a model retry. Both are downstream measurements of a contract-valid answer.
@@ -62,7 +62,7 @@ Strategy 2 exposes the four selectable parsers with OCR enabled. “Adaptive” 
 |---|---|---|
 | PyPDF | Renders and OCRs every page because PyPDF has no trusted OCR-needed classifier | Compulsory |
 | PyMuPDF4LLM | Uses its integrated page-aware OCR recovery | Adaptive |
-| pdf-inspector | Classifies every page; retains native Rust text for text pages and sends only OCR-needed pages through the exact 200-DPI GLM-OCR path | Adaptive |
+| pdf-inspector | Classifies every page; retains native Rust text for text pages and processes only OCR-needed pages through local 200-DPI RapidOCR PP-OCRv6 ONNX | Adaptive |
 | Docling | Runs document conversion with OCR forced for every page | Compulsory |
 
 The user may select one parser or any subset; every pass produces its own model request and stored prediction against the same PDF, model, prompt, schema, and evaluation code.
@@ -75,7 +75,7 @@ PDF
       ├─ text page → native Rust extraction
       └─ OCR-needed page
            → render at exactly 200 DPI
-           → GLM-OCR/VLM layout extraction
+           → local RapidOCR PP-OCRv6 ONNX recognition
            → Markdown for that page
   → page-ordered Markdown assembly
   → shared prompt/model/contract/evaluation pipeline
@@ -100,7 +100,7 @@ The model must return one JSON object containing a detected fiscal year and exac
 
 Evidence, source labels, confidence, warnings and arithmetic diagnostics stay in the stored run for audit and are not required in the compact result sheet.
 
-The answer key is never sent to the model. It is read only after a prediction has passed validation and the confidence gate.
+The answer key is never sent to the model. It is read only after a prediction has passed contract validation; confidence is not used to reveal, hide or select gold values.
 
 ### Benchmark-key assurance
 

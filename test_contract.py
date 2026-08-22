@@ -233,8 +233,9 @@ for _r in _borderline:
     _r["confidence"] = 0.75
 _b = rows_as_dicts(repaired({"rows": _borderline}))
 check(
-    "a 0.75-confidence answer is not counted as answered",
-    compute_metrics(_b, "2022")["filled_fields"] == 0,
+    "a 0.75-confidence answer remains covered but is flagged for review",
+    compute_metrics(_b, "2022")["filled_fields"] == EXPECTED_ROW_COUNT
+    and compute_metrics(_b, "2022")["confidence_accepted_fields"] == 0,
 )
 _ok = golden_rows("2022")
 for _r in _ok:
@@ -260,7 +261,7 @@ for row in nulled:
 nulled_rows = rows_as_dicts(repaired({"rows": nulled}))
 m = compute_metrics(nulled_rows, "2022", company="3M")
 check("null never counts as a match for a golden 0", m["exact_matches"] == EXPECTED_ROW_COUNT - 5, json.dumps(m))
-check("low-confidence values do not count as coverage", m["filled_fields"] == EXPECTED_ROW_COUNT - 5)
+check("null values do not count as coverage", m["filled_fields"] == EXPECTED_ROW_COUNT - 5)
 
 m = compute_metrics(perfect, "2019")
 check("a year with no answer key is not scored", m["accuracy"] is None and m["has_golden"] is False)
@@ -312,6 +313,15 @@ _empty_extract = _finalize([(1, ""), (2, "")], 2, "test parser")
 check("empty-page PDFs are reported as unreadable", _empty_extract.readable_pages == 0)
 check("empty-page PDFs carry an actionable OCR warning",
       any("OCR" in warning for warning in _empty_extract.warnings))
+
+from corpus.screen import _balance_sheet_page
+_screen_text = """--- PAGE 38 ---
+Balance Sheet:\nCurrent assets 10\nCash 5\nInventory 2\nLiabilities 4
+--- PAGE 50 ---
+Consolidated Balance Sheet\nAssets\nCurrent assets\nCash and cash equivalents 5\nInventories 2\nProperty, plant and equipment 3\nAccumulated depreciation (1)\nGoodwill 4\nIntangible assets 2\nTotal assets 15\nLiabilities 8
+"""
+check("screening prefers the audited statement over earlier balance-sheet prose",
+      _balance_sheet_page(_screen_text) == 50)
 
 # --- Adaptive rate limiting --------------------------------------------------
 print("\nAdaptive rate limiting")
@@ -388,13 +398,15 @@ check("the gate stamps 'accepted' rather than nulling the value",
       _land["accepted"] is False and _land["answer_m_usd"] == GOLDEN_ANSWERS_STORE["2022"]["Land"])
 
 _m = compute_metrics(_gated, "2022")
-check("scoring ignores a rejected row", _m["filled_fields"] == EXPECTED_ROW_COUNT - 1)
+check("scoring retains a low-confidence extracted row", _m["filled_fields"] == EXPECTED_ROW_COUNT)
+check("confidence acceptance remains separately observable",
+      _m["confidence_accepted_fields"] == EXPECTED_ROW_COUNT - 1)
 
 _rec = reconcile(_gated)
-check("reconciliation also ignores a rejected row, rather than using it",
-      "Tangible Assets" in [c["total_item"] for c in _rec["checks"] if c["status"] == "skipped"],
+check("reconciliation uses a correct low-confidence value",
+      "Tangible Assets" not in [c["total_item"] for c in _rec["checks"] if c["status"] == "skipped"],
       str(_rec["failed_identities"]))
-check("a rejected row makes its identity skipped, not failed", _rec["failed"] == 0)
+check("a correct low-confidence value preserves arithmetic", _rec["failed"] == 0)
 
 # --- Run records must identify the parser that produced them ------------------
 print("\nParser identity in run records")
@@ -428,8 +440,8 @@ _export_rows = apply_confidence_gate([
     {"classification": "A", "subclassification": "", "item": "A",
      "description": "", "answer_m_usd": 10, "confidence": 0.4}
 ])
-check("generic exports hide confidence-rejected values",
-      result_table(_export_rows)[0]["Answer (M USD)"] is None)
+check("generic exports retain confidence-flagged values for review",
+      result_table(_export_rows)[0]["Answer (M USD)"] == 10)
 
 # --- Run storage layout ------------------------------------------------------
 print("\nRun storage layout")

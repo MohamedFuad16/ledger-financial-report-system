@@ -85,7 +85,8 @@ class PipelineSemanticsTests(unittest.TestCase):
         self.assertEqual(model_call.call_count, 1)
         self.assertEqual(arithmetic.call_count, 1)
         self.assertTrue(all(not row["accepted"] for row in result["rows"]))
-        self.assertEqual(result["metrics"]["coverage"], 0.0)
+        self.assertEqual(result["metrics"]["coverage"], 100.0)
+        self.assertEqual(result["metrics"]["confidence_accepted_coverage"], 0.0)
         self.assertEqual(result["reconciliation"]["failed"], 1)
         self.assertEqual(result["contract_repair_attempts"], 0)
 

@@ -40,7 +40,7 @@ export function SettingsPage({
   const [baseUrl, setBaseUrl] = useState(settings?.base_url || '')
   const [apiKey, setApiKey] = useState('')
   const [reasoningEnabled, setReasoningEnabled] = useState((settings?.reasoning_effort || 'high') !== 'none')
-  const [temperature, setTemperature] = useState(settings?.temperature ?? 0.1)
+  const [temperature, setTemperature] = useState(settings?.temperature ?? 0.0)
   const [saving, setSaving] = useState(false)
   const [runtimeSaving, setRuntimeSaving] = useState(false)
   const [maxConcurrency, setMaxConcurrency] = useState(settings?.max_concurrency ?? 6)

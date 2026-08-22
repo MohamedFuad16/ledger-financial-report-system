@@ -43,7 +43,7 @@ app: "Annual Report Extractor" {
 }
 
 parsers: "PDF parsers" {shape: cloud}
-glmocr: "GLM-OCR" {shape: cloud}
+localocr: "RapidOCR PP-OCRv6 · local ONNX" {shape: cylinder}
 llm: "LLM provider" {shape: cloud}
 firecrawl: "Firecrawl discovery" {shape: cloud}
 official: "Official company sites" {shape: cloud}
@@ -52,7 +52,7 @@ ses: "AWS SES" {shape: cloud}
 
 user -> app.client: "configure / inspect"
 app.pipeline -> parsers: "extract"
-parsers -> glmocr: "OCR-routed pages only"
+parsers -> localocr: "OCR-routed pages only · 200 DPI"
 app.pipeline -> llm: "chat completion"
 app.corpus -> firecrawl: "map / search"
 app.api -> firecrawl: "credential probe"

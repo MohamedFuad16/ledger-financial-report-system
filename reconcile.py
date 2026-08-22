@@ -32,20 +32,17 @@ TOLERANCE = 0.5
 
 def _values(rows: list[dict]) -> dict[str, Optional[float]]:
     """
-    Map item -> the value we are willing to treat as an answer.
+    Map item -> the extracted value, regardless of model confidence.
 
-    A row the confidence gate rejected is read as null here, exactly as it is
-    when scoring. Reconciling against a number the rest of the system refuses to
-    count would let a discarded value silently prop up a subtotal.
+    Confidence is a review-priority hint, not a correctness oracle. Arithmetic
+    validation must inspect the actual returned values or it will skip valid
+    identities solely because a model assigned itself 0.79 instead of 0.80.
     """
     out: dict[str, Optional[float]] = {}
     for row in rows or []:
         if not isinstance(row, dict) or "item" not in row:
             continue
         value = row.get("answer_m_usd")
-        accepted = row.get("accepted")
-        if accepted is False:
-            value = None
         out[row["item"]] = float(value) if isinstance(value, (int, float)) else None
     return out
 
@@ -56,8 +53,7 @@ def reconcile(rows: list[dict]) -> dict[str, Any]:
 
     Returns a report listing each identity as ``ok`` (the parts sum to the
     stated total), ``failed`` (they do not), or ``skipped`` (a value the
-    identity needs is null - or was rejected by the confidence gate - so the
-    identity cannot be evaluated at all).
+    identity needs is null, so the identity cannot be evaluated at all).
     """
     values = _values(rows)
     checks: list[dict[str, Any]] = []
@@ -74,7 +70,7 @@ def reconcile(rows: list[dict]) -> dict[str, Any]:
                 "identity": f"{total_item} = {' + '.join(parts)}",
                 "total_item": total_item,
                 "status": "skipped",
-                "reason": f"no accepted value for {', '.join(missing)}",
+                "reason": f"no extracted value for {', '.join(missing)}",
                 "stated": stated,
                 "computed": None,
                 "delta": None,

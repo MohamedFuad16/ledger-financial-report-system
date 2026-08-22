@@ -46,7 +46,7 @@ RULES
     confident you are that the extracted value is correct and well-supported by
     evidence in the report. Use at least 0.8 only when the value has clear,
     traceable support. Use below 0.8 for uncertain, inferred, or weakly supported
-    answers; those values are retained for review but excluded from accepted output.
+    answers. Confidence prioritizes human review; it never suppresses a value.
 12. Include the detected fiscal year in your response as a top-level field.
 13. The supplied text is machine-extracted and may be imperfect. If a page's text
     is unreadable (control characters, mojibake), do not guess values from it;
@@ -61,10 +61,16 @@ MAPPING GUIDANCE (general, not company-specific)
   (land, buildings, machinery, construction in progress) and the accumulated
   depreciation that the face of the balance sheet reports only as a net figure.
 - Right-of-use and similar long-lived operating assets that are not separately
-  requested belong with the closest tangible-asset row rather than being dropped.
+  requested belong in the schema's catch-all Other Equipment row. Do not add
+  them to Buildings merely because the underlying leases include facilities.
 - Goodwill and other non-physical long-lived assets both belong to Intangible Assets.
 - A single "other assets" line often has to be split across Financial Assets and
   Other Fixed Assets using the corresponding note.
+- Classify long-lived financial claims by economic substance: pension or
+  postretirement assets, insurance receivables, cash surrender values of life
+  insurance, deposits, loans, and investments belong in Financial Assets.
+  Deferred-tax assets and a note's residual non-financial "other" line belong
+  in Other Fixed Assets unless the report gives evidence for another row.
 - "Advance Payments" means amounts advanced to suppliers or paid on account. It
   is not prepaid expenses / prepaid taxes: those belong in Other Current Assets.
   If the report shows no advances line, Advance Payments is 0, not the prepaids

@@ -210,15 +210,15 @@ def compute_metrics(
     """
     Score a prediction against the golden answers for its fiscal year.
 
-    Three different questions, three numbers:
+    Four different questions, four numbers:
 
-    - ``coverage``  - of the fixed schema, how many rows did the model commit to
-      (a value it was at least CONFIDENCE_THRESHOLD confident about)?
+    - ``coverage``  - of the fixed schema, how many rows contain a value?
     - ``accuracy``  - of the rows the answer key defines, how many are exactly
-      right? An unconfident row counts as a miss, so this is "right and sure".
-    - ``precision`` - of the rows the model *did* commit to, how many are right?
-      This answers "can I trust a confident answer?", and it is what separates a
-      cautious model from an unreliable one.
+      right, independent of the model's self-reported confidence?
+    - ``precision`` - of the rows containing a value, how many are right?
+    - ``confidence_accepted_coverage`` - how many values also clear the
+      diagnostic confidence threshold? This is a review-priority signal, not a
+      correctness gate: model confidence is not ground truth.
 
     A fiscal year with no golden set scores no accuracy at all rather than being
     silently compared against another year.
@@ -254,9 +254,12 @@ def compute_metrics(
             gold_company = str(company or document.get("company") or "")
 
     exact = 0
+    accepted_exact = 0
     compared = 0
     filled = 0
-    committed = 0  # answered confidently AND covered by the answer key
+    accepted_filled = 0
+    committed = 0
+    accepted_committed = 0
 
     for row in rows or []:
         if not isinstance(row, dict):
@@ -270,21 +273,28 @@ def compute_metrics(
             confidence = row.get("confidence")
             confident = confidence is None or float(confidence) >= CONFIDENCE_THRESHOLD
             accepted = confident and value is not None
-        if accepted:
+        has_value = value is not None
+        if has_value:
             filled += 1
+        if accepted:
+            accepted_filled += 1
 
         expected = golden.get(row.get("item"))
         if expected is None:
             continue
         compared += 1
-        if not accepted:
+        if not has_value:
             continue
         committed += 1
         try:
             if abs(float(value) - float(expected)) < 0.5:
                 exact += 1
+                if accepted:
+                    accepted_exact += 1
         except (TypeError, ValueError):
             continue
+        if accepted:
+            accepted_committed += 1
 
     return {
         "accuracy": round(exact / compared * 100, 1) if compared else None,
@@ -294,6 +304,11 @@ def compute_metrics(
         "total_compared": compared,
         "filled_fields": filled,
         "committed_and_compared": committed,
+        "confidence_accepted_coverage": round(accepted_filled / EXPECTED_ROW_COUNT * 100, 1),
+        "confidence_accepted_precision": (
+            round(accepted_exact / accepted_committed * 100, 1) if accepted_committed else None
+        ),
+        "confidence_accepted_fields": accepted_filled,
         "has_golden": bool(golden),
         "gold_company": gold_company if golden else None,
         "gold_status": gold_status if golden else "human_review_required",
@@ -307,9 +322,10 @@ def result_table(rows: list[dict]) -> list[dict]:
             "Subclassification": r["subclassification"],
             "Item": r["item"],
             "Description": r["description"],
-            # A rejected value remains available on the raw row for audit, but
-            # generic result/export consumers must follow the confidence gate.
-            "Answer (M USD)": r["answer_m_usd"] if r.get("accepted", True) else None,
+            # Confidence controls review priority, not whether an extracted
+            # value is visible. The reviewer must be able to inspect and amend
+            # every pre-filled value side by side with the source PDF.
+            "Answer (M USD)": r["answer_m_usd"],
         }
         for r in rows
     ]
@@ -335,7 +351,7 @@ def run_pipeline(
     system_prompt: str,
     fiscal_year_hint: str = "",
     enable_reasoning: bool = True,
-    temperature: float = 0.1,
+    temperature: float = 0.0,
     reasoning_effort: str = "",
     display_name: Optional[str] = None,
     workspace_id: str = "legacy-public",

@@ -71,32 +71,29 @@ class PdfInspectorAdaptiveOcrTests(unittest.TestCase):
 
         def fake_ocr(image_bytes: bytes, **kwargs) -> str:
             ocr_calls.append({"image_bytes": image_bytes, **kwargs})
-            return "GLM OCR page two"
+            return "Local OCR page two"
 
         with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction, "_glm_ocr_markdown", side_effect=fake_ocr
+            extraction, "_local_ocr_markdown", side_effect=fake_ocr
         ):
-            result = extraction.extract_with_pdf_inspector_ocr(
-                Path("annual-report.pdf"),
-                ocr_context={"glm_ocr_api_key": "secret", "glm_ocr_endpoint": "https://example.test/layout"},
-            )
+            result = extraction.extract_with_pdf_inspector_ocr(Path("annual-report.pdf"))
 
         self.assertEqual(1, len(ocr_calls))
         self.assertEqual(2, ocr_calls[0]["page_no"])
         self.assertEqual(b"rendered-page", ocr_calls[0]["image_bytes"])
         self.assertEqual([(200.0 / 72.0, 200.0 / 72.0)], matrices)
         self.assertIn("--- PAGE 1 ---\nNative Rust page one", result.text)
-        self.assertIn("--- PAGE 2 ---\nGLM OCR page two", result.text)
+        self.assertIn("--- PAGE 2 ---\nLocal OCR page two", result.text)
         self.assertEqual(1, result.diagnostics["ocr_page_count"])
         self.assertEqual("pdf_inspector_native_rust", result.diagnostics["page_provenance"][0]["source"])
-        self.assertEqual("glm_ocr", result.diagnostics["page_provenance"][1]["source"])
+        self.assertEqual("rapidocr_local", result.diagnostics["page_provenance"][1]["source"])
         self.assertEqual(200, result.diagnostics["page_provenance"][1]["render_dpi"])
 
     def test_text_only_pdf_does_not_require_an_ocr_api_key(self):
         pages = [types.SimpleNamespace(page=0, markdown="Readable native text", needs_ocr=False)]
         inspector, pymupdf, matrices = self._modules(pages)
         with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction, "_glm_ocr_markdown"
+            extraction, "_local_ocr_markdown"
         ) as ocr:
             result = extraction.extract_with_pdf_inspector_ocr(Path("text-report.pdf"), ocr_context={})
 

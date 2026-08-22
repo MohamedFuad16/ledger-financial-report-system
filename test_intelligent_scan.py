@@ -107,12 +107,11 @@ class StrategyThreeExtractionTests(unittest.TestCase):
         pymupdf = types.SimpleNamespace(Matrix=Matrix, open=lambda _path: _Document(rendered))
         with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
             extraction,
-            "_glm_ocr_markdown",
+            "_local_ocr_markdown",
             return_value="# Intangible Assets\nGoodwill and intangible assets 400",
         ) as ocr:
             result = extraction.extract_with_intelligent_scanning_gate(
                 Path("report.pdf"),
-                ocr_context={"glm_ocr_api_key": "secret"},
             )
 
         ocr.assert_called_once()

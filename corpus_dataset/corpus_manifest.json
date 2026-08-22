@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-21T10:16:17.650070+00:00",
+  "updated_at": "2026-08-22T09:03:32+00:00",
   "documents": [
     {
       "company": "3M",
@@ -22,7 +22,7 @@
       "pages": 252,
       "readable_pages": 252,
       "garbled_pages": [],
-      "balance_sheet_page": 38,
+      "balance_sheet_page": 50,
       "currency": "USD",
       "fiscal_year_confirmed": true,
       "internal_year_mentions": [

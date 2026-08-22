@@ -52,7 +52,7 @@ export function DashboardPage({
 
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
-        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned above confidence gate', '信頼度基準を超えて取得された項目')} />
+        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned by the model; low confidence is flagged for review', 'モデルが返した項目。低信頼度はレビュー対象として表示')} />
         <MetricCard label={tr('Matched reports', '対応レポート')} value={completeReportCount.toLocaleString()} detail={tr('Every parser in this arm completed the same report', 'この条件の全パーサーが同じレポートを完了')} />
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastest?.short || '—'} detail={fastest ? `${formatDuration(fastest.extractSeconds)} ${tr('mean parse time', '平均解析時間')}` : tr('No timing data yet', '時間データはまだありません')} />
       </div>
