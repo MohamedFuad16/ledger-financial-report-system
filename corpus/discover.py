@@ -39,7 +39,10 @@ def _domain(url: str) -> str:
 
 def _looks_like_report(item: dict, year: int) -> bool:
     text = " ".join(str(item.get(key) or "") for key in ("url", "title", "description"))
-    return str(year) in text and (REPORT_WORDS.search(text) is not None or ".pdf" in text.lower())
+    # A PDF extension plus a year is not sufficient: investor sites contain
+    # thousands of year-stamped releases and presentations. Require explicit
+    # annual-report/filing language before a candidate can reach download.
+    return str(year) in text and REPORT_WORDS.search(text) is not None
 
 
 def _score(item: dict, year: int, official_domain: str) -> int:

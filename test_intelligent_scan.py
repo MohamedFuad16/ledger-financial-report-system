@@ -36,6 +36,17 @@ class IntelligentScanningGateTests(unittest.TestCase):
         for page, body in selected:
             self.assertEqual(next(text for number, text in pages if number == page), body)
 
+    def test_right_of_use_note_receives_critical_schema_evidence_bonus(self):
+        pages = [
+            (1, "# Financial Note\nAssets current financial other amounts 100 200 300"),
+            (2, "# Note 18. Leases\nRight of use assets | Other assets | 516"),
+        ]
+        ranked = score_pages(pages, pages_with_tables=[1, 2])
+        lease = next(item for item in ranked if item["page"] == 2)
+
+        self.assertIn("right_of_use_assets", lease["critical_evidence"])
+        self.assertEqual(2, ranked[0]["page"])
+
 
 class _Pixmap:
     def tobytes(self, kind: str) -> bytes:

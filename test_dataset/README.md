@@ -17,14 +17,15 @@ Source: <https://investors.3m.com/financials/annual-reports-proxy-statements>
 | `3M_annual_report_2022.pdf` | 2022 | 141 | 58 | OK | yes (official, from the assignment) | `3M 2022 Annual Report_Updated.pdf` |
 | `3M_annual_report_2023.pdf` | 2023 | 126 | 54 | OK | yes | `40009_3M_2023_Annual_Report_online_pdfa.pdf` |
 | `3M_annual_report_2024.pdf` | 2024 | 132 | 55 | OK | yes | `2024_3M_Annual_Report FINAL.pdf` |
-| `3M_annual_report_2025.pdf` | 2025 | 120 | 50 | OK | partial (19/27) | `2025 3M Annual Report - final.pdf` |
+| `3M_annual_report_2025.pdf` | 2025 | 120 | 50 | OK | partial (22/27) | `2025 3M Annual Report - final.pdf` |
 
 ## Ground truth
 
-Golden answers live in `schema.py` (`GOLDEN_ANSWERS_STORE`), not here, so there
-is exactly one copy. The FY2022 set is the official answer key from the
-assignment document; FY2020/2021/2023/2024 were derived by applying the same
-mapping convention to those reports.
+The FY2022 set in `schema.py` (`GOLDEN_ANSWERS_STORE`) is the official answer
+key from the assignment document. Independently audited cross-year fixtures are
+kept separately in `SOURCE_BOUND_GOLDEN_ANSWERS`, keyed by exact PDF SHA-256 so
+a replacement report cannot inherit an old key. The page-level audit is in
+`research/benchmark/3m_cross_year_gold_audit.md`.
 
 Two independent checks are in `test_contract.py` and are run on every test pass:
 
@@ -34,23 +35,23 @@ Two independent checks are in `test_contract.py` and are run on every test pass:
   PDF: 2020 = 47,344 · 2021 = 47,072 · 2022 = 46,455 · 2023 = 50,580 ·
   2024 = 39,868 (M USD).
 
-FY2025 has a **partial** key: 19 of the 27 rows, covering only what can be read
+FY2025 has a **partial** key: 22 of the 27 rows, covering only what can be read
 directly off the printed FY2025 statements (balance sheet page 50, PP&E note
-page 54) plus the four rows that are structurally zero in every verified year.
+page 54, leases note page 104) plus the four rows that are structurally zero in
+every verified year.
 It reconciles: Quick 8,768 + Inventories 3,661 + Other current 3,958 =
 Total current assets 16,387 as printed; Land 202 + Buildings 7,729 +
 Machinery 15,328 + CIP 663 = gross PP&E 23,922 as printed, and less accumulated
 depreciation 16,821 = net 7,101 as printed; Goodwill 6,419 + Intangibles 1,103 =
-7,522; Total assets 37,733 as printed.
+7,522; operating-lease ROU assets 516, so Tangible Assets are 7,101 + 516 =
+7,617; Fixed Assets are 37,733 - 16,387 = 21,346; Total assets 37,733 as
+printed.
 
-Eight rows are **deliberately omitted** rather than guessed: Other Equipment,
-Tangible Assets, Fixed Assets, Financial Assets, Investments, Long-term Loan,
-Other Financial Assets and Other Fixed Assets. 3M dropped the separate
-"Operating lease right of use assets" line in FY2025 and folded it into "Other
-assets", so those rows need the leases and other-assets notes plus a mapping
-judgement that was not supplied with the assignment. `compute_metrics` scores
-only the items present, so an FY2025 run reports *n*/19 — never graded against
-invented values, and never compared against another year.
+Five rows are **deliberately omitted** rather than guessed: Financial Assets,
+Investments, Long-term Loan, Other Financial Assets and Other Fixed Assets. 3M
+dropped the supplemental Other-assets component table in FY2025, so the PDF
+does not support that five-way split. `compute_metrics` scores only the items
+present, so an FY2025 run reports *n*/22 — never graded against invented values.
 
 ## Known input defect: FY2021
 
@@ -66,8 +67,7 @@ balance sheet and the income statement; the notes (pages 58+) are readable, so
 the PP&E breakdown can still be extracted while the face of the balance sheet
 cannot.
 
-`extraction.py` detects this (`garble_ratio`) and attaches a warning to the run
-instead of sending glyph soup to the model. The stored FY2021 run scored 3.7%
-(1/27) for exactly this reason — a *document* failure, not a model failure. The
-remedy is OCR or a vision model over the rendered pages, which is out of scope
-for the two text-based strategies here.
+`extraction.py` detects this (`garble_ratio`) and routes affected pages to the
+local RapidOCR PP-OCRv6 engine in Strategies 2 and 3 instead of sending glyph
+soup to the model. The verified 2026-08-22 runs both score 27/27; see
+`research/benchmark/3m_strategy23_results.md`.

@@ -23,7 +23,11 @@ MAX_PDF_BYTES = 100 * 1024 * 1024
 
 
 def company_slug(name: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
+    # Keep Unicode letters/numbers so distinct Japanese company names cannot
+    # collapse into the same ``Unknown_Company/<year>`` directory. ``\w`` is
+    # Unicode-aware in Python; punctuation and path separators are still
+    # replaced, and dots are deliberately excluded to avoid traversal tokens.
+    slug = re.sub(r"[^\w-]+", "_", name, flags=re.UNICODE).strip("_")
     return slug or "Unknown_Company"
 
 
@@ -66,6 +70,9 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
     try:
         sha256, size = _download(str(candidate["url"]), temporary)
         screening = screen_pdf(temporary, year)
+        if screening.get("screened") != "ok":
+            reasons = "; ".join(str(reason) for reason in screening.get("screen_reasons") or [])
+            raise ValueError(f"Downloaded PDF failed Annual Report screening: {reasons or 'review required'}")
         # The last verified download remains usable until its replacement has
         # passed both the PDF signature check and document screening.
         temporary.replace(target)

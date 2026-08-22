@@ -28,7 +28,8 @@ ACCOUNTING_SYNONYMS = (
     "property, plant and equipment", "pp&e", "land", "buildings", "machinery",
     "construction in progress", "equipment", "accumulated depreciation",
     "goodwill", "intangible assets", "investments", "financial assets",
-    "other assets", "notes to consolidated financial statements",
+    "other assets", "operating lease", "right of use assets",
+    "right-of-use assets", "rou assets", "notes to consolidated financial statements",
 )
 
 FINANCIAL_HEADING_PATTERNS = tuple(re.compile(pattern, re.I | re.M) for pattern in (
@@ -47,6 +48,14 @@ REJECT_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
     r"corporate governance",
     r"table of contents",
 ))
+
+# Evidence that is easy to lose when issuers move a schema component off the
+# face statement. This is a source-language concept, not an answer or company-
+# specific page number. A bounded bonus keeps a lease note competitive with
+# dense generic financial pages when Other Equipment may include ROU assets.
+CRITICAL_EVIDENCE_PATTERNS = (
+    ("right_of_use_assets", re.compile(r"(?:operating\s+lease\s+)?right[-\s]+of[-\s]+use\s+assets?", re.I)),
+)
 
 
 def _tokens(text: str) -> list[str]:
@@ -125,6 +134,7 @@ def score_pages(
         numeric_tokens = sum(bool(re.search(r"\d", token)) for token in tokenized[page_no])
         numeric_density = numeric_tokens / length
         reject_hits = sum(bool(pattern.search(text)) for pattern in REJECT_PATTERNS)
+        critical_evidence = [name for name, pattern in CRITICAL_EVIDENCE_PATTERNS if pattern.search(text)]
         # The lexical score does the ranking work; the remaining bounded terms
         # incorporate PDF layout facts and strong financial-navigation cues.
         score = (
@@ -134,6 +144,7 @@ def score_pages(
             + (4.0 if table_signal else 0.0)
             + (0.75 if column_signal else 0.0)
             + min(2.0, numeric_density * 8.0)
+            + min(16.0, len(critical_evidence) * 16.0)
             - reject_hits * (3.0 if not heading_hits else 1.0)
         )
         results.append({
@@ -147,6 +158,7 @@ def score_pages(
             "column_signal": column_signal,
             "numeric_density": round(numeric_density, 4),
             "reject_hits": reject_hits,
+            "critical_evidence": critical_evidence,
             "characters": len(text),
         })
     return sorted(results, key=lambda item: (-float(item["score"]), int(item["page"])))
@@ -186,8 +198,8 @@ def select_evidence_pages(
     total_chars = sum(len(text) for _, text in pages)
     selected_chars = sum(len(text) for _, text in selected)
     diagnostics = {
-        "selector": "intelligent_scanning_gate_v1",
-        "selection_method": "BM25-style schema terms + financial headings + pdf-inspector layout metadata",
+        "selector": "intelligent_scanning_gate_v2",
+        "selection_method": "BM25-style schema terms + critical schema evidence + financial headings + pdf-inspector layout metadata",
         "selected_pages": [page for page, _ in selected],
         "selected_page_count": len(selected),
         "candidate_page_count": len(ranked),

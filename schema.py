@@ -330,17 +330,18 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Total Assets": 39868
     },
     # FY2025 is a PARTIAL key: only the rows that can be read directly off the
-    # printed FY2025 statements (balance sheet page 50, PP&E note page 54) plus
-    # the four rows that are structurally zero in every verified year.
+    # printed FY2025 statements (balance sheet page 50, PP&E note page 54,
+    # leases note page 104) plus the four rows that are structurally zero in
+    # every verified year.
     #
-    # Deliberately omitted, because 3M dropped the separate "Operating lease
-    # right of use assets" line in FY2025 and folded it into "Other assets":
-    # Other Equipment, Tangible Assets, Fixed Assets, Financial Assets,
-    # Investments, Long-term Loan, Other Financial Assets, Other Fixed Assets.
-    # Those need the leases and other-assets notes and a mapping judgement that
-    # was not supplied with the assignment, so no value is invented for them.
+    # 3M folded operating-lease ROU assets into "Other assets" on the face, but
+    # Note 18 supplies the exact $516M balance. That verifies Other Equipment,
+    # Tangible Assets and Fixed Assets. Five rows remain deliberately omitted:
+    # Financial Assets, Investments, Long-term Loan, Other Financial Assets and
+    # Other Fixed Assets. The FY2025 PDF does not provide the supplemental
+    # Other-assets component table needed to split them, so no value is guessed.
     # compute_metrics scores only the items present here, so an FY2025 run is
-    # reported as n/19 rather than being silently graded against guesses.
+    # reported as n/22 rather than being silently graded against guesses.
     "2025": {
         "Cash & Cash Equivalents": 5235,
         "Accounts Receivable - Trade": 3533,
@@ -358,7 +359,10 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Plant & Machinery": 15328,
         "Construction in Progress": 663,
         "Accumulated Depreciation": -16821,
+        "Other Equipment": 516,
+        "Tangible Assets": 7617,
         "Intangible Assets": 7522,
+        "Fixed Assets": 21346,
         "Deferred Charges": 0,
         "Total Assets": 37733
     }
@@ -369,6 +373,41 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
 # source-hash-bound candidate table in the Corpus UI.
 GOLDEN_ANSWERS_STORE = {
     "2022": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2022"],
+}
+
+# Independent, source-bound benchmark keys. These are intentionally keyed by
+# exact PDF SHA-256 rather than fiscal year: replacing a report cannot inherit
+# the old report's answers. FY2021, FY2023 and FY2024 were checked twice against
+# their face statement and supplemental note (visual/OCR or native text, then
+# deterministic reconciliation). FY2025 is a 22-row partial key because the
+# report does not disclose the five-way Other-assets split needed by the schema.
+# The audit trail and page-level derivations live in
+# research/benchmark/3m_cross_year_gold_audit.md.
+SOURCE_BOUND_GOLDEN_ANSWERS = {
+    "33beb4a185b095d15dcd3259d57bfb46f05953cb0241804bd17417da39000da9": {
+        "company": "3M",
+        "fiscal_year": "2021",
+        "status": "independently_verified",
+        "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2021"],
+    },
+    "2304e28144e0cc53fb23889a5504aa4661facddbc241bb8c5079cbe990500569": {
+        "company": "3M",
+        "fiscal_year": "2023",
+        "status": "independently_verified",
+        "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2023"],
+    },
+    "886ee296081a9bdd17671011eb75336ddedd4afaefe0e1803aacc7640feee760": {
+        "company": "3M",
+        "fiscal_year": "2024",
+        "status": "independently_verified",
+        "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2024"],
+    },
+    "7c831a3861a34f8cfcc1fec2a105595280eca61db4324bcfb252a3215ee8c267": {
+        "company": "3M",
+        "fiscal_year": "2025",
+        "status": "independently_verified_partial",
+        "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2025"],
+    },
 }
 
 # Benchmark view of the schema: the same 27 rows, with each row's golden answer

@@ -33,7 +33,7 @@ from models import (
 from normalize import canonical_item, normalize_payload, parse_confidence, parse_money
 from pipeline import compute_metrics
 from prompts import SYSTEM_PROMPT, build_user_prompt
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE
+from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
 
 FAILURES: list[str] = []
 
@@ -78,6 +78,24 @@ check(
     "runtime gold contains only the assignment-supplied FY2022 key",
     set(GOLDEN_ANSWERS_STORE) == {"2022"},
 )
+check(
+    "cross-year audit keys are bound to exact 64-character PDF hashes",
+    set(item["fiscal_year"] for item in SOURCE_BOUND_GOLDEN_ANSWERS.values())
+    == {"2021", "2023", "2024", "2025"}
+    and all(len(source_hash) == 64 for source_hash in SOURCE_BOUND_GOLDEN_ANSWERS),
+)
+for source_hash, audited in sorted(SOURCE_BOUND_GOLDEN_ANSWERS.items()):
+    answers = audited["answers"]
+    year = audited["fiscal_year"]
+    if len(answers) == 27:
+        bad = [
+            f"{total}={answers[total]} but parts sum to {sum(answers[p] for p in parts)}"
+            for total, parts in SUBTOTALS
+            if sum(answers[p] for p in parts) != answers[total]
+        ]
+        check(f"source-bound FY{year} subtotals reconcile", not bad, "; ".join(bad))
+    else:
+        check(f"source-bound FY{year} partial key has 22 verified rows", len(answers) == 22)
 
 for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):
     if len(answers) < 27:
@@ -473,7 +491,7 @@ from providers import (DEFAULT_PROVIDER, PROVIDERS, REASONING_EFFORTS, cache_usa
 
 check("OpenRouter is the default provider", DEFAULT_PROVIDER == "openrouter")
 check("DeepSeek V4 Flash is the default model",
-      PROVIDERS["openrouter"].default_model == "deepseek/deepseek-v4-flash-latest")
+      PROVIDERS["openrouter"].default_model == "deepseek/deepseek-v4-flash-0731")
 check("Z.AI uses the thinking parameter",
       "thinking" in reasoning_payload(get_provider("zai"), "high"))
 check("OpenRouter uses the reasoning parameter",

@@ -13,6 +13,43 @@ from schema import ASSET_SCHEMA
 
 
 class CorpusManifestTests(unittest.TestCase):
+    def test_japanese_company_slugs_remain_distinct_and_path_safe(self):
+        first = fetch_module.company_slug("ダイニチ工業株式会社")
+        second = fetch_module.company_slug("リソルホールディングス株式会社")
+
+        self.assertNotEqual(first, second)
+        self.assertNotEqual("Unknown_Company", first)
+        self.assertNotIn("/", first)
+        self.assertNotIn("..", first)
+
+    def test_fetch_rejects_screening_review_before_replacing_canonical_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "corpus_dataset"
+            current = root / "Example" / "2022" / "Example_annual_report_2022.pdf"
+            current.parent.mkdir(parents=True)
+            current.write_bytes(b"%PDF-current")
+
+            def fake_download(_url, target):
+                target.write_bytes(b"%PDF-news-release")
+                return "f" * 64, target.stat().st_size
+
+            with patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
+                fetch_module, "_download", side_effect=fake_download
+            ), patch.object(fetch_module, "screen_pdf", return_value={
+                "screened": "review",
+                "screen_reasons": ["No balance sheet heading found."],
+            }), patch.object(fetch_module, "upsert_document") as upsert:
+                with self.assertRaisesRegex(ValueError, "failed Annual Report screening"):
+                    fetch_module.fetch_report({
+                        "company": "Example",
+                        "year": 2022,
+                        "url": "https://example.test/release_2022.pdf",
+                    })
+
+            self.assertEqual(b"%PDF-current", current.read_bytes())
+            self.assertEqual([], list(current.parent.glob(".*.pdf")))
+            upsert.assert_not_called()
+
     def test_upsert_replaces_same_company_year_and_removes_superseded_pdf(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "corpus_dataset"

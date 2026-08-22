@@ -20,6 +20,7 @@ app: "Annual Report Extractor" {
   jobs: "Durable extraction jobs"
   cohort: "Matched parser cohort"
   gate: "Strategy 3 intelligent scanning gate"
+  gold: "Source-bound audited gold"
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
@@ -33,13 +34,15 @@ app: "Annual Report Extractor" {
   api -> pipeline: "on-demand review prefill"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
+  pipeline -> gold: "exact SHA + company + year"
+  gold -> quality: "scorable audited fields"
   pipeline -> gate: "score unified complete pages"
   gate -> pipeline: "top 3-5 source pages"
   pipeline -> storage: "persist"
   pipeline -> jobs: "phase events"
   storage -> cohort: "latest parser/report result"
   cohort -> client: "equal-weight comparison"
-  corpus -> storage: "PDF + SHA-256 manifest"
+  corpus -> storage: "screened-ok PDF + SHA-256 manifest"
 }
 
 parsers: "PDF parsers" {shape: cloud}

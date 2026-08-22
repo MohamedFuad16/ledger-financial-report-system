@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-22T09:03:32+00:00",
+  "updated_at": "2026-08-22T09:58:44.740050+00:00",
   "documents": [
     {
       "company": "3M",
@@ -44,6 +44,39 @@
     {
       "company": "AppBank株式会社",
       "company_slug": "AppBank",
+      "fiscal_year": 2022,
+      "source_url": "https://data.swcms.net/file/appbank/dam/jcr:543795b5-a64c-4ae7-b18d-42dd67a9bb3f/S100QHHG.pdf",
+      "source_title": "2022 有価証券報告書",
+      "official_domain": "ir.appbank.co.jp",
+      "official_source_verified": true,
+      "discovery": "page",
+      "downloaded_at": "2026-08-22T09:58:11.528166+00:00",
+      "local_path": "corpus_dataset/AppBank/2022/AppBank_annual_report_2022.pdf",
+      "filename": "AppBank_annual_report_2022.pdf",
+      "sha256": "e6ee6133b0caef62678d82744a25c20400782494a757f394a152cd4ffeb66a80",
+      "size_bytes": 735544,
+      "golden_answers": null,
+      "screened": "ok",
+      "screen_reasons": [],
+      "pages": 117,
+      "readable_pages": 117,
+      "garbled_pages": [],
+      "balance_sheet_page": 67,
+      "currency": "JPY",
+      "fiscal_year_confirmed": true,
+      "internal_year_mentions": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2026"
+      ],
+      "warnings": []
+    },
+    {
+      "company": "AppBank株式会社",
+      "company_slug": "AppBank",
       "fiscal_year": 2024,
       "source_url": "https://data.swcms.net/file/appbank/dam/jcr:2626068c-2a6e-4d69-bf25-38ea495e6931/S100VI2R.pdf",
       "source_title": "2024 有価証券報告書",
@@ -71,6 +104,43 @@
         "2024",
         "2025",
         "2026"
+      ],
+      "warnings": []
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "company_slug": "ダイニチ工業株式会社",
+      "fiscal_year": 2022,
+      "source_url": "https://www.dainichi-net.co.jp/uploads/2022/06/2022_securities_report.pdf",
+      "source_title": "有価証券報告書－第59期(2021年4月1日－2022年3月31日)",
+      "official_domain": "dainichi-net.co.jp",
+      "official_source_verified": true,
+      "discovery": "page",
+      "downloaded_at": "2026-08-22T09:58:10.631155+00:00",
+      "local_path": "corpus_dataset/ダイニチ工業株式会社/2022/ダイニチ工業株式会社_annual_report_2022.pdf",
+      "filename": "ダイニチ工業株式会社_annual_report_2022.pdf",
+      "sha256": "2a68998f0818fbdd40341142d6a3a6ea7ae3288afeb336398be8a5c5d08353c9",
+      "size_bytes": 658331,
+      "golden_answers": null,
+      "screened": "ok",
+      "screen_reasons": [],
+      "pages": 70,
+      "readable_pages": 70,
+      "garbled_pages": [],
+      "balance_sheet_page": 34,
+      "currency": "JPY",
+      "fiscal_year_confirmed": true,
+      "internal_year_mentions": [
+        "2014",
+        "2015",
+        "2016",
+        "2017",
+        "2018",
+        "2019",
+        "2020",
+        "2021",
+        "2022",
+        "2023"
       ],
       "warnings": []
     }

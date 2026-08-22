@@ -4,7 +4,7 @@
 
 | Module | Depends on | Depended on by | Blast radius |
 |---|---|---|---|
-| `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, assignment-only gold, scoring, API, and UI |
+| `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, assignment fallback gold, exact-SHA audited gold, scoring, API, and UI |
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
 | `intelligent_scan.py` | fixed schema | Strategy 3 extraction, focused tests | Changes affect Strategy 3 page ranking, selected evidence and model input size |
 | `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
@@ -14,7 +14,7 @@
 | `corpus/discover.py` | Firecrawl client | corpus service | Changes affect link ranking and Firecrawl credits |
 | `corpus/client.py` | Firecrawl REST API | discovery, runtime-settings verification | Changes affect discovery calls and credential-save safety |
 | `runs/_corpus_jobs` | server corpus-job registry | corpus job list/detail API, client rehydration | Changes affect navigation-safe discovery visibility and restart audit state |
-| `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect PDF trust, canonical naming, and SHA-bound candidate artifacts |
+| `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect PDF trust, Unicode canonical naming, screening-before-replacement, and SHA-bound candidate artifacts |
 | `corpus/manifest.py` | schema, file/OS locks | corpus API, pipeline scoring | Changes affect canonical corpus identity, human approval, deletion, and exact-accuracy eligibility |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
@@ -34,4 +34,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-22 via tree-sitter/heuristic fallback.
+- 2026-08-22 after source-bound gold and corpus-ingestion hardening.

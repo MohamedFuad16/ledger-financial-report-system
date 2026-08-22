@@ -24,7 +24,7 @@ cd frontend && npm test -- --run && npm run build
 
 ## Current baseline
 
-The full extraction contract, 44 unittest cases, 18 Vitest checks, production
+The full extraction contract, every backend `test_*.py` suite, 19 Vitest checks, production
 TypeScript/Vite build, Python compile checks, and in-app browser visual/DOM sweep
 passed on 2026-08-22. The newest browser pass covers the active Strategy 3
 desktop execution page plus the Japanese dark-theme

@@ -145,6 +145,27 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         self.assertEqual("page", reports[2024][0].discovery)
         self.assertTrue(reports[2024][0].source_verified)
 
+    def test_year_stamped_official_pdf_without_report_language_is_rejected(self):
+        class NewsRelease(_FakeFirecrawl):
+            def map(self, _url, *, search):
+                return [{
+                    "url": "https://example.jp/news/release_2022.pdf",
+                    "title": "2022 新サービスのお知らせ",
+                    "description": "",
+                }]
+
+            def scrape_links(self, _url):
+                return []
+
+            def search(self, query, *, limit, country):
+                return []
+
+        reports = discover_company_reports(
+            NewsRelease(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2022],
+        )
+        self.assertEqual([], reports[2022])
+
 
 if __name__ == "__main__":
     unittest.main()

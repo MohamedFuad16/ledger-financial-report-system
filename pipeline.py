@@ -25,7 +25,7 @@ from models import EXPECTED_ROW_COUNT, SchemaValidationError, rows_as_dicts, val
 from normalize import normalize_payload
 from reconcile import reconcile, reconciliation_summary
 from prompts import build_user_prompt
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE
+from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
 
 UPLOAD_DIR = Path("uploads")
 RUNS_DIR = Path("runs")
@@ -235,8 +235,23 @@ def compute_metrics(
         gold_status = "assignment_supplied"
         gold_company = "3M"
     elif source_pdf_sha256:
-        # All other answer keys must be human-approved and bound to the exact
-        # bytes that were run. A same-year PDF replacement cannot inherit gold.
+        # Independently audited fixtures and human-approved corpus keys are
+        # bound to the exact bytes that were run. A same-year PDF replacement
+        # cannot inherit gold.
+        audited = SOURCE_BOUND_GOLDEN_ANSWERS.get(source_pdf_sha256)
+        if audited:
+            audited_company = re.sub(r"[^a-z0-9]+", "", str(audited.get("company") or "").lower())
+            audited_year = str(audited.get("fiscal_year") or "")
+            if audited_company == normalized_company and year and audited_year == year.group():
+                golden = {
+                    str(item): float(value)
+                    for item, value in dict(audited.get("answers") or {}).items()
+                }
+                gold_status = str(audited.get("status") or "independently_verified")
+                gold_company = str(audited.get("company") or company or "")
+
+        # A corpus review is the fallback for documents not in the fixed audit
+        # fixtures above.
         try:
             from corpus.manifest import find_document, verification_payload
 
@@ -244,7 +259,7 @@ def compute_metrics(
             verification = verification_payload(document) if document else None
         except (OSError, ValueError, KeyError):
             verification = None
-        if verification and verification.get("status") == "human_verified":
+        if not golden and verification and verification.get("status") == "human_verified":
             golden = {
                 str(item.get("item")): float(item["answer_m_usd"])
                 for item in verification.get("rows", [])
