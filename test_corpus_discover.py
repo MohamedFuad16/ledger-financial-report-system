@@ -230,6 +230,36 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         self.assertEqual([], reports[2021])
         self.assertEqual(1, len(reports[2022]))
 
+    def test_comparative_year_still_receives_a_deep_retry(self):
+        class ComparativeDeep(_FakeFirecrawl):
+            def __init__(self):
+                super().__init__()
+                self.queries = []
+
+            def search(self, query, *, limit, country):
+                self.queries.append(query)
+                if query == '"Example株式会社" 有価証券報告書 filetype:pdf':
+                    return [{
+                        "url": "https://example.jp/ir/report_2022.pdf",
+                        "title": "2022年3月期 有価証券報告書",
+                        "description": "2021年比較",
+                    }]
+                if 'FY2021' in query:
+                    return [{
+                        "url": "https://example.jp/ir/report_2021.pdf",
+                        "title": "2021 Annual Report",
+                        "description": "",
+                    }]
+                return []
+
+        client = ComparativeDeep()
+        reports = discover_company_reports(
+            client, company="Example株式会社", official_url="https://example.jp/",
+            country="JP", years=[2021, 2022], deep_search=True,
+        )
+        self.assertEqual(1, len(reports[2021]))
+        self.assertEqual(1, len(reports[2022]))
+
     def test_future_reporting_period_is_not_relabelled_as_requested_year(self):
         class FuturePeriod(_FakeFirecrawl):
             def search(self, query, *, limit, country):

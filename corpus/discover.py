@@ -87,6 +87,18 @@ def _primary_report_year(item: dict, requested_years: Iterable[int]) -> int | No
     return None
 
 
+def _found_candidate_years(
+    pool: Iterable[tuple[dict, str]], requested_years: Iterable[int]
+) -> set[int]:
+    years = sorted({int(year) for year in requested_years})
+    return {
+        primary
+        for item, _discovery in pool
+        if (primary := _primary_report_year(item, years)) is not None
+        and _looks_like_report(item, primary)
+    }
+
+
 def _score(item: dict, year: int, official_domain: str) -> int:
     url = str(item.get("url") or "")
     text = " ".join(str(item.get(key) or "") for key in ("url", "title", "description"))
@@ -148,9 +160,7 @@ def discover_company_reports(
             # Search below is the supported fallback for thin/blocked maps.
             pass
 
-    found_years = {
-        year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
-    }
+    found_years = _found_candidate_years(pool, years)
     if official_url and found_years != set(years):
         try:
             pool.extend((item, "page") for item in client.scrape_links(official_url))
@@ -158,9 +168,7 @@ def discover_company_reports(
             # Some IR pages block a full scrape while still exposing a sitemap.
             pass
 
-    found_years = {
-        year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
-    }
+    found_years = _found_candidate_years(pool, years)
     if found_years != set(years):
         # One broad PDF search returns the issuer's filing series and avoids six
         # almost-identical paid requests for a company with no public reports.
@@ -172,9 +180,7 @@ def discover_company_reports(
         pool.extend((item, "search") for item in client.search(query, limit=50, country=country))
 
     if deep_search:
-        found_years = {
-            year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
-        }
+        found_years = _found_candidate_years(pool, years)
         for year in years:
             if year in found_years:
                 continue
