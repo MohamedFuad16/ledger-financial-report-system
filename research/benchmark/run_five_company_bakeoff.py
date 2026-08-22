@@ -185,8 +185,9 @@ def _write_results(rows: list[dict[str, Any]], settings: dict[str, Any]) -> None
     ]
     for row in ordered:
         exact = f"{row['exact_matches']}/{row['total_compared']} ({row['accuracy_pct']}%)" if row["status"] == "complete" else "failed"
+        ocr_policy = row["ocr_policy"] if row["ocr_policy"] is not None else "—"
         lines.append(
-            f"| {row['company']} | {row['strategy']} | {row['parser'] or row['strategy_key']} | {row['ocr_policy']} | "
+            f"| {row['company']} | {row['strategy']} | {row['parser'] or row['strategy_key']} | {ocr_policy} | "
             f"{exact} | {row['coverage_pct'] if row['coverage_pct'] is not None else '—'} | "
             f"{row['parser_seconds'] if row['parser_seconds'] is not None else '—'} | "
             f"{row['model_seconds'] if row['model_seconds'] is not None else '—'} | "
@@ -194,15 +195,34 @@ def _write_results(rows: list[dict[str, Any]], settings: dict[str, Any]) -> None
             f"{row['approx_input_tokens'] if row['approx_input_tokens'] is not None else '—'} | "
             f"`{row['run_id'] or '—'}` |"
         )
-    lines.extend(["", "## Aggregate timing", "", "| Strategy | Parser | Completed | Mean parser s | Mean model s | Mean total s | Mean accuracy |", "|---|---|---:|---:|---:|---:|---:|"])
+    lines.extend([
+        "",
+        "## Aggregate timing and reliability",
+        "",
+        "Means include successful arms only; `Completed` preserves failures as reliability outcomes.",
+        "",
+        "| Strategy | Parser | Completed | Mean parser s | Mean model s | Mean total s | Mean tokens | Mean accuracy |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ])
     for strategy_name, strategy_key in ARMS:
         group = [row for row in complete if row["strategy_key"] == strategy_key]
         mean = lambda field: round(statistics.fmean(float(row[field]) for row in group if row[field] is not None), 2) if group else None
+        mean_accuracy = f"{mean('accuracy_pct')}%" if group else "—"
         lines.append(
             f"| {strategy_name} | {group[0]['parser'] if group else strategy_key} | {len(group)}/5 | "
             f"{mean('parser_seconds') if group else '—'} | {mean('model_seconds') if group else '—'} | "
-            f"{mean('total_seconds') if group else '—'} | {mean('accuracy_pct') if group else '—'}% |"
+            f"{mean('total_seconds') if group else '—'} | {mean('approx_input_tokens') if group else '—'} | "
+            f"{mean_accuracy} |"
         )
+    failures = [row for row in ordered if row["status"] != "complete"]
+    lines.extend(["", "## Failure details", ""])
+    if failures:
+        lines.extend(["| Company | Arm | Elapsed s | Error |", "|---|---|---:|---|"])
+        for row in failures:
+            error = str(row.get("error") or "Unspecified failure").replace("|", "\\|")
+            lines.append(f"| {row['company']} | `{row['strategy_key']}` | {row['total_seconds']} | {error} |")
+    else:
+        lines.append("No arm failed.")
     OUTPUT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
