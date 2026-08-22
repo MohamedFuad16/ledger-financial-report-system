@@ -73,6 +73,23 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         links = client.scrape_links("https://example.jp/ir/library/")
         self.assertEqual("2024 有価証券報告書", links[0]["title"])
 
+    def test_scraped_anchor_preserves_parenthesized_pdf_filename(self):
+        client = object.__new__(FirecrawlClient)
+        client._post = lambda *_args, **_kwargs: {  # type: ignore[method-assign]
+            "data": {
+                "markdown": (
+                    "2025年\n[統合報告書]"
+                    "(https://example.jp/reports/report2025(印刷推奨).pdf)"
+                ),
+                "links": [],
+            },
+        }
+        links = client.scrape_links("https://example.jp/ir/library/")
+        self.assertEqual(
+            "https://example.jp/reports/report2025(印刷推奨).pdf",
+            links[0]["url"],
+        )
+
     def test_japanese_ir_vocabulary_is_discovered(self):
         client = _FakeFirecrawl()
         reports = discover_company_reports(

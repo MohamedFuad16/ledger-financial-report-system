@@ -241,7 +241,13 @@ class FirecrawlClient:
         normalized: list[dict[str, Any]] = []
         seen: set[str] = set()
         markdown = str(data.get("markdown") or "")
-        for match in re.finditer(r"\[([^\]]+)\]\((https?://[^)\s]+)", markdown):
+        # URLs on Japanese IR sites often contain a parenthesized filename,
+        # e.g. `report2025(print).pdf`.  Match one balanced parenthesis level
+        # instead of stopping at the filename's first closing parenthesis.
+        markdown_link = re.compile(
+            r"\[([^\]]+)\]\((https?://(?:[^()\s]+|\([^()\s]*\))+?)\)"
+        )
+        for match in markdown_link.finditer(markdown):
             title, link = match.group(1).strip(), match.group(2).strip()
             # Disclosure-library links frequently use the same label (for
             # example 有価証券報告書) beneath a year heading.  Carry the nearest

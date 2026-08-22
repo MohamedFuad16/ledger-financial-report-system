@@ -110,3 +110,9 @@ identity or job-budget boundary.
 - Cause: Discovery inspected only the supplied page and same-domain PDFs returned directly by map/search; it did not scrape a linked official report-library HTML page.
 - Resolution: Extract up to four same-domain links whose label/path identifies an annual or securities-report library, scrape those pages, and retain the existing PDF identity/year/screening gates. Corpus discovery requests now enable deep retry by default.
 - First seen: 2026-08-23
+
+## Parenthesized Japanese PDF filenames were truncated (resolved)
+- Symptom: An official Alpico integrated-report link such as `report2025(印刷推奨).pdf` was downloaded as a URL ending at `(...推奨`, causing a false HTTP 404.
+- Cause: The Markdown-link expression treated the filename's first closing parenthesis as the end of the Markdown destination.
+- Resolution: Parse one balanced parenthesis level inside scraped Markdown destinations and retain the complete `.pdf` suffix; regression coverage includes a Japanese parenthesized filename.
+- First seen: 2026-08-23
