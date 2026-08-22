@@ -345,5 +345,5 @@
 - Date: 2026-08-23
 - Status: Accepted
 - Context: A live official-library retry returned an Alpico PDF whose filename contains a Japanese parenthesized print/view annotation. The Markdown-link expression stopped at the filename's inner closing parenthesis, removed the `.pdf` suffix and caused a false 404.
-- Decision: Accept one balanced parenthesis level within Firecrawl Markdown link destinations and keep the raw complete destination for download and screening. Continue to apply annual-document vocabulary, fiscal-year identity, official-source trust and local PDF screening after URL recovery.
+- Decision: Scan Firecrawl Markdown destinations in linear time while tracking balanced parentheses, and keep the raw complete destination for download and screening. Continue to apply annual-document vocabulary, fiscal-year identity, official-source trust and local PDF screening after URL recovery. Exercise the scanner against a 500 KB regression page to prevent pathological backtracking from occupying the API worker.
 - Consequences: Ordinary Japanese IR filenames remain downloadable without relaxing report admission. An integrated report may now reach screening, but it still cannot become corpus gold merely because its link was parsed successfully.

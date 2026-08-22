@@ -114,5 +114,5 @@ identity or job-budget boundary.
 ## Parenthesized Japanese PDF filenames were truncated (resolved)
 - Symptom: An official Alpico integrated-report link such as `report2025(印刷推奨).pdf` was downloaded as a URL ending at `(...推奨`, causing a false HTTP 404.
 - Cause: The Markdown-link expression treated the filename's first closing parenthesis as the end of the Markdown destination.
-- Resolution: Parse one balanced parenthesis level inside scraped Markdown destinations and retain the complete `.pdf` suffix; regression coverage includes a Japanese parenthesized filename.
+- Resolution: Scan Markdown destinations character-by-character, tracking balanced parentheses and retaining the complete `.pdf` suffix. The linear-time regression includes a 500 KB page so URL repair cannot stall the API worker.
 - First seen: 2026-08-23

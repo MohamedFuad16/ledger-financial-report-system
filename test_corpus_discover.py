@@ -1,4 +1,5 @@
 import unittest
+import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -89,6 +90,17 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             "https://example.jp/reports/report2025(印刷推奨).pdf",
             links[0]["url"],
         )
+
+    def test_large_scraped_page_with_parentheses_is_linear(self):
+        client = object.__new__(FirecrawlClient)
+        markdown = "x" * 500_000 + "\n[統合報告書](https://example.jp/report(閲覧).pdf)"
+        client._post = lambda *_args, **_kwargs: {  # type: ignore[method-assign]
+            "data": {"markdown": markdown, "links": []},
+        }
+        started = time.monotonic()
+        links = client.scrape_links("https://example.jp/ir/library/")
+        self.assertLess(time.monotonic() - started, 1.0)
+        self.assertEqual("https://example.jp/report(閲覧).pdf", links[0]["url"])
 
     def test_japanese_ir_vocabulary_is_discovered(self):
         client = _FakeFirecrawl()

@@ -23,6 +23,33 @@ class FirecrawlError(RuntimeError):
     pass
 
 
+def _markdown_http_links(markdown: str) -> list[tuple[str, str, int]]:
+    """Extract Markdown HTTP links in linear time, including balanced `()` URLs."""
+    anchors: list[tuple[str, str, int]] = []
+    opener = re.compile(r"\[([^\]\n]+)\]\((https?://)")
+    for match in opener.finditer(markdown):
+        depth = 0
+        cursor = match.end(2)
+        destination_end: int | None = None
+        while cursor < len(markdown):
+            character = markdown[cursor]
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                if depth == 0:
+                    destination_end = cursor
+                    break
+                depth -= 1
+            elif character.isspace() and depth == 0:
+                break
+            cursor += 1
+        if destination_end is None:
+            continue
+        destination = match.group(2) + markdown[match.end(2):destination_end]
+        anchors.append((match.group(1).strip(), destination.strip(), match.start()))
+    return anchors
+
+
 class FirecrawlRateGate:
     """Process-wide spacing and shared cooldown for credit-consuming calls.
 
@@ -242,18 +269,14 @@ class FirecrawlClient:
         seen: set[str] = set()
         markdown = str(data.get("markdown") or "")
         # URLs on Japanese IR sites often contain a parenthesized filename,
-        # e.g. `report2025(print).pdf`.  Match one balanced parenthesis level
-        # instead of stopping at the filename's first closing parenthesis.
-        markdown_link = re.compile(
-            r"\[([^\]]+)\]\((https?://(?:[^()\s]+|\([^()\s]*\))+?)\)"
-        )
-        for match in markdown_link.finditer(markdown):
-            title, link = match.group(1).strip(), match.group(2).strip()
+        # e.g. `report2025(print).pdf`.  A linear scanner preserves those
+        # filenames without catastrophic regex backtracking on large pages.
+        for title, link, match_start in _markdown_http_links(markdown):
             # Disclosure-library links frequently use the same label (for
             # example 有価証券報告書) beneath a year heading.  Carry the nearest
             # preceding year into the candidate so discovery can assign the
             # CDN URL to the correct fiscal year.
-            nearby = markdown[max(0, match.start() - 180):match.start()]
+            nearby = markdown[max(0, match_start - 180):match_start]
             nearby_years = re.findall(r"(?:FY\s*)?(20\d{2})(?:年|\b)", nearby, re.I)
             if nearby_years and nearby_years[-1] not in title:
                 title = f"{nearby_years[-1]} {title}".strip()
