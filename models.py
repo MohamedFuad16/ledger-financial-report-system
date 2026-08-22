@@ -44,7 +44,10 @@ class AssetRow(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=False)
 
     item: str
-    answer_m_usd: Optional[float] = Field(default=..., description="Value in millions of USD, or null.")
+    answer_m_usd: Optional[float] = Field(
+        default=...,
+        description="Value in the run's declared million-unit currency, or null (legacy field name).",
+    )
     confidence: float = Field(default=..., ge=0.0, le=1.0)
     source_page: Optional[int] = None
     source_label: Optional[str] = None
@@ -216,9 +219,10 @@ Requirements:
 - "detected_fiscal_year" is a 4-digit year string.
 - "rows" contains exactly {EXPECTED_ROW_COUNT} objects, one per TARGET_SCHEMA item,
   in TARGET_SCHEMA order, with "item" copied verbatim from TARGET_SCHEMA.
-- "answer_m_usd" is a JSON number in millions of USD, or null. No thousands
-  separators, no currency symbols, no parentheses; write negatives with a leading
-  minus sign.
+- "answer_m_usd" is a JSON number in the OUTPUT UNIT declared by the user message,
+  or null. The field name is retained for API compatibility and does not authorize
+  currency conversion. No thousands separators, no currency symbols, no
+  parentheses; write negatives with a leading minus sign.
 - "confidence" is a JSON number between 0.0 and 1.0.
 - "source_page" is an integer PDF page number or null.
 - "source_label" is the line label used in the report, or null.

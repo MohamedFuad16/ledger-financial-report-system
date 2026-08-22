@@ -69,7 +69,7 @@ def safe_filename(name: str) -> str:
 
 def report_identity(name: str, fiscal_year: Any = "") -> tuple[str, str, str]:
     """Return ``(company_slug, year, canonical_filename)`` for a report name."""
-    stem = Path(safe_filename(name)).stem
+    stem = Path(str(name or "annual_report.pdf")).name.rsplit(".", 1)[0]
     # Uploaded files and corpus files may already carry our unique timestamp.
     stem = re.sub(r"^\d{8}T\d{6}Z_\d{3}_", "", stem)
     match = re.search(r"(19|20)\d{2}", str(fiscal_year or "")) or re.search(r"(19|20)\d{2}", stem)
@@ -77,8 +77,13 @@ def report_identity(name: str, fiscal_year: Any = "") -> tuple[str, str, str]:
     company = re.sub(r"(?i)annual[_\s-]*report|form[_\s-]*10[_\s-]*k", "_", stem)
     company = re.sub(r"(19|20)\d{2}", "_", company)
     company = re.sub(r"(?i)updated|final|online|pdfa|web", "_", company)
-    company = re.sub(r"[^A-Za-z0-9]+", "_", company).strip("_") or "Unknown_Company"
+    company = re.sub(r"[^\w]+", "_", company, flags=re.UNICODE).strip("_") or "Unknown_Company"
     return company, year, f"{company}_annual_report_{year}.pdf"
+
+
+def normalize_company_key(value: Any) -> str:
+    """Unicode-safe company identity for source-bound benchmark matching."""
+    return "".join(character for character in str(value or "").casefold() if character.isalnum())
 
 
 def _unique_stamp() -> str:
@@ -201,11 +206,24 @@ def apply_confidence_gate(rows: list[dict]) -> list[dict]:
     return gated
 
 
+def detect_source_value_quantum(text: str) -> float:
+    """Return the report's displayed monetary precision in million units."""
+    sample = str(text or "")[:200_000].lower()
+    if re.search(r"単位\s*[：:]\s*千円|in thousands|thousands of", sample):
+        return 0.001
+    if re.search(r"単位\s*[：:]\s*百万円|in millions|millions of", sample):
+        return 1.0
+    if re.search(r"単位\s*[：:]\s*円", sample):
+        return 0.000001
+    return 0.0
+
+
 def compute_metrics(
     rows: list[dict] | None,
     fiscal_year: Any,
     company: str | None = None,
     source_pdf_sha256: str | None = None,
+    currency: str = "USD",
 ) -> dict[str, Any]:
     """
     Score a prediction against the golden answers for its fiscal year.
@@ -224,31 +242,41 @@ def compute_metrics(
     silently compared against another year.
     """
     year = re.search(r"(19|20)\d{2}", str(fiscal_year or ""))
-    normalized_company = re.sub(r"[^a-z0-9]+", "", str(company or "").lower())
+    normalized_company = normalize_company_key(company)
+    normalized_currency = str(currency or "USD").strip().upper()
     golden: dict[str, float] = {}
     gold_status = "human_review_required"
     gold_company = None
+    gold_value_quantum = 0.0
     # FY2022 is the only answer key supplied by the assignment. It remains
     # authoritative for 3M even when the run came from a direct upload.
-    if year and year.group() == "2022" and normalized_company == "3m":
+    if year and year.group() == "2022" and normalized_company == "3m" and normalized_currency == "USD":
         golden = GOLDEN_ANSWERS_STORE["2022"]
         gold_status = "assignment_supplied"
         gold_company = "3M"
+        gold_value_quantum = 1.0
     elif source_pdf_sha256:
         # Independently audited fixtures and human-approved corpus keys are
         # bound to the exact bytes that were run. A same-year PDF replacement
         # cannot inherit gold.
         audited = SOURCE_BOUND_GOLDEN_ANSWERS.get(source_pdf_sha256)
         if audited:
-            audited_company = re.sub(r"[^a-z0-9]+", "", str(audited.get("company") or "").lower())
+            audited_company = normalize_company_key(audited.get("company"))
             audited_year = str(audited.get("fiscal_year") or "")
-            if audited_company == normalized_company and year and audited_year == year.group():
+            audited_currency = str(audited.get("currency") or "USD").strip().upper()
+            if (
+                audited_company == normalized_company
+                and year
+                and audited_year == year.group()
+                and audited_currency == normalized_currency
+            ):
                 golden = {
                     str(item): float(value)
                     for item, value in dict(audited.get("answers") or {}).items()
                 }
                 gold_status = str(audited.get("status") or "independently_verified")
                 gold_company = str(audited.get("company") or company or "")
+                gold_value_quantum = float(audited.get("source_value_quantum") or 1.0)
 
         # A corpus review is the fallback for documents not in the fixed audit
         # fixtures above.
@@ -259,7 +287,13 @@ def compute_metrics(
             verification = verification_payload(document) if document else None
         except (OSError, ValueError, KeyError):
             verification = None
-        if not golden and verification and verification.get("status") == "human_verified":
+        verification_currency = str((verification or {}).get("currency") or "USD").strip().upper()
+        if (
+            not golden
+            and verification
+            and verification.get("status") == "human_verified"
+            and verification_currency == normalized_currency
+        ):
             golden = {
                 str(item.get("item")): float(item["answer_m_usd"])
                 for item in verification.get("rows", [])
@@ -267,6 +301,7 @@ def compute_metrics(
             }
             gold_status = "human_verified"
             gold_company = str(company or document.get("company") or "")
+            gold_value_quantum = float((verification or {}).get("source_value_quantum") or 0.0)
 
     exact = 0
     accepted_exact = 0
@@ -302,7 +337,8 @@ def compute_metrics(
             continue
         committed += 1
         try:
-            if abs(float(value) - float(expected)) < 0.5:
+            exact_tolerance = gold_value_quantum / 2 + 1e-9 if gold_value_quantum > 0 else 0.5
+            if abs(float(value) - float(expected)) <= exact_tolerance:
                 exact += 1
                 if accepted:
                     accepted_exact += 1
@@ -327,10 +363,13 @@ def compute_metrics(
         "has_golden": bool(golden),
         "gold_company": gold_company if golden else None,
         "gold_status": gold_status if golden else "human_review_required",
+        "gold_currency": normalized_currency if golden else None,
+        "answer_unit": f"M {normalized_currency}",
+        "gold_value_quantum": gold_value_quantum if golden else None,
     }
 
 
-def result_table(rows: list[dict]) -> list[dict]:
+def result_table(rows: list[dict], answer_unit: str = "M USD") -> list[dict]:
     return [
         {
             "Classification": r["classification"],
@@ -340,7 +379,7 @@ def result_table(rows: list[dict]) -> list[dict]:
             # Confidence controls review priority, not whether an extracted
             # value is visible. The reviewer must be able to inspect and amend
             # every pre-filled value side by side with the source PDF.
-            "Answer (M USD)": r["answer_m_usd"],
+            f"Answer ({answer_unit})": r["answer_m_usd"],
         }
         for r in rows
     ]
@@ -369,6 +408,8 @@ def run_pipeline(
     temperature: float = 0.0,
     reasoning_effort: str = "",
     display_name: Optional[str] = None,
+    company_hint: str = "",
+    output_currency: str = "USD",
     workspace_id: str = "legacy-public",
     on_progress=None,
 ) -> dict[str, Any]:
@@ -389,7 +430,8 @@ def run_pipeline(
             system_prompt=system_prompt, fiscal_year_hint=fiscal_year_hint,
             enable_reasoning=enable_reasoning, temperature=temperature,
             reasoning_effort=reasoning_effort,
-            display_name=display_name, workspace_id=workspace_id, on_progress=on_progress,
+            display_name=display_name, company_hint=company_hint,
+            output_currency=output_currency, workspace_id=workspace_id, on_progress=on_progress,
         )
     except Exception:
         # A run that failed before writing anything leaves an empty directory
@@ -418,6 +460,8 @@ def _run_pipeline_inner(
     temperature: float,
     reasoning_effort: str,
     display_name: Optional[str],
+    company_hint: str,
+    output_currency: str,
     workspace_id: str,
     on_progress,
 ) -> dict[str, Any]:
@@ -476,6 +520,7 @@ def _run_pipeline_inner(
         # Each parser contributes whatever structure it discovered. Parsers that
         # discover nothing send nothing, so the prompt is unchanged for them.
         diagnostics=extracted.diagnostics,
+        output_currency=output_currency,
     )
     progress("prompt", f"~{extracted.approx_tokens:,} input tokens", done=True)
 
@@ -571,13 +616,16 @@ def _run_pipeline_inner(
     # Deterministic arithmetic check, separate from the type contract above and
     # from scoring below. Needs no answer key, so it is the only quality signal
     # that survives the move to companies we have no golden data for.
-    reconciliation = reconcile(rows)
+    source_value_quantum = detect_source_value_quantum(extracted.text)
+    reconciliation = reconcile(rows, value_quantum=source_value_quantum)
     progress("validate", reconciliation_summary(reconciliation), done=True)
 
     fiscal_year = result.detected_fiscal_year or (fiscal_year_hint or "").strip()
-    company, _, _ = report_identity(display_name or Path(pdf_path).name, fiscal_year)
+    company, _, _ = report_identity(company_hint or display_name or Path(pdf_path).name, fiscal_year)
+    currency = str(output_currency or "USD").strip().upper() or "USD"
+    answer_unit = f"M {currency}"
     source_pdf_sha256 = hashlib.sha256(Path(pdf_path).read_bytes()).hexdigest()
-    metrics = compute_metrics(rows, fiscal_year, company, source_pdf_sha256)
+    metrics = compute_metrics(rows, fiscal_year, company, source_pdf_sha256, currency)
     metrics["consistency"] = reconciliation["consistency"]
 
     progress("output", "Saving extraction result")
@@ -592,6 +640,10 @@ def _run_pipeline_inner(
         "ocr_enabled": strategy.ocr_enabled,
         "ocr_policy": ocr_policy if strategy.ocr_enabled else "off",
         "company": company,
+        "currency": currency,
+        "value_scale": "millions",
+        "answer_unit": answer_unit,
+        "source_value_quantum": source_value_quantum,
         "source_pdf_sha256": source_pdf_sha256,
         "model": settings["model"],
         "base_url": settings["base_url"],
@@ -624,7 +676,7 @@ def _run_pipeline_inner(
     }
 
     # File the completed run under its strategy and fiscal year.
-    run_dir = file_run(run_dir, strategy.key, fiscal_year, display_name or Path(pdf_path).name)
+    run_dir = file_run(run_dir, strategy.key, fiscal_year, company_hint or display_name or Path(pdf_path).name)
     prediction["run_dir"] = str(run_dir.relative_to(RUNS_DIR))
     (run_dir / "prediction.json").write_text(
         json.dumps(prediction, ensure_ascii=False, indent=2),
@@ -683,8 +735,13 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
         company = prediction.get("company") or report_identity(
             prediction.get("pdf_file", ""), fiscal_year
         )[0]
-        metrics = compute_metrics(rows, fiscal_year, company, prediction.get("source_pdf_sha256"))
-        report = prediction.get("reconciliation") or reconcile(rows)
+        currency = str(prediction.get("currency") or "USD").strip().upper()
+        metrics = compute_metrics(
+            rows, fiscal_year, company, prediction.get("source_pdf_sha256"), currency
+        )
+        report = reconcile(
+            rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0)
+        )
         metrics["consistency"] = report["consistency"]
         # Accept any registered strategy key. The old whitelist collapsed
         # s2-docling / s2-inspector into plain "s2", which made the parser used
@@ -724,6 +781,9 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
             "ocr_enabled": ocr_enabled,
             "ocr_policy": ocr_policy,
             "company": company,
+            "currency": currency,
+            "value_scale": prediction.get("value_scale", "millions"),
+            "answer_unit": prediction.get("answer_unit") or f"M {currency}",
             "model": prediction.get("model", ""),
             "fiscal_year": fiscal_year,
             "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),

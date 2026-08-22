@@ -91,7 +91,7 @@ Each pass gets its own provider response, validation result, timing and persiste
 
 Strategy 3 is active and uses pdf-inspector as the finalized parser. `detect_pdf` records document type, confidence, encoding health and OCR routing; `extract_pages_markdown` supplies complete page Markdown plus table, column, complexity and per-page OCR metadata. Pages marked for OCR are rendered at 200 DPI and replaced in place with text produced locally by RapidOCR PP-OCRv6 ONNX. The resulting unified page sequence is scored deterministically using BM25-style schema vocabulary, financial headings, table presence, column/layout signals, numeric density and bounded boilerplate penalties. Only the top three to five complete pages—preserving their original PDF page numbers and order—enter the existing semantic-mapping call.
 
-There is no vector store, embedding index, arbitrary token chunking, iterative search or agentic loop. PDF-Inspector decides native text versus OCR; Ledger's gate decides schema relevance; the configured LLM maps the selected evidence packet to JSON; Pydantic validation and arithmetic reconciliation then verify the response. Diagnostics store every selected page, score component, OCR provenance and Markdown-character reduction. See [ROADMAP.md](ROADMAP.md).
+PDF-Inspector decides native text versus OCR; Ledger's deterministic gate scores complete pages for schema relevance; the configured LLM maps the selected evidence packet to JSON; Pydantic validation and arithmetic reconciliation then verify the response. Diagnostics store every selected page, score component, OCR provenance and Markdown-character reduction. See [ROADMAP.md](ROADMAP.md).
 
 ## Quality contract
 
@@ -223,7 +223,7 @@ The assignment API has no browser access token. CORS limits approved browser ori
 
 ## Security
 
-Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, Upstash and email credentials are backend-only. Visit notifications use a fixed verified recipient; browser input cannot choose a destination or retrieve connector settings.
+Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, Upstash and email credentials are backend-only. Visit notifications use a fixed verified recipient; browser input cannot choose a destination or read connector settings.
 
 ## License
 

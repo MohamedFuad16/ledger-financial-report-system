@@ -13,6 +13,31 @@ from schema import ASSET_SCHEMA
 
 
 class CorpusManifestTests(unittest.TestCase):
+    def test_source_bound_audit_is_immutable_native_currency_gold(self):
+        document_hash, audited = next(
+            (source_hash, item)
+            for source_hash, item in manifest_module.SOURCE_BOUND_GOLDEN_ANSWERS.items()
+            if item.get("currency") == "JPY"
+        )
+        document = {
+            "sha256": document_hash,
+            "company": audited["company"],
+            "company_slug": audited["company"],
+            "fiscal_year": int(audited["fiscal_year"]),
+            "filename": "audited_annual_report_2022.pdf",
+            "currency": audited["currency"],
+        }
+
+        verification = manifest_module.verification_payload(document)
+
+        self.assertEqual("independently_verified", verification["status"])
+        self.assertTrue(verification["authoritative_golden_set"])
+        self.assertTrue(verification["immutable"])
+        self.assertEqual("JPY", verification["currency"])
+        self.assertEqual("M JPY", verification["answer_unit"])
+        self.assertEqual(27, len(verification["rows"]))
+        self.assertEqual(len(audited["answers"]), verification["extracted_row_count"])
+
     def test_japanese_company_slugs_remain_distinct_and_path_safe(self):
         first = fetch_module.company_slug("ダイニチ工業株式会社")
         second = fetch_module.company_slug("リソルホールディングス株式会社")
@@ -176,6 +201,7 @@ class CorpusManifestTests(unittest.TestCase):
                 "filename": pdf_path.name,
                 "local_path": str(pdf_path),
                 "source_url": "https://example.com/report.pdf",
+                "currency": "JPY",
             }
 
             with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
@@ -207,6 +233,8 @@ class CorpusManifestTests(unittest.TestCase):
                 review = manifest_module.verification_payload(pinned)
                 self.assertTrue(review["candidate_extracted"])
                 self.assertEqual(27, review["extracted_row_count"])
+                self.assertEqual("JPY", review["currency"])
+                self.assertEqual("M JPY", review["answer_unit"])
 
                 manifest_module.delete_pinned_document(document["sha256"])
                 self.assertFalse(pdf_path.exists())

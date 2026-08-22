@@ -26,8 +26,16 @@ from typing import Any, Optional
 
 from schema import SUBTOTAL_IDENTITIES
 
-# Values are in millions; anything below this is rounding, not disagreement.
+# Values are in millions. This is the fallback for legacy runs whose source
+# statement precision was not recorded.
 TOLERANCE = 0.5
+
+_PARTS_BY_TOTAL = {total: parts for total, parts in SUBTOTAL_IDENTITIES}
+
+
+def _leaf_count(item: str) -> int:
+    parts = _PARTS_BY_TOTAL.get(item)
+    return sum(_leaf_count(part) for part in parts) if parts else 1
 
 
 def _values(rows: list[dict]) -> dict[str, Optional[float]]:
@@ -47,7 +55,7 @@ def _values(rows: list[dict]) -> dict[str, Optional[float]]:
     return out
 
 
-def reconcile(rows: list[dict]) -> dict[str, Any]:
+def reconcile(rows: list[dict], *, value_quantum: float = 0.0) -> dict[str, Any]:
     """
     Check every subtotal identity the schema implies.
 
@@ -79,14 +87,26 @@ def reconcile(rows: list[dict]) -> dict[str, Any]:
 
         computed = sum(part_values)  # type: ignore[arg-type]
         delta = computed - stated
+        # If every printed line is rounded to q (for example q=1 for a report
+        # stated in whole millions), the total and each component can each be
+        # off by q/2. Accept exactly that mathematical bound and no more.
+        tolerance = (
+            # A nested subtotal may be reconstructed from every schema leaf
+            # below it. Each displayed leaf and the stated total can differ by
+            # q/2, so this is the exact worst-case propagation bound.
+            (_leaf_count(total_item) + 1) * float(value_quantum) / 2 + 1e-9
+            if value_quantum > 0
+            else TOLERANCE
+        )
         checks.append({
             "identity": f"{total_item} = {' + '.join(parts)}",
             "total_item": total_item,
-            "status": "ok" if abs(delta) < TOLERANCE else "failed",
+            "status": "ok" if abs(delta) <= tolerance else "failed",
             "reason": None,
             "stated": stated,
             "computed": computed,
             "delta": round(delta, 2),
+            "tolerance": round(tolerance, 6),
         })
 
     evaluated = [c for c in checks if c["status"] != "skipped"]
@@ -104,6 +124,7 @@ def reconcile(rows: list[dict]) -> dict[str, Any]:
         # a misleading 100%.
         "consistency": round(len(passed) / len(evaluated) * 100, 1) if evaluated else None,
         "failed_identities": [c["total_item"] for c in evaluated if c["status"] == "failed"],
+        "value_quantum": float(value_quantum or 0.0),
     }
 
 

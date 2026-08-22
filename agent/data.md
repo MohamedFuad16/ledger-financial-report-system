@@ -2,7 +2,7 @@
 
 ## Core models
 
-- `AssetRow` — canonical item, value in M USD, confidence, provenance, and schema-derived descriptive fields.
+- `AssetRow` — canonical item, value in millions of the run's declared source currency, confidence, provenance, and schema-derived descriptive fields. The legacy JSON field name remains `answer_m_usd` for stored-artifact compatibility.
 - `ExtractionResult` — detected fiscal year plus exactly 27 ordered rows.
 - Prediction artifact — run metadata, strategy/parser identity, accepted rows, repairs, reconciliation, metrics, usage, and timing.
 
@@ -17,7 +17,7 @@
 - Corpus discovery jobs: `runs/_corpus_jobs/<job-id>/state.json`; active and terminal events are atomically snapshotted so a new route or browser session can rehydrate progress. An active snapshot owned by a prior backend process is retained as `interrupted` after restart rather than disappearing.
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
 - Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year folders; existing run artifacts are preserved.
-- The current verified seed is the official 3M FY2022 filing at `corpus_dataset/3M/2022/3M_annual_report_2022.pdf` (`d5cf549543a2…`), screened `ok` with 252/252 readable pages and staged in production by manifest identity.
+- Verified benchmark sources include the official 3M FY2022 filing plus ten Bakuraku-customer FY2022 filings. Non-assignment gold is bound to exact PDF SHA-256, company, fiscal year and currency in `benchmark_data/`; unsupported rows remain explicitly unscorable.
 - Bakuraku research: `research/bakuraku/customers.csv` plus a fully linked `README.md` table.
 - Provider defaults: `.env` (gitignored).
 - Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest

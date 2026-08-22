@@ -19,9 +19,12 @@ RULES
 3. Detect the target fiscal year from the report content. Financial statements show
    two or more comparative columns; the target is the most recent completed fiscal
    year, which is normally the leftmost column. Read values from that column only.
-4. Express every monetary value in millions of USD (M USD). If the statements are
-   presented in thousands, billions, or another currency, convert and say so in the
-   evidence field.
+4. Express every monetary value in the OUTPUT UNIT specified in the user message.
+   Scale the report's stated figures to millions. Never invent an exchange rate and
+   never convert between currencies unless the user message supplies an explicit
+   rate. Record any scale conversion in the evidence field.
+   Preserve the precision disclosed by the report after scaling; do not round a
+   thousands-based source to one decimal million.
 5. Pay careful attention to:
    - fiscal-year columns,
    - table row and column relationships,
@@ -69,17 +72,41 @@ MAPPING GUIDANCE (general, not company-specific)
 - Classify long-lived financial claims by economic substance: pension or
   postretirement assets, insurance receivables, cash surrender values of life
   insurance, deposits, loans, and investments belong in Financial Assets.
+  Equity contributions and capital contributions (出資金) are Investments,
+  including when the face statement nests them inside an "other" line and a
+  financial-instruments note discloses the amount.
   Deferred-tax assets and a note's residual non-financial "other" line belong
   in Other Fixed Assets unless the report gives evidence for another row.
+  If an "other (net)" line contains one specifically disclosed financial
+  component, move only that component (net of its related allowance) into
+  Financial Assets; keep the undisclosed residual in Other Fixed Assets. The
+  presence of a receivable allowance does not make the entire residual line a
+  financial asset.
 - "Advance Payments" means amounts advanced to suppliers or paid on account. It
   is not prepaid expenses / prepaid taxes: those belong in Other Current Assets.
   If the report shows no advances line, Advance Payments is 0, not the prepaids
   figure.
 - Loan-receivable rows (short-term, long-term) are 0 when the company reports no
   lending receivable, not null.
+- Classify loan receivables by contractual maturity, even when a note labels the
+  instrument "long-term loan (including the current portion)": amounts due
+  within one year belong in Short-term Loan and amounts due after one year in
+  Long-term Loan. If the face statement embeds the current portion in a generic
+  current "other" line, subtract it from Other Current Assets.
+- An unallocated allowance for doubtful accounts (貸倒引当金) offsets the
+  corresponding receivable bucket: current allowances normally net Accounts
+  Receivable - Trade, and long-term allowances normally net Other Financial
+  Assets. Do not move the allowance into residual Other Current Assets or Other
+  Fixed Assets unless the report explicitly ties it there.
+- Deferred Charges means a separately presented deferred-assets/deferred-charges
+  category (for example Japanese 繰延資産). Prepaid expenses and long-term prepaid
+  expenses (長期前払費用) remain in Other Current Assets or Other Fixed Assets;
+  they are not Deferred Charges merely because their cost is recognized over time.
 - Before returning, check each subtotal against the sum of its components and
-  check Total Assets against the total printed in the report. If they disagree,
-  revisit the component rows rather than forcing the subtotal.
+  check Total Assets against the total printed in the report. Allow only the
+  small arithmetic difference mathematically possible when the report prints
+  each line in rounded whole millions; do not alter a printed line to force it.
+  Otherwise, revisit the component rows rather than forcing the subtotal.
 
 OUTPUT CONTRACT
 
@@ -100,6 +127,7 @@ _DIAGNOSTIC_LABELS = {
     "pages_with_multiple_columns": "Pages with multiple columns",
     "pages_needing_ocr": "Pages whose text layer is unreadable",
     "ocr_pages": "Pages replaced by OCR",
+    "native_text_fallback_pages": "Text-based pages recovered from their embedded text layer",
     "selected_pages": "Pages retained by the intelligent scanning gate",
     "selected_page_count": "Pages sent for semantic mapping",
     "character_reduction_percent": "Markdown character reduction (%)",
@@ -155,6 +183,7 @@ def build_user_prompt(
     extraction_note: str = "raw page-by-page text. Page markers identify the source PDF page.",
     fiscal_year: str = "",
     diagnostics: dict | None = None,
+    output_currency: str = "USD",
 ) -> str:
     """
     Assemble the user message for any strategy.
@@ -164,6 +193,10 @@ def build_user_prompt(
     instead of the caller string-patching a shared template.
     """
     schema_json = json.dumps(ASSET_SCHEMA, ensure_ascii=False, indent=2)
+    currency = str(output_currency or "USD").strip().upper()
+    if not currency or not currency.replace("_", "").isalnum():
+        currency = "USD"
+    output_unit = f"M {currency}"
 
     fy_instruction = ""
     if fiscal_year and fiscal_year.strip():
@@ -182,6 +215,11 @@ def build_user_prompt(
     # earlier version did — makes the schema uncacheable on every call.
     return f"""TARGET_SCHEMA
 {schema_json}
+
+OUTPUT UNIT
+Return every monetary answer in {output_unit}. The legacy JSON field name
+"answer_m_usd" is retained for API compatibility; for this run it means {output_unit}.
+Use the report's own currency and scale. No foreign-exchange conversion is authorized.
 
 {fy_instruction}{render_diagnostics(diagnostics)}ANNUAL REPORT
 The uploaded PDF was converted to {extraction_note}

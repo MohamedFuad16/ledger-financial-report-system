@@ -594,6 +594,20 @@ _LOCAL_OCR_LOCK = threading.Lock()
 _LOCAL_OCR_ENGINE: Any | None = None
 
 
+def _native_text_fallback(document: Any, page_no: int) -> str:
+    """Recover a readable text layer when pdf-inspector cannot emit Markdown.
+
+    Some valid Japanese EDINET PDFs are correctly classified by pdf-inspector
+    as ``text_based`` while ``extract_pages_markdown`` returns an empty body for
+    every page. PyMuPDF can read the same embedded text directly. This fallback
+    prevents a parser-capability gap from being mislabelled as an OCR need.
+    """
+    try:
+        return normalize_text(str(document[page_no - 1].get_text("text") or ""))
+    except Exception:  # noqa: BLE001 - absence of fallback means OCR remains eligible
+        return ""
+
+
 def _local_ocr_markdown(
     image_bytes: bytes,
     *,
@@ -637,8 +651,8 @@ def extract_with_pdf_inspector_ocr(
     """Rust page classification plus selective 200-DPI local RapidOCR.
 
     pdf-inspector owns the page decision and native Markdown representation.
-    Only pages marked ``needs_ocr`` are rasterized and replaced by hosted
-    local PP-OCRv6 text. This keeps the adaptive treatment observable per page.
+    Only pages marked ``needs_ocr`` are rasterized and replaced by local
+    PP-OCRv6 text. This keeps the adaptive treatment observable per page.
     """
     try:
         import pdf_inspector
@@ -648,6 +662,7 @@ def extract_with_pdf_inspector_ocr(
     policy = str(ocr_policy or "adaptive").lower()
     try:
         result = pdf_inspector.extract_pages_markdown(str(pdf_path))
+        classification = pdf_inspector.detect_pdf(str(pdf_path))
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"pdf-inspector page classification failed ({exc}).") from exc
 
@@ -655,6 +670,8 @@ def extract_with_pdf_inspector_ocr(
     pages: list[tuple[int, str]] = []
     page_provenance: list[dict[str, Any]] = []
     ocr_pages: list[int] = []
+    fallback_pages: list[int] = []
+    document_type = str(getattr(classification, "pdf_type", "") or "")
     with pymupdf.open(str(pdf_path)) as document:
         for index, page in enumerate(raw_pages, start=1):
             zero_based = getattr(page, "page", None)
@@ -668,10 +685,22 @@ def extract_with_pdf_inspector_ocr(
             native_markdown = normalize_text(
                 str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
             )
+            inspector_decision = bool(getattr(page, "needs_ocr", False))
+            fallback_accepted = False
+            if not native_markdown.strip() and "text_based" in document_type:
+                recovered = _native_text_fallback(document, page_no)
+                if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
+                    not bool(getattr(classification, "has_encoding_issues", False))
+                    or not page_is_unreadable(recovered)
+                ):
+                    native_markdown = recovered
+                    fallback_pages.append(page_no)
+                    inspector_decision = False
+                    fallback_accepted = True
             classifier_decision = bool(
-                getattr(page, "needs_ocr", False)
+                inspector_decision
                 or not native_markdown.strip()
-                or page_is_unreadable(native_markdown)
+                or (not fallback_accepted and page_is_unreadable(native_markdown))
             )
             use_ocr = policy == "force" or classifier_decision
             if use_ocr:
@@ -687,7 +716,11 @@ def extract_with_pdf_inspector_ocr(
                 source = "rapidocr_local"
             else:
                 markdown = native_markdown
-                source = "pdf_inspector_native_rust"
+                source = (
+                    "pymupdf_embedded_text_fallback"
+                    if page_no in fallback_pages
+                    else "pdf_inspector_native_rust"
+                )
             pages.append((page_no, markdown))
             page_provenance.append({
                 "page": page_no,
@@ -705,6 +738,8 @@ def extract_with_pdf_inspector_ocr(
         "ocr_engine": "RapidOCR PP-OCRv6 ONNX (local)",
         "ocr_pages": _compress_pages(ocr_pages),
         "ocr_page_count": len(ocr_pages),
+        "native_text_fallback_pages": _compress_pages(fallback_pages),
+        "native_text_fallback_page_count": len(fallback_pages),
         "page_provenance": page_provenance,
     }
     return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive local OCR", diagnostics)
@@ -753,6 +788,8 @@ def extract_with_intelligent_scanning_gate(
     unified_pages: list[tuple[int, str]] = []
     page_provenance: list[dict[str, Any]] = []
     routed_pages: list[int] = []
+    fallback_pages: list[int] = []
+    document_type = str(getattr(classification, "pdf_type", "") or "")
     with pymupdf.open(str(pdf_path)) as document:
         for fallback, page in enumerate(raw_pages, start=1):
             zero_based = getattr(page, "page", None)
@@ -766,7 +803,25 @@ def extract_with_intelligent_scanning_gate(
             native_markdown = normalize_text(
                 str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
             )
-            needs_ocr = bool(getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages)
+            inspector_needs_ocr = bool(
+                getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages
+            )
+            fallback_accepted = False
+            if not native_markdown.strip() and "text_based" in document_type:
+                recovered = _native_text_fallback(document, page_no)
+                if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
+                    not bool(getattr(classification, "has_encoding_issues", False))
+                    or not page_is_unreadable(recovered)
+                ):
+                    native_markdown = recovered
+                    fallback_pages.append(page_no)
+                    inspector_needs_ocr = False
+                    fallback_accepted = True
+            needs_ocr = (
+                inspector_needs_ocr
+                or not native_markdown.strip()
+                or (not fallback_accepted and page_is_unreadable(native_markdown))
+            )
             if needs_ocr:
                 pixmap = document[page_no - 1].get_pixmap(
                     matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
@@ -780,7 +835,11 @@ def extract_with_intelligent_scanning_gate(
                 source = "rapidocr_local"
             else:
                 markdown = native_markdown
-                source = "pdf_inspector_native_rust"
+                source = (
+                    "pymupdf_embedded_text_fallback"
+                    if page_no in fallback_pages
+                    else "pdf_inspector_native_rust"
+                )
             unified_pages.append((page_no, markdown))
             page_provenance.append({
                 "page": page_no,
@@ -802,7 +861,7 @@ def extract_with_intelligent_scanning_gate(
 
     diagnostics = {
         "source": "pdf-inspector + selective local RapidOCR + intelligent scanning gate",
-        "document_type": str(getattr(classification, "pdf_type", "") or "unknown"),
+        "document_type": document_type or "unknown",
         "type_confidence": round(float(getattr(classification, "confidence", 0.0) or 0.0), 3),
         "has_encoding_issues": bool(getattr(classification, "has_encoding_issues", False)),
         "ocr_policy": str(ocr_policy or "adaptive").lower(),
@@ -811,6 +870,8 @@ def extract_with_intelligent_scanning_gate(
         "render_dpi": 200,
         "ocr_pages": _compress_pages(routed_pages),
         "ocr_page_count": len(routed_pages),
+        "native_text_fallback_pages": _compress_pages(fallback_pages),
+        "native_text_fallback_page_count": len(fallback_pages),
         "pages_with_tables": _compress_pages(table_pages),
         "pages_with_multiple_columns": _compress_pages(column_pages),
         "complex_layout": bool(getattr(result, "is_complex", False)),

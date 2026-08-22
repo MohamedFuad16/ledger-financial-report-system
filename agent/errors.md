@@ -36,7 +36,7 @@ identity or job-budget boundary.
 ## Ubuntu 24.04 bootstrap could not install `awscli` from apt (resolved)
 - Symptom: The first EC2 cloud-init run stopped before creating swap, cloning the repository, or starting the API.
 - Cause: The selected Ubuntu 24.04 image has no installable `awscli` package in its configured apt repositories.
-- Resolution: Install AWS CLI v2 from AWS's signed distribution before retrieving the SSM SecureString. The same instance was reused and verified through SSM.
+- Resolution: Install AWS CLI v2 from AWS's signed distribution before reading the SSM SecureString. The same instance was reused and verified through SSM.
 - First seen: 2026-08-21
 
 ## Linux parser install pulled unused CUDA wheels (resolved)

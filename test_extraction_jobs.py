@@ -6,7 +6,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import server
 
@@ -79,6 +79,45 @@ class ExtractionJobPersistenceTests(unittest.TestCase):
             self.assertEqual(first_offset, 2)
             self.assertEqual(second_offset, 2)
             self.assertEqual(server._read_extraction_job_state(job_id)["status"], "running")
+
+    def test_corpus_job_passes_source_company_year_and_currency_to_pipeline(self):
+        prediction = {
+            "run_id": "S2_test", "fiscal_year": "2022", "page_count": 10,
+            "approx_input_tokens": 1000, "api_elapsed_seconds": 0.2,
+            "extract_seconds": 0.1, "total_seconds": 0.3,
+            "metrics": {"accuracy": None, "coverage": 100.0, "consistency": 100.0},
+            "warnings": [], "contract_repairs": [],
+        }
+        staged = {
+            "id": "corpus-1", "name": "note_annual_report_2022.pdf",
+            "path": "/tmp/note.pdf", "pages": 10, "approx_tokens": 1000,
+            "source": "corpus", "company": "note株式会社", "fiscal_year": 2022,
+            "currency": "JPY",
+        }
+        pipeline_mock = Mock(return_value=prediction)
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            server, "EXTRACTION_JOBS_ROOT", Path(temp_dir)
+        ), patch.object(server, "current_settings", return_value={
+            "api_key": "test", "max_concurrency": 1, "auto_concurrency": False,
+            "temperature": 0.0, "enable_reasoning": False,
+        }), patch.dict(server.STAGED, {"corpus-1": staged}, clear=True), patch.object(
+            server, "run_pipeline", pipeline_mock
+        ):
+            response = server.app.test_client().post("/api/extraction/jobs", json={
+                "upload_ids": ["corpus-1"], "strategies": ["s2"],
+            })
+            self.assertEqual(response.status_code, 202)
+            job_id = response.get_json()["job_id"]
+            for _ in range(50):
+                state = server.app.test_client().get(f"/api/extraction/jobs/{job_id}").get_json()
+                if state["status"] in {"complete", "failed"}:
+                    break
+                time.sleep(0.01)
+
+            call = pipeline_mock.call_args.kwargs
+            self.assertEqual(call["company_hint"], "note株式会社")
+            self.assertEqual(call["fiscal_year_hint"], "2022")
+            self.assertEqual(call["output_currency"], "JPY")
 
     def test_job_route_replays_only_unseen_events(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(

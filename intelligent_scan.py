@@ -32,12 +32,26 @@ ACCOUNTING_SYNONYMS = (
     "right-of-use assets", "rou assets", "notes to consolidated financial statements",
 )
 
+# EDINET filings use Japanese statement labels. These fixed navigation terms
+# are schema concepts, not company/year/page-specific answers. Japanese text
+# is scored by substring because whitespace tokenization is not reliable.
+JAPANESE_ACCOUNTING_TERMS = (
+    "貸借対照表", "財務諸表", "資産の部", "流動資産", "固定資産", "資産合計",
+    "現金及び預金", "売掛金", "受取手形", "棚卸資産", "商品及び製品", "原材料及び貯蔵品",
+    "有形固定資産", "建物及び構築物", "機械装置", "土地", "建設仮勘定",
+    "減価償却累計額", "無形固定資産", "のれん", "投資その他の資産",
+    "投資有価証券", "敷金及び保証金", "繰延税金資産",
+)
+
 FINANCIAL_HEADING_PATTERNS = tuple(re.compile(pattern, re.I | re.M) for pattern in (
     r"^#{1,4}\s+.*(?:balance sheets?|financial position)",
     r"^#{1,4}\s+.*(?:property,? plant|equipment|intangible|goodwill|inventor|receiv)",
     r"(?:consolidated\s+)?balance sheets?",
     r"statements? of financial position",
     r"notes? to (?:the )?(?:consolidated )?financial statements",
+    r"(?:連結)?貸借対照表",
+    r"(?:連結)?財務諸表",
+    r"資産の部",
 ))
 
 REJECT_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
@@ -47,6 +61,7 @@ REJECT_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
     r"shareholder proposal",
     r"corporate governance",
     r"table of contents",
+    r"取締役|役員の状況|コーポレート.?ガバナンス|株主総会|目次",
 ))
 
 # Evidence that is easy to lose when issuers move a schema component off the
@@ -55,6 +70,9 @@ REJECT_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
 # dense generic financial pages when Other Equipment may include ROU assets.
 CRITICAL_EVIDENCE_PATTERNS = (
     ("right_of_use_assets", re.compile(r"(?:operating\s+lease\s+)?right[-\s]+of[-\s]+use\s+assets?", re.I)),
+    ("japanese_investment_breakdown", re.compile(r"市場価格のない株式等")),
+    ("japanese_accumulated_depreciation", re.compile(r"減価償却累計額")),
+    ("japanese_loan_maturity", re.compile(r"金銭債権の連結決算日後の償還予定額")),
 )
 
 
@@ -109,6 +127,7 @@ def score_pages(
     average_length = sum(len(tokens) for tokens in tokenized.values()) / page_total or 1.0
     table_pages = _page_number_set(pages_with_tables)
     column_pages = _page_number_set(pages_with_columns)
+    has_consolidated_balance_sheet = any("連結貸借対照表" in text for _, text in usable)
     k1, b = 1.5, 0.75
     results: list[dict[str, Any]] = []
 
@@ -134,7 +153,13 @@ def score_pages(
         numeric_tokens = sum(bool(re.search(r"\d", token)) for token in tokenized[page_no])
         numeric_density = numeric_tokens / length
         reject_hits = sum(bool(pattern.search(text)) for pattern in REJECT_PATTERNS)
+        standalone_statement = bool(
+            has_consolidated_balance_sheet
+            and "貸借対照表" in text
+            and "連結貸借対照表" not in text
+        )
         critical_evidence = [name for name, pattern in CRITICAL_EVIDENCE_PATTERNS if pattern.search(text)]
+        japanese_term_hits = [term for term in JAPANESE_ACCOUNTING_TERMS if term in text]
         # The lexical score does the ranking work; the remaining bounded terms
         # incorporate PDF layout facts and strong financial-navigation cues.
         score = (
@@ -145,7 +170,9 @@ def score_pages(
             + (0.75 if column_signal else 0.0)
             + min(2.0, numeric_density * 8.0)
             + min(16.0, len(critical_evidence) * 16.0)
+            + min(18.0, len(japanese_term_hits) * 0.9)
             - reject_hits * (3.0 if not heading_hits else 1.0)
+            - (12.0 if standalone_statement else 0.0)
         )
         results.append({
             "page": page_no,
@@ -158,7 +185,9 @@ def score_pages(
             "column_signal": column_signal,
             "numeric_density": round(numeric_density, 4),
             "reject_hits": reject_hits,
+            "standalone_statement_penalty": standalone_statement,
             "critical_evidence": critical_evidence,
+            "japanese_accounting_hits": japanese_term_hits[:24],
             "characters": len(text),
         })
     return sorted(results, key=lambda item: (-float(item["score"]), int(item["page"])))

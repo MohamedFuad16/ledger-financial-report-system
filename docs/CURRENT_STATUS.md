@@ -85,7 +85,7 @@ Per-page provenance records the decision, reason, engine, page number and render
 
 ## Strategy 3: pdf-inspector intelligent scanning gate (active)
 
-Strategy 3 uses pdf-inspector 1.15+ as the finalized parser. The verified Python API supplies document classification, confidence, encoding health, complete per-page Markdown, OCR-needed pages/reasons, table pages, column pages and complexity metadata. Ledger OCRs only parser-routed pages at 200 DPI, replaces their page bodies in the unified Markdown, scores every complete page with schema/accounting BM25-style terms plus heading/table/layout/numeric signals, and sends the top three to five pages to the configured LLM. The existing semantic JSON mapping, deterministic validation, confidence gating, reconciliation and human approval remain unchanged. Run diagnostics preserve the classification, page provenance, every selected score component and input reduction. No vector store, embeddings, token chunks, recursive retrieval or agentic loop are present.
+Strategy 3 uses pdf-inspector 1.15+ as the finalized parser. The verified Python API supplies document classification, confidence, encoding health, complete per-page Markdown, OCR-needed pages/reasons, table pages, column pages and complexity metadata. Ledger OCRs only parser-routed pages at 200 DPI, replaces their page bodies in the unified Markdown, scores every complete page with schema/accounting BM25-style terms plus heading/table/layout/numeric signals, and sends the top three to five pages to the configured LLM. The existing semantic JSON mapping, deterministic validation, confidence diagnostics, reconciliation and human approval remain unchanged. Run diagnostics preserve the classification, page provenance, every selected score component and input reduction.
 
 The live and historical comparison now uses a matched report cohort: a report contributes to parser averages only when every selected parser completed that report. Repeated observations are averaged within each report before reports are averaged, preventing a parser rerun or a failed pass from silently changing the comparison population. Scheduled, successful and failed pass counts remain visible, and each PDF's individual values remain in its run history.
 
@@ -96,7 +96,7 @@ The model must return one JSON object containing a detected fiscal year and exac
 1. Classification
 2. Subclassification
 3. Item
-4. Answer (M USD)
+4. Answer (millions of the declared source currency)
 
 Evidence, source labels, confidence, warnings and arithmetic diagnostics stay in the stored run for audit and are not required in the compact result sheet.
 
@@ -146,7 +146,7 @@ Firecrawl credential persistence was also verified against production using an e
 
 The same workflow was then tested against AppBank's official Japanese IR library. Firecrawl followed the official securities-report page to the FY2024 filing, downloaded `AppBank_annual_report_2024.pdf`, verified the official source, screened all 105 pages as readable, detected FY2024 and found the balance sheet on page 68. The file is visible as `Ready` in both strategy corpus selectors and reuses the canonical company/year path rather than creating duplicates.
 
-This successful Japanese crawl also exposes an important experiment boundary: the AppBank filing is denominated in JPY, while the assignment's fixed output contract requires M USD and forbids external facts. It is therefore valid corpus data but not yet a valid M-USD benchmark input. Ledger should introduce an explicit currency-aware contract and a documented conversion source before running this or other Japanese filings through the accuracy comparison.
+The Japanese cohort is evaluated in M JPY with no foreign-exchange conversion. Currency, source scale and source precision flow through the prompt, prediction, corpus review and exact scoring. The twice-audited fixture is bound to the exact PDF SHA-256, company, fiscal year and currency.
 
 ## Frontend responsibilities
 

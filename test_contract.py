@@ -33,6 +33,7 @@ from models import (
 from normalize import canonical_item, normalize_payload, parse_confidence, parse_money
 from pipeline import compute_metrics
 from prompts import SYSTEM_PROMPT, build_user_prompt
+from reconcile import reconcile
 from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
 
 FAILURES: list[str] = []
@@ -80,22 +81,30 @@ check(
 )
 check(
     "cross-year audit keys are bound to exact 64-character PDF hashes",
-    set(item["fiscal_year"] for item in SOURCE_BOUND_GOLDEN_ANSWERS.values())
-    == {"2021", "2023", "2024", "2025"}
+    {"2021", "2023", "2024", "2025"}.issubset(
+        set(item["fiscal_year"] for item in SOURCE_BOUND_GOLDEN_ANSWERS.values())
+    )
     and all(len(source_hash) == 64 for source_hash in SOURCE_BOUND_GOLDEN_ANSWERS),
 )
 for source_hash, audited in sorted(SOURCE_BOUND_GOLDEN_ANSWERS.items()):
     answers = audited["answers"]
     year = audited["fiscal_year"]
     if len(answers) == 27:
-        bad = [
-            f"{total}={answers[total]} but parts sum to {sum(answers[p] for p in parts)}"
-            for total, parts in SUBTOTALS
-            if sum(answers[p] for p in parts) != answers[total]
-        ]
-        check(f"source-bound FY{year} subtotals reconcile", not bad, "; ".join(bad))
+        report = reconcile(
+            [{"item": row["item"], "answer_m_usd": answers[row["item"]]} for row in ASSET_SCHEMA],
+            value_quantum=float(audited.get("source_value_quantum") or 1.0),
+        )
+        check(
+            f"source-bound FY{year} subtotals reconcile",
+            report["consistency"] == 100.0,
+            str([item for item in report["checks"] if item["status"] == "failed"]),
+        )
     else:
-        check(f"source-bound FY{year} partial key has 22 verified rows", len(answers) == 22)
+        check(
+            f"source-bound FY{year} partial key has an explicitly supported row count",
+            len(answers) in {22, 24},
+            str(len(answers)),
+        )
 
 for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):
     if len(answers) < 27:
@@ -126,6 +135,12 @@ check("user prompt carries the schema", '"Total Assets"' in user_prompt)
 check("user prompt carries the extraction note", "test extraction note" in user_prompt)
 check("user prompt carries the fiscal-year hint", "2022" in user_prompt)
 check("no golden answer leaks into the user prompt", not _leaks(user_prompt), str(_leaks(user_prompt)))
+jpy_prompt = build_user_prompt(
+    "--- PAGE 1 ---\n（単位：百万円）", "test extraction note", "2022", output_currency="JPY"
+)
+check("JPY reports declare M JPY without authorizing FX", "means M JPY" in jpy_prompt
+      and "No foreign-exchange conversion is authorized" in jpy_prompt
+      and "means M USD" not in jpy_prompt)
 
 def repaired(payload):
     """What the pipeline does: repair representation, then enforce the contract."""
@@ -378,6 +393,15 @@ check("all seven identities are covered", len(SUBTOTAL_IDENTITIES) == 7)
 _perfect = [{"item": i, "answer_m_usd": GOLDEN_ANSWERS_STORE["2022"][i]} for i in CANONICAL_ITEMS]
 _rep = reconcile(_perfect)
 check("a correct answer reconciles fully", _rep["consistency"] == 100.0 and _rep["failed"] == 0)
+
+_rounded = [{**row} for row in _perfect]
+next(row for row in _rounded if row["item"] == "Current Assets")["answer_m_usd"] += 2
+_rounded_check = next(
+    check_row for check_row in reconcile(_rounded, value_quantum=1.0)["checks"]
+    if check_row["total_item"] == "Current Assets"
+)
+check("whole-million rounding uses the schema-leaf propagation bound",
+      _rounded_check["status"] == "ok" and _rounded_check["tolerance"] == 4.5)
 
 _bad = [{"item": i, "answer_m_usd": (GOLDEN_ANSWERS_STORE["2022"][i] + 500 if i == "Land"
                                      else GOLDEN_ANSWERS_STORE["2022"][i])} for i in CANONICAL_ITEMS]

@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
 # Standard 27-row Asset Schema for LLM Prompting
 # IMPORTANT: This schema is passed directly to the LLM during prompt construction.
 # It must NEVER contain ground-truth answers or answer keys!
@@ -409,6 +414,22 @@ SOURCE_BOUND_GOLDEN_ANSWERS = {
         "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2025"],
     },
 }
+
+
+def _load_external_source_bound_gold() -> dict:
+    """Load reviewed benchmark fixtures without placing answers in prompts."""
+    path = Path(__file__).resolve().parent / "benchmark_data" / "bakuraku_fy2022_gold.json"
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    documents = payload.get("documents") if isinstance(payload, dict) else None
+    return documents if isinstance(documents, dict) else {}
+
+
+SOURCE_BOUND_GOLDEN_ANSWERS.update(_load_external_source_bound_gold())
 
 # Benchmark view of the schema: the same 27 rows, with each row's golden answer
 # for every stored fiscal year attached.

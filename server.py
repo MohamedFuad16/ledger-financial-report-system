@@ -40,6 +40,7 @@ from pipeline import (
     list_runs,
     load_prediction,
     result_table,
+    report_identity,
     run_pipeline,
     safe_filename,
     save_upload,
@@ -628,7 +629,10 @@ def get_corpus():
     documents = []
     workspace_id = request_workspace_id()
     for item in manifest.get("documents", []):
-        company = safe_filename(str(item.get("company") or item.get("company_slug") or "unknown"))
+        company = report_identity(
+            str(item.get("company") or item.get("company_slug") or "unknown"),
+            item.get("fiscal_year"),
+        )[0]
         fiscal_year = int(item.get("fiscal_year") or 0)
         output_directory = RUNS_DIR / company / f"FY{fiscal_year}"
         verification = verification_payload(item)
@@ -652,7 +656,7 @@ def get_corpus():
             "ok": sum(item.get("screened") == "ok" for item in documents),
             "review": sum(item.get("screened") == "review" for item in documents),
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
-            "verified": sum(item.get("verification_status") in {"assignment_supplied", "human_verified"} for item in documents),
+            "verified": sum(item.get("verification_status") in {"assignment_supplied", "human_verified", "independently_verified"} for item in documents),
             "human_review_required": sum(item.get("verification_status") == "human_review_required" for item in documents),
         },
     })
@@ -678,8 +682,8 @@ def corpus_verification(document_id):
     if request.method == "GET":
         return jsonify(verification_payload(document))
     existing = verification_payload(document)
-    if existing.get("status") == "assignment_supplied":
-        return jsonify({"error": "The 3M FY2022 assignment answer key is immutable."}), 409
+    if existing.get("status") in {"assignment_supplied", "independently_verified"}:
+        return jsonify({"error": "This source-audited answer key is immutable."}), 409
     body = request.get_json(silent=True) or {}
     rows = body.get("rows")
     if not isinstance(rows, list):
@@ -707,7 +711,7 @@ def extract_corpus_verification(document_id):
     existing = verification_payload(document)
     reusable_candidate = str(existing.get("candidate_method") or "").startswith("configured_llm")
     if existing.get("candidate_extracted") and (
-        existing.get("status") in {"assignment_supplied", "human_verified"} or reusable_candidate
+        existing.get("status") in {"assignment_supplied", "human_verified", "independently_verified"} or reusable_candidate
     ):
         return jsonify({"ok": True, "reused": True, **existing})
 
@@ -723,6 +727,8 @@ def extract_corpus_verification(document_id):
             strategy_key="s2",
             system_prompt=ACTIVE_PROMPT,
             fiscal_year_hint=str(document.get("fiscal_year") or ""),
+            company_hint=str(document.get("company") or ""),
+            output_currency=str(document.get("currency") or "USD"),
             display_name=str(document.get("filename") or Path(str(document.get("local_path") or "")).name),
             workspace_id=request_workspace_id(),
             enable_reasoning=bool(settings.get("enable_reasoning", True)),
@@ -821,6 +827,7 @@ def stage_corpus_documents():
             "source": "corpus",
             "company": document.get("company"),
             "fiscal_year": document.get("fiscal_year"),
+            "currency": str(document.get("currency") or "USD").upper(),
             "source_pdf_sha256": document.get("sha256"),
             "verification_status": verification_payload(document).get("status"),
             "workspace_id": workspace_id,
@@ -1068,7 +1075,14 @@ def start_extraction_job():
 
             append("pass_start", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "pages": staged["pages"], "approx_tokens": staged["approx_tokens"]})
             try:
-                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, workspace_id=workspace_id, **options)
+                job_options = {**options}
+                if staged.get("source") == "corpus":
+                    job_options.update({
+                        "fiscal_year_hint": str(staged.get("fiscal_year") or ""),
+                        "company_hint": str(staged.get("company") or ""),
+                        "output_currency": str(staged.get("currency") or "USD"),
+                    })
+                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, workspace_id=workspace_id, **job_options)
                 increment_count("succeeded")
                 append("file_done", {
                     "index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label,
@@ -1208,6 +1222,13 @@ def extract_stream():
                                    "strategy_label": strategy.label, "pages": job["pages"],
                                    "approx_tokens": job["approx_tokens"]}))
         try:
+            job_options = {**options}
+            if job.get("source") == "corpus":
+                job_options.update({
+                    "fiscal_year_hint": str(job.get("fiscal_year") or ""),
+                    "company_hint": str(job.get("company") or ""),
+                    "output_currency": str(job.get("currency") or "USD"),
+                })
             prediction = run_pipeline(
                 pdf_path=Path(job["path"]),
                 settings=settings,
@@ -1215,7 +1236,7 @@ def extract_stream():
                 display_name=job["name"],
                 on_progress=on_progress,
                 workspace_id=workspace_id,
-                **options,
+                **job_options,
             )
             events.put(("file_done", {
                 "index": index,

@@ -8,7 +8,7 @@
 
 ## Strategy 3: finalized intelligent scanning gate
 
-Strategy 3 is implemented. It does not use RAG, embeddings, arbitrary chunks or an agentic loop.
+Strategy 3 is implemented as deterministic complete-page selection before semantic mapping.
 
 ### Locked pipeline
 

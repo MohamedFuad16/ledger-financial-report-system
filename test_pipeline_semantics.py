@@ -59,11 +59,44 @@ class PipelineSemanticsTests(unittest.TestCase):
 
         scored = pipeline.compute_metrics(rows, "2023", "3M", source_hash)
         unbound = pipeline.compute_metrics(rows, "2023", "3M", "0" * 64)
+        wrong_currency = pipeline.compute_metrics(rows, "2023", "3M", source_hash, "JPY")
 
         self.assertEqual(scored["accuracy"], 100.0)
         self.assertEqual(scored["gold_status"], "independently_verified")
         self.assertIsNone(unbound["accuracy"])
         self.assertFalse(unbound["has_golden"])
+        self.assertFalse(wrong_currency["has_golden"])
+
+    def test_unicode_report_identities_do_not_collapse(self):
+        dainichi = pipeline.report_identity("ダイニチ工業株式会社_annual_report_2022.pdf", "2022")[0]
+        resol = pipeline.report_identity("リソルホールディングス株式会社_annual_report_2022.pdf", "2022")[0]
+
+        self.assertEqual(dainichi, "ダイニチ工業株式会社")
+        self.assertEqual(resol, "リソルホールディングス株式会社")
+        self.assertNotEqual(pipeline.normalize_company_key(dainichi), pipeline.normalize_company_key(resol))
+
+    def test_source_precision_is_detected_in_million_units(self):
+        self.assertEqual(pipeline.detect_source_value_quantum("（単位：百万円）"), 1.0)
+        self.assertEqual(pipeline.detect_source_value_quantum("(単位：千円)"), 0.001)
+
+    def test_jpy_thousand_gold_does_not_accept_tenth_million_rounding(self):
+        source_hash, audited = next(
+            (source_hash, audited)
+            for source_hash, audited in SOURCE_BOUND_GOLDEN_ANSWERS.items()
+            if audited.get("currency") == "JPY" and audited.get("source_value_quantum") == 0.001
+        )
+        rows = [
+            {"item": item, "answer_m_usd": value, "confidence": 0.95, "accepted": True}
+            for item, value in audited["answers"].items()
+        ]
+        rows[0]["answer_m_usd"] = round(float(rows[0]["answer_m_usd"]), 1)
+
+        scored = pipeline.compute_metrics(
+            rows, audited["fiscal_year"], audited["company"], source_hash, "JPY"
+        )
+
+        self.assertLess(scored["accuracy"], 100.0)
+        self.assertEqual(scored["gold_value_quantum"], 0.001)
 
     def _run(self, model_side_effect, confidence=0.95):
         with tempfile.TemporaryDirectory() as temp_dir:

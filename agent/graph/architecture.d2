@@ -34,7 +34,7 @@ app: "Annual Report Extractor" {
   api -> pipeline: "on-demand review prefill"
   api -> traffic: "bounded metadata"
   pipeline -> quality: "validate / score"
-  pipeline -> gold: "exact SHA + company + year"
+  pipeline -> gold: "exact SHA + company + year + currency"
   gold -> quality: "scorable audited fields"
   pipeline -> gate: "score unified complete pages"
   gate -> pipeline: "top 3-5 source pages"

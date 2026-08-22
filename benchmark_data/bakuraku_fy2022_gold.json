@@ -1,0 +1,1803 @@
+{
+  "version": 1,
+  "benchmark": "Bakuraku customer FY2022 native-currency asset schema",
+  "answer_unit": "M JPY",
+  "documents": {
+    "e6ee6133b0caef62678d82744a25c20400782494a757f394a152cd4ffeb66a80": {
+      "company": "AppBank株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T102508Z_001",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 211.175,
+        "Quick Assets": 180.024,
+        "Cash & Cash Equivalents": 123.034,
+        "Accounts Receivable - Trade": 40.157,
+        "Other Quick Assets": 16.833,
+        "Inventories, Net": 6.123,
+        "Other Current Assets (subtotal)": 25.024,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 25.024,
+        "Fixed Assets": 65.566,
+        "Tangible Assets": 0.0,
+        "Land": 0.0,
+        "Buildings": 17.315,
+        "Plant & Machinery": 11.825,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 14.523,
+        "Accumulated Depreciation": -43.662,
+        "Intangible Assets": 19.106,
+        "Financial Assets": 44.92,
+        "Investments": 0.0,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 44.92,
+        "Other Fixed Assets": 1.54,
+        "Deferred Charges": 0.0,
+        "Total Assets": 276.741
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 67,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度(2022年12月31日) 流動資産合計 211,175千円 = 211.175百万円"
+        },
+        "Quick Assets": {
+          "page": 67,
+          "source_label": "計算値（現金及び預金＋売掛金＋営業未収入金）",
+          "evidence": "現金及び預金123,034 + 売掛金40,157 + 営業未収入金16,833 = 180,024千円（百万円換算180.024）"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 67,
+          "source_label": "現金及び預金",
+          "evidence": "2022年12月31日列 現金及び預金 123,034千円"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 67,
+          "source_label": "売掛金",
+          "evidence": "2022年12月31日列 売掛金 40,157千円"
+        },
+        "Other Quick Assets": {
+          "page": 67,
+          "source_label": "営業未収入金",
+          "evidence": "営業未収入金16,833千円。P76注記により2022年度に独立掲記（旧「その他」から組替え）。売掛金と区別される流動の未収入金としてOther Quick Assetsに分類"
+        },
+        "Inventories, Net": {
+          "page": 67,
+          "source_label": "商品／原材料及び貯蔵品",
+          "evidence": "商品4,271 + 原材料及び貯蔵品1,852 = 6,123千円（収益性低下による簿価切下後の貸借対照表価額）"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 67,
+          "source_label": "その他（流動資産）",
+          "evidence": "流動資産のその他 25,024千円。有価証券・短期貸付金・前払金の掲記なしのため全額Other Current Assets"
+        },
+        "Marketable Securities": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "連結流動資産に有価証券の掲記なし（サブトータル構成要素が存在しないため0）"
+        },
+        "Short-term Loan": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "連結貸借対照表に短期貸付金の掲記なし（短期貸付金40,000千円は親会社単独貸借対照表のみ、P97）"
+        },
+        "Advance Payments": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "前払金等の仕入前渡金の掲記なし（前受金3,367千円は負債側のため該当せず）"
+        },
+        "Other Current Assets": {
+          "page": 67,
+          "source_label": "その他",
+          "evidence": "流動資産「その他」25,024千円（営業未収入金は2022年度より独立掲記済み）"
+        },
+        "Fixed Assets": {
+          "page": 67,
+          "source_label": "固定資産合計",
+          "evidence": "固定資産合計 65,566千円 = 有形0 + 無形19,106 + 投資その他46,460（百万円換算65.566）"
+        },
+        "Tangible Assets": {
+          "page": 67,
+          "source_label": "有形固定資産合計",
+          "evidence": "有形固定資産合計 0千円（印刷値）。総額43,663 − 減価償却累計額43,662 の差1千円は千円単位の端数処理"
+        },
+        "Land": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "連結有形固定資産に土地の掲記なし（有形固定資産サブトータルの構成要素が存在しないため0）"
+        },
+        "Buildings": {
+          "page": 67,
+          "source_label": "建物及び構築物",
+          "evidence": "建物及び構築物（取得原価）17,315千円、減価償却累計額△17,315千円で純額0"
+        },
+        "Plant & Machinery": {
+          "page": 67,
+          "source_label": "機械及び装置",
+          "evidence": "機械及び装置（取得原価）11,825千円、減価償却累計額△11,824千円、純額0で表示"
+        },
+        "Construction in Progress": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "建設仮勘定の掲記なし（有形固定資産サブトータルの構成要素が存在しないため0）"
+        },
+        "Other Equipment": {
+          "page": 67,
+          "source_label": "車両運搬具／工具、器具及び備品",
+          "evidence": "車両運搬具318千円＋工具、器具及び備品14,205千円 = 14,523千円（いずれも減価償却累計額で純額0）"
+        },
+        "Accumulated Depreciation": {
+          "page": 67,
+          "source_label": "減価償却累計額（※1）",
+          "evidence": "△17,315＋△11,824＋△318＋△14,205 ＝ △43,662千円。注記※1（P76）により減損損失累計額を含む"
+        },
+        "Intangible Assets": {
+          "page": 67,
+          "source_label": "のれん／無形固定資産合計",
+          "evidence": "無形固定資産合計 19,106千円（全額のれん）"
+        },
+        "Financial Assets": {
+          "page": 67,
+          "source_label": "投資その他の資産（一部）",
+          "evidence": "敷金及び保証金44,920千円＋長期未収入金純額0（147,591 − 貸倒引当金147,591、P76注記※2は元役員・元従業員の不正行為関連）"
+        },
+        "Investments": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "連結投資その他の資産に投資有価証券・関係会社株式の掲記なし（関係会社株式は親会社単独のみ、P97）"
+        },
+        "Long-term Loan": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "連結貸借対照表に長期貸付金の掲記なし（長期貸付金66,000千円は親会社単独のみ、P97）"
+        },
+        "Other Financial Assets": {
+          "page": 67,
+          "source_label": "敷金及び保証金",
+          "evidence": "敷金及び保証金44,920千円を長期的金融債権として分類（長期未収入金は貸倒引当金で純額0）"
+        },
+        "Other Fixed Assets": {
+          "page": 67,
+          "source_label": "その他（投資その他の資産）",
+          "evidence": "投資その他の資産「その他」1,540千円。内容の注記がないため非金融の残余としてOther Fixed Assetsに配分（財務性の証拠なし）"
+        },
+        "Deferred Charges": {
+          "page": 67,
+          "source_label": null,
+          "evidence": "繰延勘定の掲記なし。資産合計276,741 ＝ 流動資産211,175 ＋ 固定資産65,566 が完全に一致するため0"
+        },
+        "Total Assets": {
+          "page": 67,
+          "source_label": "資産合計",
+          "evidence": "資産合計 276,741千円（211,175 + 65,566 と一致、百万円換算276.741）"
+        }
+      }
+    },
+    "0eef11cbc3deb46c8c38e328cc3ab1c480db8788b949e62f9babc2a078545911": {
+      "company": "note株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T102704Z_002",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 3195.693,
+        "Quick Assets": 3143.346,
+        "Cash & Cash Equivalents": 2188.649,
+        "Accounts Receivable - Trade": 136.142,
+        "Other Quick Assets": 818.555,
+        "Inventories, Net": 0.845,
+        "Other Current Assets (subtotal)": 51.5,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 51.5,
+        "Fixed Assets": 107.386,
+        "Tangible Assets": 19.375,
+        "Land": 0.0,
+        "Buildings": 30.987,
+        "Plant & Machinery": 0.0,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 44.49,
+        "Accumulated Depreciation": -56.102,
+        "Intangible Assets": 0.0,
+        "Financial Assets": 88.011,
+        "Investments": 0.0,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 88.011,
+        "Other Fixed Assets": 0.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 3303.08
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 75,
+          "source_label": "流動資産合計",
+          "evidence": "当事業年度（2022年11月30日）流動資産合計 3,195,693千円 = 3,195.693 M JPY（報告書は千円表記、1000で除して百万円化）。構成合計は3,195,691千円で2千円の端数差は報告書の丸め"
+        },
+        "Quick Assets": {
+          "page": 75,
+          "source_label": "現金及び預金 + 売掛金 + 未収入金",
+          "evidence": "計算値: 2,188,649 + 136,142 + 818,555 = 3,143,346千円 = 3,143.346 M JPY。未収入金を短期流動性の債権としてOther Quick Assetsに含めた"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 75,
+          "source_label": "現金及び預金",
+          "evidence": "当事業年度 現金及び預金 2,188,649千円 = 2,188.649 M JPY"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 75,
+          "source_label": "売掛金",
+          "evidence": "当事業年度 売掛金 136,142千円 = 136.142 M JPY"
+        },
+        "Other Quick Assets": {
+          "page": 75,
+          "source_label": "未収入金",
+          "evidence": "未収入金（短期回収予定の未収債権）818,555千円 = 818.555 M JPYをOther Quick Assetsとして分類"
+        },
+        "Inventories, Net": {
+          "page": 75,
+          "source_label": "仕掛品",
+          "evidence": "仕掛品（仕掛品＝棚卸資産）845千円 = 0.845 M JPY"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 75,
+          "source_label": "前払費用 + その他",
+          "evidence": "計算値: 有価証券0 + 短期貸付金0 + 前払金0 +（前払費用51,099 + その他401）= 51,500千円 = 51.5 M JPY"
+        },
+        "Marketable Securities": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "貸借対照表に有価証券の表示なし。100頁の有価証券明細表は「該当事項はありません」。サブトータル構成要素のため0"
+        },
+        "Short-term Loan": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "短期貸付金等の貸付債権の表示なし。サブトータル構成要素のため0"
+        },
+        "Advance Payments": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "前払金（仕入前渡金）の表示なし。前払費用は前渡金ではなくOther Current Assetsに分類。サブトータル構成要素のため0"
+        },
+        "Other Current Assets": {
+          "page": 75,
+          "source_label": "前払費用・その他",
+          "evidence": "前払費用 51,099千円 + その他 401千円 = 51,500千円 = 51.5 M JPY"
+        },
+        "Fixed Assets": {
+          "page": 75,
+          "source_label": "固定資産合計",
+          "evidence": "当事業年度 固定資産合計 107,386千円 = 107.386 M JPY（有形19,375 + 無形0 + 投資その他88,011）"
+        },
+        "Tangible Assets": {
+          "page": 75,
+          "source_label": "有形固定資産合計",
+          "evidence": "有形固定資産合計（純額）19,375千円 = 19.375 M JPY。検算: 建物30,987 + 工具器具備品44,490 − 減価償却累計額56,102 = 19,375千円（100頁明細表と一致）"
+        },
+        "Land": {
+          "page": 100,
+          "source_label": null,
+          "evidence": "有形固定資産等明細表に土地の記載なし（建物および工具、器具及び備品のみ）。サブトータル構成要素のため0"
+        },
+        "Buildings": {
+          "page": 100,
+          "source_label": "建物",
+          "evidence": "有形固定資産等明細表：建物当期末残高（取得原価）30,987千円 = 30.987 M JPY（減価償却累計額30,987千円、差引当期末残高0）"
+        },
+        "Plant & Machinery": {
+          "page": 100,
+          "source_label": null,
+          "evidence": "有形固定資産等明細表に機械装置の記載なし。サブトータル構成要素のため0"
+        },
+        "Construction in Progress": {
+          "page": 100,
+          "source_label": null,
+          "evidence": "有形固定資産等明細表に建設仮勘定の記載なし。サブトータル構成要素のため0"
+        },
+        "Other Equipment": {
+          "page": 100,
+          "source_label": "工具、器具及び備品",
+          "evidence": "有形固定資産等明細表：工具、器具及び備品 当期末残高（取得原価）44,490千円 = 44.49 M JPY（主にパソコン23,394千円増加、差引残高19,375千円）"
+        },
+        "Accumulated Depreciation": {
+          "page": 82,
+          "source_label": "有形固定資産の減価償却累計額",
+          "evidence": "当事業年度（2022年11月30日）有形固定資産から直接控除した減価償却累計額 56,102千円 = -56.102 M JPY（100頁明細表と一致: 30,987 + 25,115）"
+        },
+        "Intangible Assets": {
+          "page": 75,
+          "source_label": "無形固定資産合計",
+          "evidence": "当事業年度 無形固定資産合計 0（ソフトウエア取得原価1,068千円は償却累計額1,068千円で全額償却、差引残高0。100頁明細表）"
+        },
+        "Financial Assets": {
+          "page": 75,
+          "source_label": "投資その他の資産合計",
+          "evidence": "投資その他の資産合計 88,011千円 = 88.011 M JPY。全額が敷金及び保証金（財務資産として分類）"
+        },
+        "Investments": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "投資有価証券の表示なし。100頁の有価証券明細表は「該当事項はありません」。サブトータル構成要素のため0"
+        },
+        "Long-term Loan": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "長期貸付金等の貸付債権の表示なし（長期借入金160,000千円は負債側）。サブトータル構成要素のため0"
+        },
+        "Other Financial Assets": {
+          "page": 75,
+          "source_label": "敷金及び保証金",
+          "evidence": "本社オフィスおよびイベントスペースの賃貸借契約に基づく敷金及び保証金 88,011千円 = 88.011 M JPY（89頁 金融商品関係注記でも資産計88,011千円）"
+        },
+        "Other Fixed Assets": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "投資その他の資産は敷金及び保証金88,011千円で全て説明され、繰延税金資産等のその他長期資産の記載なし"
+        },
+        "Deferred Charges": {
+          "page": 75,
+          "source_label": null,
+          "evidence": "長期前払費用等の繰延勘定の表示なし。資産合計3,303,080千円は流動資産3,195,693千円＋固定資産107,386千円（=3,303,079千円、1千円の丸め差）で全て説明されるため0"
+        },
+        "Total Assets": {
+          "page": 75,
+          "source_label": "資産合計",
+          "evidence": "当事業年度 資産合計 3,303,080千円 = 3,303.08 M JPY。検算: 流動3,195.693 + 固定107.386 + 繰延0 = 3,303.079 M JPY（1千円の丸め差で一致）"
+        }
+      }
+    },
+    "2a68998f0818fbdd40341142d6a3a6ea7ae3288afeb336398be8a5c5d08353c9": {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T102905Z_003",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 19040.991,
+        "Quick Assets": 12100.253,
+        "Cash & Cash Equivalents": 9888.59,
+        "Accounts Receivable - Trade": 2211.663,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 4869.705,
+        "Other Current Assets (subtotal)": 2071.031,
+        "Marketable Securities": 2013.436,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 57.595,
+        "Fixed Assets": 9922.37,
+        "Tangible Assets": 7693.681,
+        "Land": 2086.422,
+        "Buildings": 9329.094,
+        "Plant & Machinery": 6514.84,
+        "Construction in Progress": 219.012,
+        "Other Equipment": 7457.446,
+        "Accumulated Depreciation": -17913.133,
+        "Intangible Assets": 33.456,
+        "Financial Assets": 2027.155,
+        "Investments": 1694.567,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 332.588,
+        "Other Fixed Assets": 168.076,
+        "Deferred Charges": 0.0,
+        "Total Assets": 28963.362
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 34,
+          "source_label": "流動資産合計",
+          "evidence": "Balance sheet FY ended 2022-03-31 (当事業年度 column), 流動資産合計 19,040,991千円 = 19,040.991 M JPY."
+        },
+        "Quick Assets": {
+          "page": 34,
+          "source_label": "現金及び預金 + 受取手形 + 売掛金 − 貸倒引当金",
+          "evidence": "Computed: 9,888,590 + 1,224,140 + 988,523 − 1,000 = 12,100,253千円; current 有価証券 excluded (mapped to Marketable Securities row)."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 34,
+          "source_label": "現金及び預金",
+          "evidence": "9,888,590千円 = 9,888.590 M JPY; page 61 breakdown (cash, ordinary/time deposits) confirms total."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 34,
+          "source_label": "受取手形 + 売掛金 − 貸倒引当金",
+          "evidence": "Trade receivables 1,224,140 (notes) + 988,523 (accounts) − 1,000 allowance = 2,211,663千円."
+        },
+        "Other Quick Assets": {
+          "page": 34,
+          "source_label": null,
+          "evidence": "No other short-term liquid assets in current assets; 有価証券 is reported under the schema's Marketable Securities row."
+        },
+        "Inventories, Net": {
+          "page": 34,
+          "source_label": "製品 + 仕掛品 + 原材料及び貯蔵品",
+          "evidence": "3,980,254 + 177,457 + 711,994 = 4,869,705千円 = 4,869.705 M JPY."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 34,
+          "source_label": "有価証券 + 前払費用 + その他",
+          "evidence": "Computed: 2,013,436 + 0 + 0 + 57,595 = 2,071,031千円 (Marketable Securities + Short-term Loan 0 + Advance Payments 0 + Other Current Assets)."
+        },
+        "Marketable Securities": {
+          "page": 34,
+          "source_label": "有価証券",
+          "evidence": "Current marketable securities 2,013,436千円 = 2,013.436 M JPY."
+        },
+        "Short-term Loan": {
+          "page": 34,
+          "source_label": null,
+          "evidence": "No short-term loan receivable line in current assets."
+        },
+        "Advance Payments": {
+          "page": 34,
+          "source_label": null,
+          "evidence": "No advances-to-suppliers line; 前払費用 (prepaid expenses 46,512千円) is classified as Other Current Assets, not advances."
+        },
+        "Other Current Assets": {
+          "page": 34,
+          "source_label": "前払費用 + その他",
+          "evidence": "46,512 + 11,083 = 57,595千円 = 57.595 M JPY."
+        },
+        "Fixed Assets": {
+          "page": 34,
+          "source_label": "固定資産合計",
+          "evidence": "9,922,370千円"
+        },
+        "Tangible Assets": {
+          "page": 34,
+          "source_label": "有形固定資産合計",
+          "evidence": "7,693,681千円; cross-checked: gross 25,606,814 − accumulated depreciation 17,913,133 = 7,693,681千円."
+        },
+        "Land": {
+          "page": 34,
+          "source_label": "土地",
+          "evidence": "Land 2,086,422千円 (revalued per note ※1, page 45)."
+        },
+        "Buildings": {
+          "page": 34,
+          "source_label": "建物",
+          "evidence": "Gross buildings 9,329,094千円 (net 3,629,959 after △5,699,134 depreciation); gross used because Accumulated Depreciation is a separate schema row."
+        },
+        "Plant & Machinery": {
+          "page": 34,
+          "source_label": "機械及び装置",
+          "evidence": "Gross machinery and equipment 6,514,840千円 (net 1,333,301 after △5,181,538)."
+        },
+        "Construction in Progress": {
+          "page": 34,
+          "source_label": "建設仮勘定",
+          "evidence": "Construction in progress 219,012千円."
+        },
+        "Other Equipment": {
+          "page": 34,
+          "source_label": "構築物 + 車両運搬具 + 工具、器具及び備品",
+          "evidence": "Gross: 565,112 + 165,668 + 6,726,666 = 7,457,446千円."
+        },
+        "Accumulated Depreciation": {
+          "page": 34,
+          "source_label": "減価償却累計額",
+          "evidence": "Sum of accumulated depreciation: △5,699,134 −426,351 −5,181,538 −134,679 −6,471,431 = △17,913,133千円 (negative preserved)."
+        },
+        "Intangible Assets": {
+          "page": 34,
+          "source_label": "無形固定資産合計",
+          "evidence": "Software 28,988 + other 4,468 = 33,456千円."
+        },
+        "Financial Assets": {
+          "page": 34,
+          "source_label": "投資その他の資産 (financial portion)",
+          "evidence": "Computed: Investments 1,694,567 + Long-term Loan 0 + Other Financial Assets 332,588 = 2,027,155千円."
+        },
+        "Investments": {
+          "page": 34,
+          "source_label": "投資有価証券 + 出資金",
+          "evidence": "Investment securities 1,692,135 + equity investments 2,432 = 1,694,567千円."
+        },
+        "Long-term Loan": {
+          "page": 34,
+          "source_label": null,
+          "evidence": "No long-term loan receivable reported in 投資その他の資産."
+        },
+        "Other Financial Assets": {
+          "page": 34,
+          "source_label": "前払年金費用 − 貸倒引当金",
+          "evidence": "Prepaid pension cost 332,968 − allowance for doubtful accounts 380 = 332,588千円; 破産更生債権等 is 0 this year."
+        },
+        "Other Fixed Assets": {
+          "page": 34,
+          "source_label": "長期前払費用 + 繰延税金資産 + その他 − 貸倒引当金",
+          "evidence": "10,767 + 144,040 + 13,269 = 168,076千円; allowance is assigned to the financial receivable bucket"
+        },
+        "Deferred Charges": {
+          "page": 34,
+          "source_label": "繰延資産なし",
+          "evidence": "No separate 繰延資産 category is presented"
+        },
+        "Total Assets": {
+          "page": 34,
+          "source_label": "資産合計",
+          "evidence": "Printed total 28,963,362千円; agrees with Current 19,040,991 + Fixed 9,911,601 + Deferred 10,767 = 28,963,359千円 within 3千円 of rounding."
+        }
+      }
+    },
+    "85345c74c48e46dda435ae793dfe3021ac33a76bb12cc0d8464587d14854566b": {
+      "company": "ラクスル株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T103120Z_004",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 19660.0,
+        "Quick Assets": 18585.0,
+        "Cash & Cash Equivalents": 13682.0,
+        "Accounts Receivable - Trade": 4903.0,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 209.0,
+        "Other Current Assets (subtotal)": 864.0,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 864.0,
+        "Fixed Assets": 8973.0,
+        "Tangible Assets": 373.0,
+        "Land": 0.0,
+        "Buildings": 212.0,
+        "Plant & Machinery": 775.0,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 83.0,
+        "Accumulated Depreciation": -697.0,
+        "Intangible Assets": 5208.0,
+        "Financial Assets": 2069.0,
+        "Investments": 2069.0,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 0.0,
+        "Other Fixed Assets": 1321.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 28633.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 65,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度（2022年7月31日）流動資産合計 19,660 百万円 (printed total; component lines sum to 19,658 due to million-yen rounding)."
+        },
+        "Quick Assets": {
+          "page": 65,
+          "source_label": "(computed)",
+          "evidence": "現金及び預金 13,682 + 受取手形及び売掛金 4,903 = 18,585; no other quick components (also 19,660 − 209 inventories − 864 other current = 18,585)."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 65,
+          "source_label": "現金及び預金",
+          "evidence": "Consolidated BS current assets: 現金及び預金 13,682 百万円."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 65,
+          "source_label": "受取手形及び売掛金",
+          "evidence": "Notes and accounts receivable—trade 4,903 (net of 貸倒引当金 △0); page 92 confirms 顧客との契約から生じた債権 4,903."
+        },
+        "Other Quick Assets": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No other short-term liquid asset line presented; 前払費用 and その他 are classified as Other Current Assets per mapping rules."
+        },
+        "Inventories, Net": {
+          "page": 65,
+          "source_label": "商品及び製品 / 原材料及び貯蔵品",
+          "evidence": "商品及び製品 201 + 原材料及び貯蔵品 8 = 209 百万円."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 65,
+          "source_label": "(computed)",
+          "evidence": "Marketable securities 0 + short-term loan 0 + advance payments 0 + other current assets 864 (前払費用 583 + その他 281 − 貸倒引当金 △0)."
+        },
+        "Marketable Securities": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No current marketable securities line presented in the consolidated balance sheet."
+        },
+        "Short-term Loan": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No short-term loan receivable reported in current assets."
+        },
+        "Advance Payments": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No supplier advances line; 前払費用 583 is prepaid expenses, which belong to Other Current Assets, not Advance Payments."
+        },
+        "Other Current Assets": {
+          "page": 65,
+          "source_label": "前払費用 / その他 / 貸倒引当金",
+          "evidence": "前払費用 583 + その他 281 + 貸倒引当金 △0 = 864 百万円."
+        },
+        "Fixed Assets": {
+          "page": 65,
+          "source_label": "固定資産合計",
+          "evidence": "8,973百万円"
+        },
+        "Tangible Assets": {
+          "page": 65,
+          "source_label": "有形固定資産合計",
+          "evidence": "Printed total 373; equals gross 212+775+83=1,070 less accumulated depreciation 97+534+66=697."
+        },
+        "Land": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No land (土地) component presented in the tangible fixed asset breakdown; set to 0 so siblings reconcile to the subtotal."
+        },
+        "Buildings": {
+          "page": 65,
+          "source_label": "建物及び構築物",
+          "evidence": "Gross buildings and structures 212 (net 115 after △97 accumulated depreciation)."
+        },
+        "Plant & Machinery": {
+          "page": 65,
+          "source_label": "機械装置及び運搬具",
+          "evidence": "Gross machinery, equipment and conveyances 775 (net 241 after △534 accumulated depreciation)."
+        },
+        "Construction in Progress": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No tangible construction-in-progress (建設仮勘定) line; ソフトウエア仮勘定 88 is an intangible asset, not tangible CIP."
+        },
+        "Other Equipment": {
+          "page": 65,
+          "source_label": "その他（有形固定資産）",
+          "evidence": "Other tangible fixed assets, gross 83 (net 16 after △66 accumulated depreciation)."
+        },
+        "Accumulated Depreciation": {
+          "page": 65,
+          "source_label": "減価償却累計額",
+          "evidence": "△97 + △534 + △66 = −697; gross 1,070 − 697 = 373, matching printed 有形固定資産合計."
+        },
+        "Intangible Assets": {
+          "page": 65,
+          "source_label": "無形固定資産合計",
+          "evidence": "Printed 5,208: のれん 4,708 + ソフトウエア 395 + ソフトウエア仮勘定 88 + その他 15 (lines sum to 5,206; 2 rounding diff)."
+        },
+        "Financial Assets": {
+          "page": 65,
+          "source_label": "(computed)",
+          "evidence": "投資有価証券 633 + 関係会社株式 1,436 = 2,069; no long-term loan receivable or other identified long-term financial assets."
+        },
+        "Investments": {
+          "page": 65,
+          "source_label": "投資有価証券 / 関係会社株式",
+          "evidence": "Long-term investment securities 633 plus investments in affiliated company shares 1,436 = 2,069 百万円."
+        },
+        "Long-term Loan": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "No long-term loan receivable reported in 投資その他の資産."
+        },
+        "Other Financial Assets": {
+          "page": 65,
+          "source_label": "(none)",
+          "evidence": "The residual その他 151 within 投資その他の資産 lacks a note breakdown in the supplied pages, so per default mapping it is assigned to Other Fixed Assets rather than Financial Assets."
+        },
+        "Other Fixed Assets": {
+          "page": 65,
+          "source_label": "長期前払費用 + 繰延税金資産 + その他",
+          "evidence": "202 + 968 + 151 = 1,321百万円"
+        },
+        "Deferred Charges": {
+          "page": 65,
+          "source_label": "繰延資産なし",
+          "evidence": "No separate 繰延資産 category is presented"
+        },
+        "Total Assets": {
+          "page": 65,
+          "source_label": "資産合計",
+          "evidence": "Printed 資産合計 28,633 百万円; schema buckets sum to 19,660 + 8,769 + 202 = 28,631, a 2 million-yen rounding difference vs the printed total."
+        }
+      }
+    },
+    "e2699f5cebd3c17ebe240ab1f3bfd19988aa698873a613de58263791c28850ad": {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 24,
+      "unscorable_rows": [
+        "Buildings",
+        "Other Equipment",
+        "Plant & Machinery"
+      ],
+      "candidate_navigation_run": "S3_20260822T103318Z_005",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 10674.201,
+        "Quick Assets": 4551.124,
+        "Cash & Cash Equivalents": 3452.681,
+        "Accounts Receivable - Trade": 1098.443,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 4746.038,
+        "Other Current Assets (subtotal)": 1377.037,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 1377.037,
+        "Fixed Assets": 28382.203,
+        "Tangible Assets": 22403.892,
+        "Land": 13514.523,
+        "Construction in Progress": 163.224,
+        "Accumulated Depreciation": -20145.764,
+        "Intangible Assets": 804.863,
+        "Financial Assets": 3370.911,
+        "Investments": 23.526,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 3347.385,
+        "Other Fixed Assets": 1802.534,
+        "Deferred Charges": 0.0,
+        "Total Assets": 39056.405
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 48,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度(2022年3月31日) 流動資産合計 10,674,201千円 ÷1,000 = 10,674.201百万円"
+        },
+        "Quick Assets": {
+          "page": 48,
+          "source_label": "現金及び預金＋営業未収入金（純額）",
+          "evidence": "3,452,681 + 1,098,443 = 4,551,124千円 = 4,551.124百万円; no other short-term liquid lines identified in consolidated current assets"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 48,
+          "source_label": "現金及び預金",
+          "evidence": "当連結会計年度 現金及び預金 3,452,681千円 = 3,452.681百万円"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 48,
+          "source_label": "営業未収入金（純額）",
+          "evidence": "Operating (trade) receivables net of allowance ※2: 1,098,443千円 = 1,098.443百万円"
+        },
+        "Other Quick Assets": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No other short-term liquid asset component presented; residual その他 1,377,037千円 treated as Other Current Assets"
+        },
+        "Inventories, Net": {
+          "page": 48,
+          "source_label": "商品＋販売用不動産＋貯蔵品",
+          "evidence": "100,250 + 4,571,767 + 74,021 = 4,746,038千円 = 4,746.038百万円; page 56 accounting policy values 商品/貯蔵品/販売用不動産 as 棚卸資産 (inventory)"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 48,
+          "source_label": "その他（流動資産）",
+          "evidence": "流動資産 その他 1,377,037千円 = 1,377.037百万円; no marketable securities, loans or advances presented within it"
+        },
+        "Marketable Securities": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No current marketable securities line in the consolidated balance sheet"
+        },
+        "Short-term Loan": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No short-term loans receivable line in consolidated current assets"
+        },
+        "Advance Payments": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No advance payments (前渡金) line in the consolidated balance sheet; 前渡金 appears only in the parent-only BS on page 94, which is not the consolidated statement used"
+        },
+        "Other Current Assets": {
+          "page": 48,
+          "source_label": "その他（流動資産）",
+          "evidence": "1,377,037千円 = 1,377.037百万円, catch-all for residual current items"
+        },
+        "Fixed Assets": {
+          "page": 48,
+          "source_label": "固定資産合計",
+          "evidence": "28,382,203千円 = 28,382.203百万円 (有形固定資産 + 無形固定資産 + 投資その他の資産)"
+        },
+        "Tangible Assets": {
+          "page": 48,
+          "source_label": "有形固定資産合計",
+          "evidence": "22,403,892千円 = 22,403.892百万円; category rows on the face are reported net (純額)"
+        },
+        "Land": {
+          "page": 48,
+          "source_label": "土地",
+          "evidence": "土地 13,514,523千円 = 13,514.523百万円 (land is not depreciated)"
+        },
+        "Construction in Progress": {
+          "page": 48,
+          "source_label": "建設仮勘定",
+          "evidence": "建設仮勘定 163,224千円 = 163.224百万円"
+        },
+        "Accumulated Depreciation": {
+          "page": 61,
+          "source_label": "有形固定資産の減価償却累計額",
+          "evidence": "当連結会計年度(2022年3月31日) 20,145,764千円 = -20,145.764百万円; note states it includes accumulated impairment losses; balance-sheet categories are shown net"
+        },
+        "Intangible Assets": {
+          "page": 48,
+          "source_label": "無形固定資産合計",
+          "evidence": "のれん 448,339 + リース資産 40,816 + その他 315,706 = 804,863千円 = 804.863百万円"
+        },
+        "Financial Assets": {
+          "page": 72,
+          "source_label": "投資有価証券 + 出資金 + 差入保証金",
+          "evidence": "311 + 23,215 + 3,347,385 = 3,370,911千円"
+        },
+        "Investments": {
+          "page": 72,
+          "source_label": "投資有価証券 + 出資金",
+          "evidence": "311 + 23,215 = 23,526千円"
+        },
+        "Long-term Loan": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No long-term loans receivable line in consolidated 投資その他の資産 (関係会社長期貸付金 appears only in parent-only BS)"
+        },
+        "Other Financial Assets": {
+          "page": 48,
+          "source_label": "差入保証金",
+          "evidence": "Deposits paid 3,347,385千円 = 3,347.385百万円 classified as long-term financial asset by economic substance"
+        },
+        "Other Fixed Assets": {
+          "page": 48,
+          "source_label": "繰延税金資産 + その他（純額）− 出資金",
+          "evidence": "1,304,735 + 521,014 − 23,215 = 1,802,534千円"
+        },
+        "Deferred Charges": {
+          "page": 48,
+          "source_label": null,
+          "evidence": "No deferred charges line in the consolidated balance sheet; Current + Fixed Assets equal Total Assets (minor 1千円 rounding in report totals)"
+        },
+        "Total Assets": {
+          "page": 48,
+          "source_label": "資産合計",
+          "evidence": "当連結会計年度 資産合計 39,056,405千円 = 39,056.405百万円"
+        }
+      }
+    },
+    "6d07c2a9c2b212772897e2aed6bf806a1c47ecc446bf40f91500d6d1b2569f5c": {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T103557Z_006",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 3312.071,
+        "Quick Assets": 3259.432,
+        "Cash & Cash Equivalents": 2910.461,
+        "Accounts Receivable - Trade": 348.971,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 1.752,
+        "Other Current Assets (subtotal)": 50.885,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 50.885,
+        "Fixed Assets": 857.87,
+        "Tangible Assets": 59.819,
+        "Land": 0.0,
+        "Buildings": 68.769,
+        "Plant & Machinery": 0.0,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 89.729,
+        "Accumulated Depreciation": -98.679,
+        "Intangible Assets": 611.441,
+        "Financial Assets": 83.37,
+        "Investments": 54.441,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 28.929,
+        "Other Fixed Assets": 103.236,
+        "Deferred Charges": 0.0,
+        "Total Assets": 4169.942
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 62,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度(2022年8月31日) 流動資産合計 3,312,071千円 ÷1,000 = 3,312.071百万円 (components 2,910,461+348,971+1,752+45,073+5,812 = 3,312,069, diffは端数調整)"
+        },
+        "Quick Assets": {
+          "page": 62,
+          "source_label": "(算定) 現金及び預金 + 売掛金及び契約資産",
+          "evidence": "現金及び預金 2,910,461千円 + 売掛金及び契約資産 348,971千円 + その他流動性資産0 = 3,259,432千円 = 3,259.432百万円"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 62,
+          "source_label": "現金及び預金",
+          "evidence": "連結BS 当連結会計年度 現金及び預金 2,910,461千円 (=p.79キャッシュフロー注記: 現金及び現金同等物 2,910,461千円) ÷1,000 = 2,910.461百万円"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 62,
+          "source_label": "売掛金及び契約資産",
+          "evidence": "当連結会計年度の売掛金及び契約資産 348,971千円 ÷1,000 = 348.971百万円。顧客との収益取引に係る売掛金と契約資産の合計額のため全額を貿易売掛金に計上(内訳注記は提供ページになし)"
+        },
+        "Other Quick Assets": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "流動資産は現金及び預金・売掛金及び契約資産・仕掛品・前払費用・その他のみで、その他の流動的資産の記載なし → 0"
+        },
+        "Inventories, Net": {
+          "page": 62,
+          "source_label": "仕掛品",
+          "evidence": "連結BS 当連結会計年度 仕掛品 1,752千円 ÷1,000 = 1.752百万円"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 62,
+          "source_label": "(算定) 前払費用 + その他",
+          "evidence": "前払費用 45,073千円 + その他 5,812千円 = 50,885千円 = 50.885百万円 (有価証券・短期貸付金・前払金は計上なし)"
+        },
+        "Marketable Securities": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "流動資産に有価証券等の流動投資有価証券の記載なし → 0"
+        },
+        "Short-term Loan": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "連結流動資産に短期貸付金・未収貸付金の記載なし(単体BSの関係会社短期貸付金は連結相殺) → 0"
+        },
+        "Advance Payments": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "前払金(立替払い)の科目なし。前払費用45,073千円は前払経費であり前払金ではない → 0"
+        },
+        "Other Current Assets": {
+          "page": 62,
+          "source_label": "前払費用 / その他",
+          "evidence": "前払費用 45,073千円 + その他 5,812千円 = 50,885千円 = 50.885百万円"
+        },
+        "Fixed Assets": {
+          "page": 62,
+          "source_label": "固定資産合計",
+          "evidence": "連結BS 当連結会計年度 固定資産合計 857,870千円 ÷1,000 = 857.870百万円 (有形59,819+無形611,441+投資その他186,608、端数差あり)"
+        },
+        "Tangible Assets": {
+          "page": 62,
+          "source_label": "有形固定資産合計",
+          "evidence": "有形固定資産合計 59,819千円 = 59.819百万円 (建物純額41,526 + 工具器具備品純額18,292、使用権資産は当期「-」)"
+        },
+        "Land": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "有形固定資産に土地の記載なし(建物・工具器具備品・使用権資産のみ) → 0"
+        },
+        "Buildings": {
+          "page": 62,
+          "source_label": "建物",
+          "evidence": "建物(取得原価) 68,769千円 ÷1,000 = 68.769百万円(純額41,526は別掲)"
+        },
+        "Plant & Machinery": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "機械装置の科目なし。工具、器具及び備品(89,729千円)は「その他設備」に分類したため機械は0"
+        },
+        "Construction in Progress": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "建設仮勘定の記載なし → 0"
+        },
+        "Other Equipment": {
+          "page": 62,
+          "source_label": "工具、器具及び備品",
+          "evidence": "工具、器具及び備品(取得原価) 89,729千円 ÷1,000 = 89.729百万円。使用権資産は当連結会計年度「-」のため加算なし"
+        },
+        "Accumulated Depreciation": {
+          "page": 62,
+          "source_label": "減価償却累計額",
+          "evidence": "建物 △27,242千円 + 工具、器具及び備品 △71,437千円 = △98,679千円 = -98.679百万円(負号維持)"
+        },
+        "Intangible Assets": {
+          "page": 62,
+          "source_label": "無形固定資産合計",
+          "evidence": "無形固定資産合計 611,441千円 = 611.441百万円(のれん539,472 + 顧客関連資産69,888 + 商標権1,984 + その他96)"
+        },
+        "Financial Assets": {
+          "page": 62,
+          "source_label": "(算定) 投資有価証券 + 敷金及び保証金",
+          "evidence": "投資有価証券 54,441千円 + 敷金及び保証金 28,929千円 = 83,370千円 = 83.370百万円"
+        },
+        "Investments": {
+          "page": 62,
+          "source_label": "投資有価証券",
+          "evidence": "投資その他の資産中の投資有価証券 54,441千円 ÷1,000 = 54.441百万円"
+        },
+        "Long-term Loan": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "投資その他の資産に長期貸付金の記載なし → 0"
+        },
+        "Other Financial Assets": {
+          "page": 62,
+          "source_label": "敷金及び保証金",
+          "evidence": "敷金及び保証金 28,929千円 ÷1,000 = 28.929百万円(預け金・保証金は金銭債権としてFinancial Assetsに分類)"
+        },
+        "Other Fixed Assets": {
+          "page": 62,
+          "source_label": "繰延税金資産 / その他",
+          "evidence": "繰延税金資産 93,731千円 + 投資その他の資産のその他 9,505千円 = 103,236千円 = 103.236百万円(内訳注記なしのため残項目はOther Fixed Assets)"
+        },
+        "Deferred Charges": {
+          "page": 62,
+          "source_label": "(該当科目なし)",
+          "evidence": "貸借対照表は流動資産と固定資産のみで資産合計4,169,942千円に一致、繰延資産の部なし → 0"
+        },
+        "Total Assets": {
+          "page": 62,
+          "source_label": "資産合計",
+          "evidence": "連結BS 当連結会計年度(2022年8月31日) 資産合計 4,169,942千円 ÷1,000 = 4,169.942百万円 (流動3,312,071+固定857,870)"
+        }
+      }
+    },
+    "0deaddf99e1a897003d8dbf2790eb130ca3415376ff450bac884eaf535726f1c": {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T103803Z_007",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 3046.268,
+        "Quick Assets": 2770.49,
+        "Cash & Cash Equivalents": 2580.179,
+        "Accounts Receivable - Trade": 190.311,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 158.402,
+        "Other Current Assets (subtotal)": 117.376,
+        "Marketable Securities": 0.307,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 117.069,
+        "Fixed Assets": 1743.408,
+        "Tangible Assets": 1223.493,
+        "Land": 348.663,
+        "Buildings": 1321.403,
+        "Plant & Machinery": 56.589,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 224.963,
+        "Accumulated Depreciation": -728.126,
+        "Intangible Assets": 115.542,
+        "Financial Assets": 327.367,
+        "Investments": 327.557,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": -0.19,
+        "Other Fixed Assets": 77.006,
+        "Deferred Charges": 0.0,
+        "Total Assets": 4789.677
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 42,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度(2022年3月31日) 流動資産合計 3,046,268千円 ÷1,000 = 3,046.268百万円。Quick Assets 2,770,490 + 棚卸資産 158,402 + Other Current Assets 117,376 = 3,046,268千円と一致。"
+        },
+        "Quick Assets": {
+          "page": 42,
+          "source_label": "(計算) 現金及び預金 + 売掛金（純）",
+          "evidence": "現金及び預金 2,580,179 + 売掛金 192,869 − 貸倒引当金 2,558 = 2,770,490千円 = 2,770.490百万円。貸倒引当金は流動資産合計の内数控除。"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 42,
+          "source_label": "現金及び預金",
+          "evidence": "当連結会計年度(2022/3/31) 現金及び預金 2,580,179千円 = 2,580.179百万円。P60のキャッシュフロー注記も同額（拘束性預金180,473千円を含む勘定残高）。"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 42,
+          "source_label": "売掛金（貸倒引当金控除後）",
+          "evidence": "売掛金 192,869千円から流動資産の貸倒引当金 △2,558千円を控除した正味額 190,311千円 = 190.311百万円（※1付きの売掛金に対応する控除と判断）。"
+        },
+        "Other Quick Assets": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表の流動資産には現金・売掛金以外の当座資産科目（有価証券はその他流動資産枠に分類）の記載なし。"
+        },
+        "Inventories, Net": {
+          "page": 42,
+          "source_label": "棚卸資産",
+          "evidence": "当連結会計年度(2022/3/31) 棚卸資産 158,402千円 = 158.402百万円。"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 42,
+          "source_label": "(計算) 有価証券 + その他",
+          "evidence": "有価証券 307千円 + その他 117,069千円 = 117,376千円 = 117.376百万円。"
+        },
+        "Marketable Securities": {
+          "page": 42,
+          "source_label": "有価証券",
+          "evidence": "流動資産の有価証券 307千円 = 0.307百万円。"
+        },
+        "Short-term Loan": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表に短期貸付金等の短期貸付債権の記載なし（単体貸借対照表の関係会社短期貸付金は連結上消去）。"
+        },
+        "Advance Payments": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表に前払金・前渡金等の立替・前払科目の記載なし。"
+        },
+        "Other Current Assets": {
+          "page": 42,
+          "source_label": "その他",
+          "evidence": "流動資産のその他 117,069千円 = 117.069百万円（内訳の開示なし、残余項目として計上）。"
+        },
+        "Fixed Assets": {
+          "page": 42,
+          "source_label": "固定資産合計",
+          "evidence": "当連結会計年度(2022/3/31) 固定資産合計 1,743,408千円 = 1,743.408百万円。有形1,223,493 + 無形115,542 + 金融資産327,557 + その他固定76,816 = 1,743,408千円と一致。"
+        },
+        "Tangible Assets": {
+          "page": 42,
+          "source_label": "有形固定資産合計",
+          "evidence": "有形固定資産合計 1,223,493千円 = 1,223.493百万円。構成要素（土地348,663+建物1,321,403+機械56,589+その他設備224,963−減価償却累計728,126=1,223,492千円）とは報告書側の千円未満端数により1千円の差異。"
+        },
+        "Land": {
+          "page": 42,
+          "source_label": "土地",
+          "evidence": "土地（取得原価、減価償却対象外）348,663千円 = 348.663百万円。"
+        },
+        "Buildings": {
+          "page": 42,
+          "source_label": "建物及び構築物",
+          "evidence": "建物及び構築物（取得原価）1,321,403千円 = 1,321.403百万円（減価償却累計額は別行）。"
+        },
+        "Plant & Machinery": {
+          "page": 42,
+          "source_label": "機械装置及び運搬具",
+          "evidence": "機械装置及び運搬具（取得原価）56,589千円 = 56.589百万円。"
+        },
+        "Construction in Progress": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表に建設仮勘定の記載なし。"
+        },
+        "Other Equipment": {
+          "page": 42,
+          "source_label": "工具、器具及び備品 + リース資産",
+          "evidence": "工具・器具・備品 194,770千円 + リース資産（使用権資産）30,193千円 = 224,963千円 = 224.963百万円（取得原価、減価償却累計額は別行）。"
+        },
+        "Accumulated Depreciation": {
+          "page": 42,
+          "source_label": "減価償却累計額（合計）",
+          "evidence": "減価償却累計額の合計: 512,257 + 51,551 + 155,557 + 8,761 = 728,126千円 = △728.126百万円（負数で維持）。"
+        },
+        "Intangible Assets": {
+          "page": 42,
+          "source_label": "無形固定資産合計",
+          "evidence": "無形固定資産合計 115,542千円 = 115.542百万円（のれん99,496 + その他16,045）。"
+        },
+        "Financial Assets": {
+          "page": 42,
+          "source_label": "投資有価証券 + 関係会社株式 + 貸倒引当金",
+          "evidence": "256,941 + 70,616 − 190 = 327,367千円"
+        },
+        "Investments": {
+          "page": 42,
+          "source_label": "投資有価証券 + 関係会社株式",
+          "evidence": "256,941 + 70,616 = 327,557千円"
+        },
+        "Long-term Loan": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表に長期貸付金の記載なし（単体の関係会社長期貸付金590,956千円は連結上消去）。"
+        },
+        "Other Financial Assets": {
+          "page": 42,
+          "source_label": "貸倒引当金（投資その他の資産）",
+          "evidence": "−190千円"
+        },
+        "Other Fixed Assets": {
+          "page": 42,
+          "source_label": "繰延税金資産 + その他",
+          "evidence": "8,182 + 68,824 = 77,006千円"
+        },
+        "Deferred Charges": {
+          "page": 42,
+          "source_label": null,
+          "evidence": "連結貸借対照表に繰延勘定（長期前払費用等）の独立した表示なし（単体のみ長期前払費用320千円）。"
+        },
+        "Total Assets": {
+          "page": 42,
+          "source_label": "資産合計",
+          "evidence": "資産合計 4,789,677千円 = 4,789.677百万円。P75のセグメント資産合計も4,789,677千円で一致。流動3,046,268 + 固定1,743,408 = 4,789,676千円との1千円差は報告書側の千円未満端数。"
+        }
+      }
+    },
+    "2aa981f725b0c3cc4d068cc4556f409871597eb6e8f5a1f0027d6dc056e520f7": {
+      "company": "株式会社プレイド",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T104021Z_008",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 5148.848,
+        "Quick Assets": 4951.021,
+        "Cash & Cash Equivalents": 4240.577,
+        "Accounts Receivable - Trade": 710.444,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 0.0,
+        "Other Current Assets (subtotal)": 197.826,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 2.156,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 195.67,
+        "Fixed Assets": 1942.452,
+        "Tangible Assets": 60.814,
+        "Land": 0.0,
+        "Buildings": 26.227,
+        "Plant & Machinery": 0.0,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 164.371,
+        "Accumulated Depreciation": -129.783,
+        "Intangible Assets": 1444.6,
+        "Financial Assets": 437.027,
+        "Investments": 110.395,
+        "Long-term Loan": 16.414,
+        "Other Financial Assets": 310.218,
+        "Other Fixed Assets": 0.01,
+        "Deferred Charges": 0.0,
+        "Total Assets": 7091.301
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 64,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表, 当連結会計年度 (2022年9月30日) column: 流動資産合計 5,148,848千円 → 5,148.848 M JPY (単位:千円, /1,000)."
+        },
+        "Quick Assets": {
+          "page": 64,
+          "source_label": "(computed) 現金及び預金＋受取手形及び売掛金",
+          "evidence": "4,240,577千円 + 710,444千円 = 4,951,021千円 → 4,951.021 M JPY; the current-asset その他 line is classified under Other Current Assets."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 64,
+          "source_label": "現金及び預金",
+          "evidence": "FY2022 column: 現金及び預金 4,240,577千円 → 4,240.577 M JPY."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 64,
+          "source_label": "受取手形及び売掛金",
+          "evidence": "FY2022 column 710,444千円 → 710.444 M JPY; note p.76 confirms 受取手形880 + 売掛金709,564 = 710,444千円, 電子記録債権割引高 is － this year."
+        },
+        "Other Quick Assets": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "Balance sheet presents no other quick-asset component; the 流動資産 その他 line (197,826千円) is assigned to Other Current Assets."
+        },
+        "Inventories, Net": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No inventory (棚卸資産) line presented in the current assets section; component of Current Assets subtotal, so 0."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 64,
+          "source_label": "(computed) その他",
+          "evidence": "Marketable Securities + Short-term Loan + Advance Payments (all 0) + Other Current Assets 197,826千円 → 197.826 M JPY."
+        },
+        "Marketable Securities": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No current marketable securities line in 流動資産; component of Other Current Assets subtotal, so 0."
+        },
+        "Short-term Loan": {
+          "page": 84,
+          "source_label": "従業員に対する長期貸付金の1年以内償還予定",
+          "evidence": "2,156千円"
+        },
+        "Advance Payments": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No advances-to-suppliers line presented; per mapping rule this is 0 and any prepaid-type items stay in Other Current Assets."
+        },
+        "Other Current Assets": {
+          "page": 64,
+          "source_label": "その他 − 短期貸付金",
+          "evidence": "197,826 − 2,156 = 195,670千円"
+        },
+        "Fixed Assets": {
+          "page": 64,
+          "source_label": "固定資産合計",
+          "evidence": "FY2022 column: 固定資産合計 1,942,452千円 → 1,942.452 M JPY; equals 有形60,814 + 無形1,444,600 + 投資その他437,038 (within 1千円 rounding)."
+        },
+        "Tangible Assets": {
+          "page": 64,
+          "source_label": "有形固定資産合計",
+          "evidence": "FY2022 column: 有形固定資産合計 60,814千円 → 60.814 M JPY; gross components (26,227 + 164,371 - 129,783 = 60,815) differ by 1千円 due to rounding of printed sub-lines."
+        },
+        "Land": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No land (土地) line in the tangible fixed assets section; leases are reflected in 敷金及び保証金 deposits instead."
+        },
+        "Buildings": {
+          "page": 64,
+          "source_label": "建物",
+          "evidence": "FY2022 column: 建物 (gross) 26,227千円 → 26.227 M JPY; separate 減価償却累計額 △26,186."
+        },
+        "Plant & Machinery": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No machinery (機械装置) line presented; the only equipment line 工具、器具及び備品 is mapped to Other Equipment, so 0."
+        },
+        "Construction in Progress": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "No construction-in-progress (建設仮勘定) line presented in the tangible fixed assets section."
+        },
+        "Other Equipment": {
+          "page": 64,
+          "source_label": "工具、器具及び備品",
+          "evidence": "FY2022 column: 工具、器具及び備品 (gross) 164,371千円 → 164.371 M JPY; separate 減価償却累計額 △103,597."
+        },
+        "Accumulated Depreciation": {
+          "page": 64,
+          "source_label": "減価償却累計額",
+          "evidence": "FY2022 column: 建物 △26,186千円 + 工具、器具及び備品 △103,597千円 = △129,783千円 → -129.783 M JPY (negative preserved)."
+        },
+        "Intangible Assets": {
+          "page": 64,
+          "source_label": "無形固定資産合計 (のれん)",
+          "evidence": "FY2022 column: のれん 1,444,600千円 = 無形固定資産合計 → 1,444.600 M JPY; goodwill included in Intangible Assets per mapping guidance."
+        },
+        "Financial Assets": {
+          "page": 64,
+          "source_label": "(computed) 投資その他の資産",
+          "evidence": "投資有価証券110,395 + 従業員に対する長期貸付金16,414 + 敷金及び保証金310,218 = 437,027千円 → 437.027 M JPY; stated 投資その他の資産合計437,038 includes その他10 assigned to Other Fixed Assets."
+        },
+        "Investments": {
+          "page": 64,
+          "source_label": "投資有価証券",
+          "evidence": "FY2022 column: 投資有価証券 110,395千円 → 110.395 M JPY."
+        },
+        "Long-term Loan": {
+          "page": 64,
+          "source_label": "従業員に対する長期貸付金",
+          "evidence": "FY2022 column: 従業員に対する長期貸付金 16,414千円 → 16.414 M JPY."
+        },
+        "Other Financial Assets": {
+          "page": 64,
+          "source_label": "敷金及び保証金",
+          "evidence": "FY2022 column: 敷金及び保証金 310,218千円 → 310.218 M JPY; deposits classified as financial assets per mapping guidance."
+        },
+        "Other Fixed Assets": {
+          "page": 64,
+          "source_label": "その他 (投資その他の資産)",
+          "evidence": "FY2022 column: residual その他 within 投資その他の資産 10千円 → 0.010 M JPY; no note breakdown, default residual assigned here."
+        },
+        "Deferred Charges": {
+          "page": 64,
+          "source_label": null,
+          "evidence": "Balance sheet presents no 繰延勘定/deferred charges section; assets consist only of 流動資産 and 固定資産, so 0."
+        },
+        "Total Assets": {
+          "page": 64,
+          "source_label": "資産合計",
+          "evidence": "FY2022 column: 資産合計 7,091,301千円 → 7,091.301 M JPY; equals 流動資産5,148,848 + 固定資産1,942,452 (within 1千円 rounding)."
+        }
+      }
+    },
+    "b4a0e69054f4fd8c13af1ad8af755d9b4fb2f9b17d8b3052352604ab79178792": {
+      "company": "株式会社ベルク",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T104214Z_009",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 27380.0,
+        "Quick Assets": 15329.0,
+        "Cash & Cash Equivalents": 11791.0,
+        "Accounts Receivable - Trade": 3538.0,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 7602.0,
+        "Other Current Assets (subtotal)": 4448.0,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 4448.0,
+        "Fixed Assets": 125834.0,
+        "Tangible Assets": 108829.0,
+        "Land": 37894.0,
+        "Buildings": 101273.0,
+        "Plant & Machinery": 3713.0,
+        "Construction in Progress": 1894.0,
+        "Other Equipment": 12212.0,
+        "Accumulated Depreciation": -48158.0,
+        "Intangible Assets": 1655.0,
+        "Financial Assets": 9626.0,
+        "Investments": 80.0,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 9546.0,
+        "Other Fixed Assets": 5723.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 153214.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 41,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表 当連結会計年度 (2022年2月28日) column: 流動資産合計 27,380 百万円."
+        },
+        "Quick Assets": {
+          "page": 41,
+          "source_label": "現金及び預金 + 売掛金",
+          "evidence": "Computed: 現金及び預金 11,791 + 売掛金 3,538 + other quick assets 0 = 15,329 (1百万円 rounding difference vs. balance sheet residual, since printed lines are individually rounded)."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 41,
+          "source_label": "現金及び預金",
+          "evidence": "Consolidated BS, 2022年2月28日 column: 現金及び預金 11,791 百万円."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 41,
+          "source_label": "売掛金",
+          "evidence": "Consolidated BS, 2022年2月28日 column: 売掛金 3,538 百万円 (trade receivables)."
+        },
+        "Other Quick Assets": {
+          "page": 41,
+          "source_label": "(no separately disclosed quick asset line)",
+          "evidence": "Consolidated current assets consist only of 現金及び預金, 売掛金, 商品及び製品, 原材料及び貯蔵品, and その他 4,448; the undecomposed その他 is treated as non-quick residual, so no other quick assets are identified."
+        },
+        "Inventories, Net": {
+          "page": 41,
+          "source_label": "商品及び製品 + 原材料及び貯蔵品",
+          "evidence": "Computed: 商品及び製品 7,278 + 原材料及び貯蔵品 324 = 7,602 百万円 (consolidated, 2022年2月28日)."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 41,
+          "source_label": "その他 (流動資産)",
+          "evidence": "Consolidated BS current assets その他 = 4,448 百万円; equals Marketable Securities 0 + Short-term Loan 0 + Advance Payments 0 + Other Current Assets 4,448."
+        },
+        "Marketable Securities": {
+          "page": 41,
+          "source_label": "(no current securities line)",
+          "evidence": "Consolidated BS shows no 有価証券 line within 流動資産; securities appear only as 投資有価証券 80 in fixed assets."
+        },
+        "Short-term Loan": {
+          "page": 41,
+          "source_label": "(no short-term loan receivable line)",
+          "evidence": "Consolidated BS shows no 短期貸付金 or similar short-term lending receivable in current assets."
+        },
+        "Advance Payments": {
+          "page": 41,
+          "source_label": "(no advance payments line)",
+          "evidence": "No 前払金 (advances to suppliers) line appears in the consolidated balance sheet; prepaid expenses, if any, are inside the undecomposed その他 and are not advances."
+        },
+        "Other Current Assets": {
+          "page": 41,
+          "source_label": "その他 (流動資産)",
+          "evidence": "Residual current asset line その他 = 4,448 百万円 (consolidated, 2022年2月28日); composition not disclosed in provided pages."
+        },
+        "Fixed Assets": {
+          "page": 41,
+          "source_label": "固定資産合計",
+          "evidence": "Consolidated BS: 固定資産合計 125,834 百万円 = 有形固定資産 108,829 + 無形固定資産 1,655 + 投資その他の資産 15,349 (1百万円 internal rounding)."
+        },
+        "Tangible Assets": {
+          "page": 41,
+          "source_label": "有形固定資産合計",
+          "evidence": "Printed total 有形固定資産合計 108,829; components (Land 37,894 + Buildings 101,273 + Machinery 3,713 + CIP 1,894 + Other Equipment 12,212 − Accum. Dep. 48,158) sum to 108,8828→108,828, a 1百万円 rounding difference from individually rounded lines."
+        },
+        "Land": {
+          "page": 41,
+          "source_label": "土地",
+          "evidence": "Consolidated BS: 土地 ※1 37,894 百万円 (2022年2月28日); of which 2,114 百万円 pledged as collateral per page 52."
+        },
+        "Buildings": {
+          "page": 41,
+          "source_label": "建物及び構築物",
+          "evidence": "Gross 建物及び構築物 101,273 百万円 before accumulated depreciation △39,203 (buildings and structures combined on consolidated BS)."
+        },
+        "Plant & Machinery": {
+          "page": 41,
+          "source_label": "機械装置及び運搬具",
+          "evidence": "Gross 機械装置及び運搬具 3,713 百万円 before accumulated depreciation △1,094 (machinery, equipment and transportation equipment)."
+        },
+        "Construction in Progress": {
+          "page": 41,
+          "source_label": "建設仮勘定",
+          "evidence": "Consolidated BS: 建設仮勘定 1,894 百万円 (2022年2月28日)."
+        },
+        "Other Equipment": {
+          "page": 41,
+          "source_label": "工具、器具及び備品 + リース資産",
+          "evidence": "Computed: 工具、器具及び備品 gross 8,753 + リース資産 gross 3,459 = 12,212 百万円; lease (right-of-use type) assets assigned to Other Equipment per mapping guidance."
+        },
+        "Accumulated Depreciation": {
+          "page": 41,
+          "source_label": "減価償却累計額",
+          "evidence": "Sum of all accumulated depreciation on tangible assets: △39,203 (建物及び構築物) + △1,094 (機械装置及び運搬具) + △5,302 (工具、器具及び備品) + △2,559 (リース資産) = △48,158 百万円."
+        },
+        "Intangible Assets": {
+          "page": 41,
+          "source_label": "無形固定資産",
+          "evidence": "Consolidated BS: 無形固定資産 1,655 百万円 (2022年2月28日); parent-only BS shows 借地権 641 + ソフトウエア 624 + その他 356 = 1,622."
+        },
+        "Financial Assets": {
+          "page": 41,
+          "source_label": "投資有価証券 + 差入保証金",
+          "evidence": "Computed: Investments 80 (投資有価証券) + Long-term Loan 0 + Other Financial Assets 9,546 (差入保証金) = 9,626 百万円."
+        },
+        "Investments": {
+          "page": 41,
+          "source_label": "投資有価証券",
+          "evidence": "Consolidated BS 投資その他の資産: 投資有価証券 80 百万円 (2022年2月28日)."
+        },
+        "Long-term Loan": {
+          "page": 41,
+          "source_label": "(no long-term loan receivable line)",
+          "evidence": "Consolidated 投資その他の資産 contains no 長期貸付金/関係会社長期貸付金 lines (such lines appear only in the parent-only BS on page 74); loans to consolidated subsidiaries are eliminated."
+        },
+        "Other Financial Assets": {
+          "page": 41,
+          "source_label": "差入保証金",
+          "evidence": "差入保証金 (deposits paid/guarantee deposits) 9,546 百万円 classified as a financial asset per mapping guidance."
+        },
+        "Other Fixed Assets": {
+          "page": 41,
+          "source_label": "繰延税金資産 + その他 + 貸倒引当金",
+          "evidence": "Residual of 投資その他の資産合計 15,349: 繰延税金資産 2,553 + その他 3,225 + 貸倒引当金 △55 = 5,723 百円→百万円 (deferred tax and non-financial residual; bad-debt allowance netted)."
+        },
+        "Deferred Charges": {
+          "page": 41,
+          "source_label": "(no 繰延勘定 section)",
+          "evidence": "Consolidated BS has only 流動資産 and 固定資産 sections; Current 27,380 + Fixed 125,834 = 資産合計 153,214 exactly, so no deferred charges section exists (長期前払費用 appears only within undecomposed lines)."
+        },
+        "Total Assets": {
+          "page": 41,
+          "source_label": "資産合計",
+          "evidence": "Consolidated BS: 資産合計 153,214 百万円 = Current Assets 27,380 + Fixed Assets 125,834 + Deferred Charges 0."
+        }
+      }
+    },
+    "201c1d9254fbfc972e6b336c958eb97d1b29da3d44c549ccd984c6783b25da62": {
+      "company": "株式会社帝国ホテル",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T104406Z_010",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 31201.0,
+        "Quick Assets": 13875.0,
+        "Cash & Cash Equivalents": 12216.0,
+        "Accounts Receivable - Trade": 1659.0,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 619.0,
+        "Other Current Assets (subtotal)": 16706.0,
+        "Marketable Securities": 15905.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 801.0,
+        "Fixed Assets": 27910.0,
+        "Tangible Assets": 15012.0,
+        "Land": 2783.0,
+        "Buildings": 108662.0,
+        "Plant & Machinery": 3595.0,
+        "Construction in Progress": 1561.0,
+        "Other Equipment": 8740.0,
+        "Accumulated Depreciation": -110329.0,
+        "Intangible Assets": 1142.0,
+        "Financial Assets": 10432.0,
+        "Investments": 6134.0,
+        "Long-term Loan": 0.0,
+        "Other Financial Assets": 4298.0,
+        "Other Fixed Assets": 1321.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 59111.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 37,
+          "source_label": "流動資産合計",
+          "evidence": "連結貸借対照表（2022年3月31日列）流動資産合計 31,201百万円。構成: 12,216+1,666+15,905+619+801-7=31,200（差1は百万円単位の端数処理）"
+        },
+        "Quick Assets": {
+          "page": 37,
+          "source_label": "（計算）現金及び預金＋売掛金",
+          "evidence": "現金及び預金12,216＋売掛金（貸倒引当金△7控除後）1,659＋その他当座資産0＝13,875百万円"
+        },
+        "Cash & Cash Equivalents": {
+          "page": 37,
+          "source_label": "現金及び預金",
+          "evidence": "当連結会計年度（2022年3月31日）列: 現金及び預金 12,216百万円（前年17,652）"
+        },
+        "Accounts Receivable - Trade": {
+          "page": 37,
+          "source_label": "売掛金（貸倒引当金控除後）",
+          "evidence": "売掛金1,666百万円（P59注記：契約負債対応の債権期末残高1,666と一致）から貸倒引当金△7百万円を控除した純額1,659"
+        },
+        "Other Quick Assets": {
+          "page": 37,
+          "source_label": null,
+          "evidence": "連結流動資産の構成は現金・売掛金・有価証券・貯蔵品・その他・貸倒引当金のみで、当座資産に該当する追加科目の表示なし→0"
+        },
+        "Inventories, Net": {
+          "page": 37,
+          "source_label": "貯蔵品",
+          "evidence": "貯蔵品（棚卸資産）619百万円、当連結会計年度列"
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 37,
+          "source_label": "（計算）有価証券＋その他",
+          "evidence": "有価証券15,905＋短期貸付金0＋前払金0＋その他801＝16,706百万円"
+        },
+        "Marketable Securities": {
+          "page": 37,
+          "source_label": "有価証券",
+          "evidence": "流動資産・有価証券 15,905百万円（P48注記: うち5百万円は商品券発行に係る供託用国債等）"
+        },
+        "Short-term Loan": {
+          "page": 37,
+          "source_label": null,
+          "evidence": "連結貸借対照表の流動資産に短期貸付金の表示なし→0"
+        },
+        "Advance Payments": {
+          "page": 37,
+          "source_label": null,
+          "evidence": "前払金・立替金の表示なし（前払費用は連結では「その他」801に含まれOther Current Assets区分）→0"
+        },
+        "Other Current Assets": {
+          "page": 37,
+          "source_label": "その他",
+          "evidence": "流動資産「その他」801百万円（単体B/Sの構成から前払費用・未収入金等を含む残余科目）"
+        },
+        "Fixed Assets": {
+          "page": 37,
+          "source_label": "固定資産合計",
+          "evidence": "固定資産合計 27,910百万円（有形15,012＋無形1,142＋投資その他11,755＝27,909、差1は端数処理）"
+        },
+        "Tangible Assets": {
+          "page": 37,
+          "source_label": "有形固定資産合計",
+          "evidence": "有形固定資産合計 15,012百万円（P80監査報告書も15,012を確認）。総額125,341−減価償却累計110,329＝15,012と一致"
+        },
+        "Land": {
+          "page": 37,
+          "source_label": "土地",
+          "evidence": "土地 2,783百万円（減価償却対象外、取得原価のまま表示）"
+        },
+        "Buildings": {
+          "page": 37,
+          "source_label": "建物及び構築物",
+          "evidence": "建物及び構築物（取得原価）108,662百万円（減価償却累計額△99,011控除前の総額）"
+        },
+        "Plant & Machinery": {
+          "page": 37,
+          "source_label": "機械装置及び運搬具",
+          "evidence": "機械装置及び運搬具（取得原価）3,595百万円（減価償却累計額△3,355控除前の総額）"
+        },
+        "Construction in Progress": {
+          "page": 37,
+          "source_label": "建設仮勘定",
+          "evidence": "建設仮勘定 1,561百万円（前年795からの増加は帝国ホテル東京建替計画関連を含む）"
+        },
+        "Other Equipment": {
+          "page": 37,
+          "source_label": "工具、器具及び備品",
+          "evidence": "工具、器具及び備品（取得原価）8,740百万円（減価償却累計額△7,963控除前の総額）"
+        },
+        "Accumulated Depreciation": {
+          "page": 37,
+          "source_label": "減価償却累計額",
+          "evidence": "3行の減価償却累計額の合計: △99,011＋△3,355＋△7,963＝△110,329百万円（負号維持）"
+        },
+        "Intangible Assets": {
+          "page": 37,
+          "source_label": "無形固定資産合計",
+          "evidence": "無形固定資産合計 1,142百万円（借地権853＋その他288＝1,141、差1は端数処理）"
+        },
+        "Financial Assets": {
+          "page": 37,
+          "source_label": "（計算）投資有価証券＋敷金及び保証金",
+          "evidence": "投資有価証券6,134＋長期貸付金0＋敷金及び保証金4,298＝10,432百万円"
+        },
+        "Investments": {
+          "page": 37,
+          "source_label": "投資有価証券",
+          "evidence": "投資その他の資産・投資有価証券 6,134百万円（P48注記: うち非連結子会社・関連会社株式792百万円、担保提供202百万円を含む）"
+        },
+        "Long-term Loan": {
+          "page": 37,
+          "source_label": null,
+          "evidence": "連結の投資その他の資産に長期貸付金の表示なし（単体B/Sの8百万円は連結では表示なし）→0"
+        },
+        "Other Financial Assets": {
+          "page": 37,
+          "source_label": "敷金及び保証金",
+          "evidence": "敷金及び保証金 4,298百万円（金銭的性質の長期敷金・保証金としてFinancial Assetsに分類）"
+        },
+        "Other Fixed Assets": {
+          "page": 37,
+          "source_label": "繰延税金資産＋その他",
+          "evidence": "投資その他の資産のうち繰延税金資産117＋その他1,204＝1,321百万円（非金融の残余はOther Fixed Assetsへ）"
+        },
+        "Deferred Charges": {
+          "page": 37,
+          "source_label": null,
+          "evidence": "連結貸借対照表に繰延勘定（長期前払費用等）の独立表示なし。流動31,201＋固定27,910＝資産合計59,111と正好一致するため0"
+        },
+        "Total Assets": {
+          "page": 37,
+          "source_label": "資産合計",
+          "evidence": "資産合計 59,111百万円（2022年3月31日列; P80監査報告書も資産合計59,111百万円を確認）。流動31,201＋固定27,910＋繰延0と一致"
+        }
+      }
+    }
+  }
+}

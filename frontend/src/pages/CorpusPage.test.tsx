@@ -53,6 +53,8 @@ const extracted: CorpusVerification = {
   company: document.company,
   fiscal_year: document.fiscal_year,
   filename: document.filename,
+  currency: 'JPY',
+  answer_unit: 'M JPY',
   sha256: document.sha256,
   status: 'human_review_required',
   candidate_extracted: true,
@@ -90,6 +92,7 @@ describe('CorpusPage answer review', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('Extracted prefill — verify, then correct')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledWith(document.sha256)
+    expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M JPY')
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
     expect(cash).toHaveValue(125)
@@ -114,5 +117,25 @@ describe('CorpusPage answer review', () => {
     expect(await screen.findByText('PDF extraction did not complete')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry PDF extraction' })).toBeInTheDocument()
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+  })
+
+  it('shows independently audited answers as immutable read-only values', async () => {
+    const auditedDocument = { ...document, verification_status: 'independently_verified' as const }
+    vi.spyOn(api, 'corpus').mockResolvedValue({ ...manifest, documents: [auditedDocument] })
+    vi.spyOn(api, 'corpusJobs').mockResolvedValue({ jobs: [] })
+    vi.spyOn(api, 'corpusVerification').mockResolvedValue({
+      ...extracted,
+      status: 'independently_verified',
+      immutable: true,
+    })
+    const extract = vi.spyOn(api, 'extractCorpusVerification')
+
+    render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View answers' }))
+    expect(await screen.findByText('Audited answers — read only')).toBeInTheDocument()
+    expect(screen.getByLabelText('Cash & Cash Equivalents answer')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Save & approve reviewed answers' })).not.toBeInTheDocument()
+    expect(extract).not.toHaveBeenCalled()
   })
 })

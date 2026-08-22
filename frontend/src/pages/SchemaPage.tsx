@@ -22,7 +22,7 @@ export function SchemaPage({ rows }: { rows: SchemaRow[] }) {
       <div className="schema-summary">
         <Card><span>{tr('Rows', '行')}</span><strong>{rows.length}</strong><small>{tr('Immutable order', '固定順序')}</small></Card>
         <Card><span>{tr('Reference years', '参照年度')}</span><strong>{years.length}</strong><small>{years.length ? `FY${years[0]}–FY${years.at(-1)}` : '—'}</small></Card>
-        <Card><span>{tr('Units', '単位')}</span><strong>M USD</strong><small>{tr('Normalized values', '正規化値')}</small></Card>
+        <Card><span>{tr('Units', '単位')}</span><strong>{tr('M source currency', '元通貨の百万単位')}</strong><small>{tr('Declared per report', 'レポートごとに宣言')}</small></Card>
         <Card><span>{tr('Confidence', '信頼度')}</span><strong>≥ 0.80</strong><small>{tr('Acceptance threshold', '採用しきい値')}</small></Card>
       </div>
       <Card className="schema-card">

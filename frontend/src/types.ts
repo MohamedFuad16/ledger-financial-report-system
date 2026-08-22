@@ -34,6 +34,9 @@ export interface RunSummary extends RunMetrics {
   ocr_enabled?: boolean
   ocr_policy?: 'off' | 'adaptive' | 'force'
   company?: string
+  currency?: string
+  value_scale?: 'millions' | string
+  answer_unit?: string
   source_pdf_sha256?: string
   model?: string
   fiscal_year?: string
@@ -162,7 +165,7 @@ export interface CorpusDocument {
   screen_reasons?: string[]
   output_directory?: string
   output_count?: number
-  verification_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  verification_status?: 'assignment_supplied' | 'human_verified' | 'independently_verified' | 'human_review_required'
   candidate_extracted?: boolean
   candidate_count?: number
   candidate_method?: string | null
@@ -205,8 +208,11 @@ export interface CorpusVerification {
   company: string
   fiscal_year: number
   filename: string
+  currency: string
+  value_scale?: string
+  answer_unit?: string
   sha256: string
-  status: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  status: 'assignment_supplied' | 'human_verified' | 'independently_verified' | 'human_review_required'
   immutable?: boolean
   candidate_extracted?: boolean
   extracted_row_count?: number
@@ -234,7 +240,7 @@ export interface StagedFile {
   size_bytes?: number
   pages?: number
   approx_tokens?: number
-  verification_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required'
+  verification_status?: 'assignment_supplied' | 'human_verified' | 'independently_verified' | 'human_review_required'
   error?: string
 }
 

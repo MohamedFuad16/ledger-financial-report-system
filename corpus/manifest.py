@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE
+from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
 
 
 CORPUS_ROOT = Path("corpus_dataset")
@@ -197,6 +197,9 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
             "company": document.get("company"),
             "fiscal_year": document.get("fiscal_year"),
             "filename": document.get("filename"),
+            "currency": str(document.get("currency") or "USD").upper(),
+            "value_scale": "millions",
+            "answer_unit": f"M {str(document.get('currency') or 'USD').upper()}",
             "status": "assignment_supplied",
             "authoritative_golden_set": True,
             "candidate_extracted": True,
@@ -207,6 +210,54 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
                 for row in ASSET_SCHEMA
             ],
         }
+
+    audited = SOURCE_BOUND_GOLDEN_ANSWERS.get(str(document.get("sha256") or ""))
+    if audited:
+        document_identity = "".join(
+            character for character in str(document.get("company") or "").casefold()
+            if character.isalnum()
+        )
+        audited_identity = "".join(
+            character for character in str(audited.get("company") or "").casefold()
+            if character.isalnum()
+        )
+        same_source_identity = (
+            document_identity == audited_identity
+            and str(document.get("fiscal_year") or "") == str(audited.get("fiscal_year") or "")
+            and str(document.get("currency") or "USD").upper()
+            == str(audited.get("currency") or "USD").upper()
+        )
+        if same_source_identity:
+            answers = dict(audited.get("answers") or {})
+            citations = dict(audited.get("citations") or {})
+            return {
+                "document_id": document.get("sha256"),
+                "company": document.get("company"),
+                "fiscal_year": document.get("fiscal_year"),
+                "filename": document.get("filename"),
+                "currency": str(document.get("currency") or "USD").upper(),
+                "value_scale": "millions",
+                "answer_unit": f"M {str(document.get('currency') or 'USD').upper()}",
+                "source_value_quantum": audited.get("source_value_quantum"),
+                "status": "independently_verified",
+                "authoritative_golden_set": True,
+                "immutable": True,
+                "candidate_extracted": True,
+                "extracted_row_count": len(answers),
+                "source_sha256": document.get("sha256"),
+                "audit_passes": audited.get("audit_passes"),
+                "unscorable_rows": audited.get("unscorable_rows") or [],
+                "rows": [
+                    {
+                        **row,
+                        "answer_m_usd": answers.get(str(row["item"])),
+                        "confidence": 1.0 if str(row["item"]) in answers else None,
+                        "source_page": (citations.get(str(row["item"])) or {}).get("page"),
+                        "evidence": (citations.get(str(row["item"])) or {}).get("evidence"),
+                    }
+                    for row in ASSET_SCHEMA
+                ],
+            }
 
     verification = document.get("verification") if isinstance(document.get("verification"), dict) else {}
     status = str(verification.get("status") or "human_review_required")
@@ -243,6 +294,10 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
         "company": document.get("company"),
         "fiscal_year": document.get("fiscal_year"),
         "filename": document.get("filename"),
+        "currency": str(document.get("currency") or "USD").upper(),
+        "value_scale": "millions",
+        "answer_unit": f"M {str(document.get('currency') or 'USD').upper()}",
+        "source_value_quantum": (artifact or {}).get("source_value_quantum"),
         "status": status,
         "authoritative_golden_set": status == "human_verified",
         "candidate_extracted": candidate_extracted,
@@ -302,6 +357,8 @@ def approve_document_answers(document_id: str, rows: list[dict[str, Any]], *, re
             "pdf_sha256": document.get("sha256"),
             "approved_at": approved_at,
             "reviewer": str(reviewer or "human"),
+            "currency": str(document.get("currency") or "USD").upper(),
+            "value_scale": "millions",
             "rows": normalized_rows,
         }
         temporary = approved_path.with_suffix(".json.tmp")

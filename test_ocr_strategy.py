@@ -48,6 +48,11 @@ class PdfInspectorAdaptiveOcrTests(unittest.TestCase):
         matrices: list[tuple[float, float]] = []
         inspector = types.SimpleNamespace(
             extract_pages_markdown=lambda _path: types.SimpleNamespace(pages=pages),
+            detect_pdf=lambda _path: types.SimpleNamespace(
+                pdf_type="mixed",
+                has_encoding_issues=False,
+                pages_needing_ocr=[],
+            ),
         )
 
         class Matrix:
