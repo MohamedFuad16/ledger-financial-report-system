@@ -20,7 +20,7 @@
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
-| `deploy/aws/` | EC2, SSM, Gunicorn, Caddy | production API | Changes affect instance bootstrap, TLS, and persistent service startup |
+| `deploy/aws/` | EC2, SSM, Gunicorn, Caddy, live/seed manifest merge | production API | Changes affect instance bootstrap, TLS, persistent service startup, and corpus-safe rollout |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
 | `frontend/src/components/CorpusPicker.tsx` | corpus manifest, locale provider | strategy pages | Changes affect stored-report search and single/batch selection |
