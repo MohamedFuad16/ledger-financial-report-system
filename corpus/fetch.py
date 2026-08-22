@@ -69,6 +69,11 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
     temporary = directory / f".{target.stem}.{uuid.uuid4().hex}.pdf"
     try:
         sha256, size = _download(str(candidate["url"]), temporary)
+        expected_sha256 = str(candidate.get("expected_sha256") or "").strip().lower()
+        if expected_sha256 and sha256.lower() != expected_sha256:
+            raise ValueError(
+                "Downloaded PDF SHA-256 does not match the independently audited source."
+            )
         screening = screen_pdf(temporary, year)
         if screening.get("screened") != "ok":
             reasons = "; ".join(str(reason) for reason in screening.get("screen_reasons") or [])

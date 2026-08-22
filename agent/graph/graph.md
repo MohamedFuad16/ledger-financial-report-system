@@ -18,6 +18,7 @@
 | `corpus/manifest.py` | schema, file/OS locks | corpus API, pipeline scoring | Changes affect canonical corpus identity, human approval, deletion, and exact-accuracy eligibility |
 | `benchmark_data/*_gold.json` (explicit allowlist in `schema.py`) | twice-audited exact PDF sources | schema, corpus review, pipeline scoring | Changes affect native-JPY gold, citations, immutable review tables, and exact-source accuracy; duplicate hashes are rejected |
 | `research/benchmark/run_five_company_bakeoff.py` | pipeline, source-bound gold, five pinned FY2022 PDFs | benchmark Markdown/CSV/JSON | Changes affect the reproducibility and completeness of the 45-arm cross-parser comparison |
+| `research/benchmark/acquire_fy2022_expansion_sources.py` | reviewed exact-source registry, corpus fetch/screen/manifest | five-report FY2022 expansion corpus | Changes affect exact-source acquisition and replacement safety |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |

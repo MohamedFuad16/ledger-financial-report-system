@@ -75,6 +75,31 @@ class CorpusManifestTests(unittest.TestCase):
             self.assertEqual([], list(current.parent.glob(".*.pdf")))
             upsert.assert_not_called()
 
+    def test_fetch_rejects_an_audited_source_hash_mismatch_before_screening(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "corpus_dataset"
+
+            def fake_download(_url, target):
+                target.write_bytes(b"%PDF-changed")
+                return "f" * 64, target.stat().st_size
+
+            with patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
+                fetch_module, "_download", side_effect=fake_download
+            ), patch.object(fetch_module, "screen_pdf") as screen, patch.object(
+                fetch_module, "upsert_document"
+            ) as upsert:
+                with self.assertRaisesRegex(ValueError, "SHA-256"):
+                    fetch_module.fetch_report({
+                        "company": "Example",
+                        "year": 2022,
+                        "url": "https://example.test/annual_report_2022.pdf",
+                        "expected_sha256": "a" * 64,
+                    })
+
+            screen.assert_not_called()
+            upsert.assert_not_called()
+            self.assertFalse(any(root.rglob("*.pdf")))
+
     def test_upsert_replaces_same_company_year_and_removes_superseded_pdf(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "corpus_dataset"
