@@ -12,6 +12,8 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Audited the live all-client Firecrawl sweep against a known note FY2022 positive control, added exact-legal-entity EDINET trust without allowing parent substitutions, collapsed six redundant year searches into one PDF-series search, and added a 112-client/year availability ledger — why: distinguish genuine Firecrawl availability from a false negative caused by rejecting Japan FSA filing URLs only because they are off the issuer homepage domain — by: leader — session: 50-company corpus rebuild
+
 - 2026-08-22 — Expanded the answer-review workspace to the full viewport, gave the searchable source PDF 46% of the width with a single-page vertical fit, widened and wrapped extracted evidence, and made English mode normalize legacy Japanese schema labels back to the canonical English contract — why: keep one balance-sheet page legible beside an evidence table without clipping or mixed-locale schema labels — by: leader — session: 50-company corpus rebuild
 
 - 2026-08-22 — Crawled and pinned five additional official FY2022 annual reports, checked their statement figures independently with Poppler and PyMuPDF, and materialized 116 defensible SHA-bound M-JPY gold rows while marking 19 combined/undisclosed schema splits unscorable — why: expand the benchmark without fabricating values merely to fill all 27 rows — by: leader — session: five-company FY2022 gold expansion

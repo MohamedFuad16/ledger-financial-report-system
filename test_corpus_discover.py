@@ -85,6 +85,8 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
 
         self.assertIn("有価証券報告書", client.map_search)
         self.assertIn("有価証券報告書", client.query)
+        self.assertIn("filetype:pdf", client.query)
+        self.assertEqual(50, client.assertions[0])
         self.assertEqual("JP", client.assertions[1])
         self.assertEqual(1, len(reports[2024]))
         self.assertEqual("https://example.jp/ir/library/yuho_2024.pdf", reports[2024][0].url)
@@ -101,6 +103,37 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
 
         reports = discover_company_reports(
             UnrelatedSearch(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2024],
+        )
+        self.assertEqual([], reports[2024])
+
+    def test_exact_issuer_edinet_search_result_is_trusted(self):
+        class EdinetSearch(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TEST.pdf",
+                    "title": "Example株式会社 有価証券報告書 2024年12月期",
+                    "description": "",
+                }]
+
+        reports = discover_company_reports(
+            EdinetSearch(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2024],
+        )
+        self.assertEqual(1, len(reports[2024]))
+        self.assertTrue(reports[2024][0].source_verified)
+
+    def test_parent_company_edinet_result_is_rejected(self):
+        class ParentEdinetSearch(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100PARENT.pdf",
+                    "title": "Parent Holdings株式会社 有価証券報告書 2024年12月期",
+                    "description": "",
+                }]
+
+        reports = discover_company_reports(
+            ParentEdinetSearch(), company="Example株式会社",
             official_url="https://example.jp/", country="JP", years=[2024],
         )
         self.assertEqual([], reports[2024])

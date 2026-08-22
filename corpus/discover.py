@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, asdict
 from typing import Iterable
 from urllib.parse import urlparse
+import unicodedata
 
 from .client import FirecrawlClient
 
@@ -15,6 +16,16 @@ REPORT_WORDS = re.compile(
     r"有価証券報告書|有報|統合報告書|年次報告書",
     re.I,
 )
+
+# EDINET is the Japanese Financial Services Agency's filing system.  Search
+# results on this host may be accepted without an issuer-domain URL, but only
+# when the result itself names the exact requested legal entity.  Generic CDN
+# and parent-company results remain untrusted.
+PUBLIC_FILING_DOMAINS = {
+    "disclosure.edinet-fsa.go.jp",
+    "disclosure2.edinet-fsa.go.jp",
+    "disclosure2dl.edinet-fsa.go.jp",
+}
 
 
 @dataclass(frozen=True)
@@ -65,6 +76,24 @@ def _matches_domain(url: str, official_domain: str) -> bool:
     return candidate_domain == official_domain or candidate_domain.endswith(f".{official_domain}")
 
 
+def _normalized_identity(value: str) -> str:
+    return "".join(
+        character for character in unicodedata.normalize("NFKC", value).casefold()
+        if character.isalnum()
+    )
+
+
+def _trusted_public_filing(item: dict, company: str) -> bool:
+    domain = _domain(str(item.get("url") or ""))
+    if domain not in PUBLIC_FILING_DOMAINS:
+        return False
+    identity = _normalized_identity(company)
+    result_text = _normalized_identity(
+        " ".join(str(item.get(key) or "") for key in ("title", "description"))
+    )
+    return bool(identity and identity in result_text)
+
+
 def discover_company_reports(
     client: FirecrawlClient,
     *,
@@ -100,14 +129,15 @@ def discover_company_reports(
     found_years = {
         year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
     }
-    for year in years:
-        if year in found_years:
-            continue
+    if found_years != set(years):
+        # One broad PDF search returns the issuer's filing series and avoids six
+        # almost-identical paid requests for a company with no public reports.
+        # The year is still required in every accepted result below.
         if is_japanese:
-            query = f'"{company}" IR 有価証券報告書 統合報告書 {year} PDF'
+            query = f'"{company}" 有価証券報告書 filetype:pdf'
         else:
-            query = f'"{company}" official investor relations annual report {year} filetype:pdf'
-        pool.extend((item, "search") for item in client.search(query, limit=8, country=country))
+            query = f'"{company}" official annual report 10-k filetype:pdf'
+        pool.extend((item, "search") for item in client.search(query, limit=50, country=country))
 
     output: dict[int, list[ReportCandidate]] = {year: [] for year in years}
     seen: set[tuple[int, str]] = set()
@@ -116,12 +146,18 @@ def discover_company_reports(
         if not url.startswith(("https://", "http://")):
             continue
         matches_official = _matches_domain(url, official_domain)
+        trusted_public_filing = _trusted_public_filing(item, company)
         # Search results are untrusted.  A high-scoring PDF from another
         # company must never be downloaded merely because its title contains
         # the requested fiscal year.  Map results are different: Firecrawl
         # reached them by following the supplied official site, which commonly
         # delegates filings to a disclosure/CDN host.
-        if discovery == "search" and official_domain and not matches_official:
+        if (
+            discovery == "search"
+            and official_domain
+            and not matches_official
+            and not trusted_public_filing
+        ):
             continue
         for year in years:
             if not _looks_like_report(item, year) or (year, url) in seen:
@@ -135,7 +171,10 @@ def discover_company_reports(
                 description=str(item.get("description") or ""),
                 discovery=discovery,
                 official_domain=official_domain,
-                source_verified=bool(official_domain and (matches_official or discovery in {"map", "page"})),
+                source_verified=bool(
+                    trusted_public_filing
+                    or (official_domain and (matches_official or discovery in {"map", "page"}))
+                ),
                 score=_score(item, year, official_domain),
             ))
     for candidates in output.values():
