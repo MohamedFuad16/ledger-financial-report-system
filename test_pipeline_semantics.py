@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pipeline
-from schema import SOURCE_BOUND_GOLDEN_ANSWERS
+from schema import ASSIGNMENT_GOLDEN_SOURCE_SHA256, SOURCE_BOUND_GOLDEN_ANSWERS
 from extraction import ExtractedText
 from schema import ASSET_SCHEMA
 
@@ -46,6 +46,23 @@ def _payload(confidence: float = 0.95) -> dict:
 
 
 class PipelineSemanticsTests(unittest.TestCase):
+    def test_assignment_gold_scores_only_the_supplied_pdf_hash(self):
+        from schema import GOLDEN_ANSWERS_STORE
+
+        rows = [
+            {"item": item, "answer_m_usd": value, "confidence": 0.95, "accepted": True}
+            for item, value in GOLDEN_ANSWERS_STORE["2022"].items()
+        ]
+
+        scored = pipeline.compute_metrics(
+            rows, "2022", "3M", ASSIGNMENT_GOLDEN_SOURCE_SHA256, "USD"
+        )
+        mislabeled = pipeline.compute_metrics(rows, "2022", "3M", "0" * 64, "USD")
+
+        self.assertEqual(100.0, scored["accuracy"])
+        self.assertEqual("assignment_supplied", scored["gold_status"])
+        self.assertFalse(mislabeled["has_golden"])
+
     def test_source_bound_audit_scores_only_the_exact_pdf_hash(self):
         source_hash, audited = next(
             (source_hash, audited)

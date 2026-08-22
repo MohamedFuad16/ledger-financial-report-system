@@ -678,7 +678,14 @@ def get_corpus():
                 }
                 if len(target_by_company) >= 100:
                     break
-    targets = list(target_by_company.values())[:100]
+    targets = sorted(
+        target_by_company.values(),
+        key=lambda item: (
+            0 if str(item.get("company") or "").strip().casefold() == "3m" else 1,
+            0 if item.get("status") == "report_stored" else 1,
+            str(item.get("company") or "").casefold(),
+        ),
+    )[:100]
     return jsonify({
         **manifest,
         "documents": documents,

@@ -7,14 +7,10 @@ rapidocr>=3.9,<4
 pydantic>=2.7
 python-dotenv>=1.0
 
-# Web UI (server.py + static/)
+# Web UI (Flask API + React build)
 flask>=3.0
 gunicorn>=23.0
 boto3>=1.35,<2
-
-# Legacy Streamlit UI (app.py) only
-streamlit>=1.40
-pandas>=2.2
 
 # Extraction technology bake-off (Strategy 2 variants)
 docling>=2.120

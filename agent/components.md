@@ -29,13 +29,14 @@
 - `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.
 - `frontend/public/providers/` — locally served official OpenRouter, Z.AI and OpenAI marks used by the model-gateway selector.
 - `frontend/src/lib/api.ts` — typed HTTP and fragmented-SSE adapter.
-- `app.py` — legacy Streamlit wrapper.
+- `deploy/aws/restore_verified_corpus.py` — hash-checking recovery tool that restores only assignment or exact-source Bakuraku gold from a corpus backup.
 
 ## Verification
 
 - `test_contract.py` — offline contract and pipeline invariants.
 - `test_traffic.py` — private traffic storage, deduplication, credential exclusion, and origin-policy checks.
 - `test_corpus_manifest.py` — corpus deletion is manifest-ID-only, remains constrained to corpus storage, and never removes prior run output.
+- `test_restore_verified_corpus.py` — backup restore rejects hash mismatches and excludes non-Bakuraku benchmark controls.
 - `frontend/src/lib/api.test.ts` — client request/SSE parsing regression tests.
 - `frontend/src/components/ExecutionPipeline.test.tsx` — live/idle task-row rendering and streamed-status regression tests.
 - `frontend/src/components/CorpusPicker.test.tsx` — corpus filtering and single/batch selection regression tests.

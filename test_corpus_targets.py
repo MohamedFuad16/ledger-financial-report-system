@@ -26,6 +26,7 @@ class CorpusTargetLibraryTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["companies"], 100)
         self.assertEqual(payload["summary"]["companies_with_reports"], 1)
         self.assertEqual(payload["summary"]["documents"], 1)
+        self.assertEqual(payload["targets"][0]["company"], "3M")
         self.assertEqual(payload["targets"][0]["status"], "report_stored")
         self.assertTrue(any(target["status"] == "research_seed" for target in payload["targets"]))
 

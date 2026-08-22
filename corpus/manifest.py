@@ -10,7 +10,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
+from schema import (
+    ASSET_SCHEMA,
+    ASSIGNMENT_GOLDEN_SOURCE_SHA256,
+    GOLDEN_ANSWERS_STORE,
+    SOURCE_BOUND_GOLDEN_ANSWERS,
+)
 
 
 CORPUS_ROOT = Path("corpus_dataset")
@@ -189,6 +194,7 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
     is_assignment = (
         str(document.get("company_slug") or "").upper() == "3M"
         and int(document.get("fiscal_year") or 0) == 2022
+        and str(document.get("sha256") or "") == ASSIGNMENT_GOLDEN_SOURCE_SHA256
     )
     if is_assignment:
         answers = GOLDEN_ANSWERS_STORE["2022"]

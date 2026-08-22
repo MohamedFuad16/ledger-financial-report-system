@@ -34,7 +34,12 @@ from normalize import canonical_item, normalize_payload, parse_confidence, parse
 from pipeline import compute_metrics
 from prompts import SYSTEM_PROMPT, build_user_prompt
 from reconcile import reconcile
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
+from schema import (
+    ASSET_SCHEMA,
+    ASSIGNMENT_GOLDEN_SOURCE_SHA256,
+    GOLDEN_ANSWERS_STORE,
+    SOURCE_BOUND_GOLDEN_ANSWERS,
+)
 
 FAILURES: list[str] = []
 
@@ -280,12 +285,12 @@ check(
     compute_metrics(rows_as_dicts(repaired({"rows": _ok})), "2022")["filled_fields"] == EXPECTED_ROW_COUNT,
 )
 perfect = rows_as_dicts(repaired({"rows": golden_rows("2022")}))
-m = compute_metrics(perfect, "2022", company="3M")
+m = compute_metrics(perfect, "2022", company="3M", source_pdf_sha256=ASSIGNMENT_GOLDEN_SOURCE_SHA256)
 check("a perfect prediction scores 100%", m["accuracy"] == 100.0, json.dumps(m))
 check("a perfect prediction has full coverage", m["coverage"] == 100.0)
 
 one_wrong = rows_as_dicts(repaired({"rows": golden_rows("2022", Land=999)}))
-m = compute_metrics(one_wrong, "2022", company="3M")
+m = compute_metrics(one_wrong, "2022", company="3M", source_pdf_sha256=ASSIGNMENT_GOLDEN_SOURCE_SHA256)
 check("one wrong value costs exactly one item", m["exact_matches"] == EXPECTED_ROW_COUNT - 1)
 
 nulled = golden_rows("2022")
@@ -294,7 +299,7 @@ for row in nulled:
         row["answer_m_usd"] = None
         row["confidence"] = 0.0
 nulled_rows = rows_as_dicts(repaired({"rows": nulled}))
-m = compute_metrics(nulled_rows, "2022", company="3M")
+m = compute_metrics(nulled_rows, "2022", company="3M", source_pdf_sha256=ASSIGNMENT_GOLDEN_SOURCE_SHA256)
 check("null never counts as a match for a golden 0", m["exact_matches"] == EXPECTED_ROW_COUNT - 5, json.dumps(m))
 check("null values do not count as coverage", m["filled_fields"] == EXPECTED_ROW_COUNT - 5)
 

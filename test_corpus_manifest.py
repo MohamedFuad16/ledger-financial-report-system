@@ -9,10 +9,27 @@ from unittest.mock import patch
 
 import corpus.manifest as manifest_module
 import corpus.fetch as fetch_module
-from schema import ASSET_SCHEMA
+from schema import ASSET_SCHEMA, ASSIGNMENT_GOLDEN_SOURCE_SHA256
 
 
 class CorpusManifestTests(unittest.TestCase):
+    def test_assignment_gold_is_bound_to_the_exact_supplied_pdf(self):
+        document = {
+            "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,
+            "company": "3M",
+            "company_slug": "3M",
+            "fiscal_year": 2022,
+            "filename": "3M_annual_report_2022.pdf",
+            "currency": "USD",
+        }
+
+        verified = manifest_module.verification_payload(document)
+        changed = manifest_module.verification_payload({**document, "sha256": "0" * 64})
+
+        self.assertEqual("assignment_supplied", verified["status"])
+        self.assertEqual("human_review_required", changed["status"])
+        self.assertFalse(changed["candidate_extracted"])
+
     def test_source_bound_audit_is_immutable_native_currency_gold(self):
         document_hash, audited = next(
             (source_hash, item)

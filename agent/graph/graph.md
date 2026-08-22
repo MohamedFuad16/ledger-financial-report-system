@@ -7,7 +7,7 @@
 | `schema.py` | — | models, prompts, normalize, reconcile, pipeline, server, tests | Changes affect the contract, prompt, assignment fallback gold, exact-SHA audited gold, scoring, API, and UI |
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
 | `intelligent_scan.py` | fixed schema | Strategy 3 extraction, focused tests | Changes affect Strategy 3 page ranking, selected evidence and model input size |
-| `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
+| `pipeline.py` | extraction, prompts, providers, contract, scoring | server, React API consumers, tests | Changes affect all executions and stored predictions |
 | `server.py` | pipeline/settings/schema/corpus, evidence-backed company registry | browser client | Changes affect every client workflow, the source-verified dashboard feed, and 100-company corpus target library |
 | `traffic.py` | Upstash REST, AWS SES v2 | `server.py` | Changes affect private visit persistence and owner notifications |
 | `corpus/service.py` | discovery/fetch/manifest | Flask corpus jobs, CLI worker | Changes affect discovery and source acquisition only; answer mapping is on-demand through the pipeline |
@@ -37,4 +37,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-22 after adding the explicit multi-fixture exact-source gold loader and five-report FY2022 expansion audit.
+- 2026-08-23 via tree-sitter/heuristic fallback.

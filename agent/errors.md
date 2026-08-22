@@ -104,3 +104,9 @@ identity or job-budget boundary.
 - Cause: The supplied benchmark omits eight rows rather than inventing answers.
 - Resolution: Remove FY2025 from runtime gold. Only the assignment-provided 3M FY2022 key is authoritative by default; any other report is scored only after a human approves all 27 candidate rows for the exact PDF SHA.
 - First seen: 2026-08-20
+
+## Official report libraries were not followed from company homepages (resolved)
+- Symptom: Firecrawl successfully scraped an official corporate homepage containing an IR/securities-library link but reported zero annual-report candidates.
+- Cause: Discovery inspected only the supplied page and same-domain PDFs returned directly by map/search; it did not scrape a linked official report-library HTML page.
+- Resolution: Extract up to four same-domain links whose label/path identifies an annual or securities-report library, scrape those pages, and retain the existing PDF identity/year/screening gates. Corpus discovery requests now enable deep retry by default.
+- First seen: 2026-08-23

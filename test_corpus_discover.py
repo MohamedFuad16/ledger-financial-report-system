@@ -178,6 +178,42 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         self.assertEqual("page", reports[2024][0].discovery)
         self.assertTrue(reports[2024][0].source_verified)
 
+    def test_official_home_page_follows_a_bounded_securities_library(self):
+        class LibraryLinks(_FakeFirecrawl):
+            def __init__(self):
+                super().__init__()
+                self.scraped = []
+
+            def scrape_links(self, url):
+                self.scraped.append(url)
+                if url == "https://example.jp/":
+                    return [{
+                        "url": "https://example.jp/ir/securities/",
+                        "title": "有価証券報告書",
+                        "description": "",
+                    }]
+                return [{
+                    "url": "https://disclosure-cdn.example/S100TEST.pdf",
+                    "title": "2024年12月期 有価証券報告書",
+                    "description": "",
+                }]
+
+            def search(self, query, *, limit, country):
+                raise AssertionError("the official securities library should satisfy the year")
+
+        client = LibraryLinks()
+        reports = discover_company_reports(
+            client, company="Example株式会社", official_url="https://example.jp/",
+            country="JP", years=[2024],
+        )
+
+        self.assertEqual(
+            ["https://example.jp/", "https://example.jp/ir/securities/"], client.scraped
+        )
+        self.assertEqual(1, len(reports[2024]))
+        self.assertEqual("library_page", reports[2024][0].discovery)
+        self.assertTrue(reports[2024][0].source_verified)
+
     def test_year_stamped_official_pdf_without_report_language_is_rejected(self):
         class NewsRelease(_FakeFirecrawl):
             def map(self, _url, *, search):

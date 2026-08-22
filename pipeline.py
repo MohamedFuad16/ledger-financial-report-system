@@ -25,7 +25,12 @@ from models import EXPECTED_ROW_COUNT, SchemaValidationError, rows_as_dicts, val
 from normalize import normalize_payload
 from reconcile import reconcile, reconciliation_summary
 from prompts import build_user_prompt
-from schema import ASSET_SCHEMA, GOLDEN_ANSWERS_STORE, SOURCE_BOUND_GOLDEN_ANSWERS
+from schema import (
+    ASSET_SCHEMA,
+    ASSIGNMENT_GOLDEN_SOURCE_SHA256,
+    GOLDEN_ANSWERS_STORE,
+    SOURCE_BOUND_GOLDEN_ANSWERS,
+)
 
 UPLOAD_DIR = Path("uploads")
 RUNS_DIR = Path("runs")
@@ -248,9 +253,16 @@ def compute_metrics(
     gold_status = "human_review_required"
     gold_company = None
     gold_value_quantum = 0.0
-    # FY2022 is the only answer key supplied by the assignment. It remains
-    # authoritative for 3M even when the run came from a direct upload.
-    if year and year.group() == "2022" and normalized_company == "3m" and normalized_currency == "USD":
+    # FY2022 is the only answer key supplied by the assignment. It is bound to
+    # the exact official PDF bytes so a mislabeled replacement cannot inherit
+    # the assignment answers.
+    if (
+        year
+        and year.group() == "2022"
+        and normalized_company == "3m"
+        and normalized_currency == "USD"
+        and source_pdf_sha256 == ASSIGNMENT_GOLDEN_SOURCE_SHA256
+    ):
         golden = GOLDEN_ANSWERS_STORE["2022"]
         gold_status = "assignment_supplied"
         gold_company = "3M"

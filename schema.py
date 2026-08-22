@@ -380,6 +380,13 @@ GOLDEN_ANSWERS_STORE = {
     "2022": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2022"],
 }
 
+# Exact official 3M FY2022 filing supplied with the assignment.  The answer
+# key must never attach to a different PDF merely because its filename or
+# metadata says "3M" and "2022".
+ASSIGNMENT_GOLDEN_SOURCE_SHA256 = (
+    "d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d"
+)
+
 # Independent, source-bound benchmark keys. These are intentionally keyed by
 # exact PDF SHA-256 rather than fiscal year: replacing a report cannot inherit
 # the old report's answers. FY2021, FY2023 and FY2024 were checked twice against

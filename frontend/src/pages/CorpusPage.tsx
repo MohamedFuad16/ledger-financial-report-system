@@ -83,7 +83,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     if (!companies.length || !years.length) { onNotify(tr('Add a company and at least one year.', '会社と1つ以上の年度を追加してください。'), 'error'); return }
     setStarting(true)
     try {
-      const response = await api.startCorpusJob({ companies, years })
+      const response = await api.startCorpusJob({ companies, years, deep_search: true })
       setJob({ id: response.job_id, status: 'queued', events: [] })
       onNotify(tr('Corpus discovery is running in the background.', 'コーパス探索をバックグラウンドで実行しています。'), 'success')
     } catch (error) { onNotify(error instanceof Error ? error.message : tr('Could not start corpus discovery.', 'コーパス探索を開始できませんでした。'), 'error') }
@@ -163,7 +163,12 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     return Object.values(groups)
       .map((group) => ({ ...group, documents: [...group.documents].sort((left, right) => right.fiscal_year - left.fiscal_year) }))
       .filter((group) => !needle || `${group.company} ${group.target?.official_url || ''} ${group.documents.map((document) => `${document.filename} ${document.fiscal_year}`).join(' ')}`.toLocaleLowerCase().includes(needle))
-      .sort((left, right) => left.company.localeCompare(right.company))
+      .sort((left, right) => {
+        if (left.company.trim().toLocaleLowerCase() === '3m') return -1
+        if (right.company.trim().toLocaleLowerCase() === '3m') return 1
+        if (Boolean(left.documents.length) !== Boolean(right.documents.length)) return left.documents.length ? -1 : 1
+        return left.company.localeCompare(right.company)
+      })
   }, [manifest, tableQuery])
   const isVerified = (document: CorpusDocument) => ['assignment_supplied', 'human_verified', 'independently_verified'].includes(document.verification_status || '')
   const screeningState = (document: CorpusDocument) => document.screened === 'unreadable' ? 'unreadable' : isVerified(document) ? 'verified' : 'review'

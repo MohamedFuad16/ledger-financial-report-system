@@ -121,6 +121,27 @@ def _matches_domain(url: str, official_domain: str) -> bool:
     return candidate_domain == official_domain or candidate_domain.endswith(f".{official_domain}")
 
 
+def _official_report_library_pages(
+    items: Iterable[dict], official_domain: str
+) -> list[str]:
+    """Return bounded same-site HTML pages likely to contain filing links."""
+    pages: list[str] = []
+    for item in items:
+        url = str(item.get("url") or "").strip()
+        text = " ".join(str(item.get(key) or "") for key in ("url", "title", "description"))
+        if (
+            url.startswith(("https://", "http://"))
+            and not urlparse(url).path.lower().endswith(".pdf")
+            and _matches_domain(url, official_domain)
+            and REPORT_WORDS.search(text)
+            and url not in pages
+        ):
+            pages.append(url)
+        if len(pages) >= 4:
+            break
+    return pages
+
+
 def _normalized_identity(value: str) -> str:
     return "".join(
         character for character in unicodedata.normalize("NFKC", value).casefold()
@@ -165,7 +186,16 @@ def discover_company_reports(
     found_years = _found_candidate_years(pool, years)
     if official_url and found_years != set(years):
         try:
-            pool.extend((item, "page") for item in client.scrape_links(official_url))
+            page_items = client.scrape_links(official_url)
+            pool.extend((item, "page") for item in page_items)
+            # Corporate home/IR pages usually link to a separate securities
+            # library whose PDF anchors carry the actual fiscal-year labels.
+            # Follow only a few same-domain report-library pages so broad
+            # discovery stays bounded and does not become a general crawler.
+            for library_url in _official_report_library_pages(page_items, official_domain):
+                pool.extend(
+                    (item, "library_page") for item in client.scrape_links(library_url)
+                )
         except Exception:
             # Some IR pages block a full scrape while still exposing a sitemap.
             pass
@@ -235,7 +265,10 @@ def discover_company_reports(
                 official_domain=official_domain,
                 source_verified=bool(
                     trusted_public_filing
-                    or (official_domain and (matches_official or discovery in {"map", "page"}))
+                    or (
+                        official_domain
+                        and (matches_official or discovery in {"map", "page", "library_page"})
+                    )
                 ),
                 score=_score(item, year, official_domain),
             ))
