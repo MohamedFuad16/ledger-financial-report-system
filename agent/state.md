@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-22 · source-bound 3M cross-year Strategy 2/3 benchmark verified locally
+> Last updated: 2026-08-22 · production corpus review polish and five-company bake-off
 
 ## Current state summary
 
@@ -12,6 +12,7 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-22 — Removed Strategy 3's oversized five-step display, compacted stored-report selection, fit the searchable embedded PDF to an A4 frame, clarified stored-gold versus draft-extraction loading, and added a resumable five-company 45-arm bake-off runner — why: make review state truthful and readable while measuring all Strategy 1/2 parser variants plus the finalized Strategy 3 gate outside the product UI — by: leader — session: production review + full bake-off
 - 2026-08-22 — Added a deployment-time live/seed corpus-manifest merge that preserves production company/year entries and verification metadata before new audited sources are acquired — why: deploy the ten-company benchmark without dropping the five additional 3M reports already stored on EC2 — by: leader — session: native-currency deployment sweep
 - 2026-08-22 — Added exact-SHA source-bound 3M FY2021/FY2023/FY2024/FY2025 audit fixtures, corrected the Strategy 3 critical-evidence gate to retain explicit right-of-use disclosures, and verified Strategy 2/3 at 100% on every scorable row across FY2021–FY2025 — why: distinguish source-backed correctness from model confidence and prevent a token-saving gate from dropping required lease evidence — by: leader — session: cross-year accuracy sweep
 - 2026-08-22 — Tightened report discovery, required successful screening before canonical replacement, preserved Unicode company slugs, and started a Firecrawl-seeded ten-company Bakuraku corpus — why: prevent year-stamped news releases and Japanese-name collisions from contaminating benchmark sources — by: leader — session: cross-company corpus hardening

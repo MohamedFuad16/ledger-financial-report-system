@@ -377,16 +377,6 @@ export function StrategyPage({
         <div><span>{tr('Experiment hypothesis', '実験仮説')}</span><strong>{isStrategy3 ? tr('Parser-guided OCR plus deterministic page scoring should preserve the evidence required by the 27-row schema while sharply reducing LLM input.', 'パーサー誘導OCRと決定論的ページスコアリングにより、27行スキーマに必要な根拠を維持しながらLLM入力を大幅に削減できるはずです。') : isStrategy1 ? tr('With OCR disabled, parser representation alone explains differences in extraction accuracy and speed.', 'OCRを無効にすると、パーサー表現そのものが抽出精度と速度の差を説明できるはずです。') : tr('OCR-enabled passes should recover damaged or image-only pages; adaptive parsers OCR only classified pages, while the remaining parsers use compulsory OCR.', 'OCR有効パスは破損したテキスト層や画像ページを復元します。適応型パーサーは判定されたページだけをOCRし、その他はOCRを必須化します。')}</strong></div>
       </div>
 
-      {isStrategy3 && <div className="strategy-three-live-flow">
-        {[
-          tr('1. Inspect every PDF page', '1. 全PDFページを検査'),
-          tr('2. OCR only routed pages', '2. 対象ページのみOCR'),
-          tr('3. Replace into unified Markdown', '3. 統合Markdownへ置換'),
-          tr('4. Score complete pages', '4. 完全ページを採点'),
-          tr('5. Map top 3–5 and validate', '5. 上位3〜5ページをマッピング・検証'),
-        ].map((label) => <Card key={label}><strong>{label}</strong></Card>)}
-      </div>}
-
       <div className="strategy-prompt-row">
         <Disclosure title={tr('System prompt', 'システムプロンプト')} subtitle={tr('Shared across all active strategies', 'すべての有効な戦略で共有')}>
           <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={12} />
