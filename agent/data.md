@@ -17,7 +17,7 @@
 - Corpus discovery jobs: `runs/_corpus_jobs/<job-id>/state.json`; active and terminal events are atomically snapshotted so a new route or browser session can rehydrate progress. An active snapshot owned by a prior backend process is retained as `interrupted` after restart rather than disappearing.
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
 - Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year folders; existing run artifacts are preserved.
-- Verified benchmark sources include the official 3M FY2022 filing plus ten Bakuraku-customer FY2022 filings. Non-assignment gold is bound to exact PDF SHA-256, company, fiscal year and currency in `benchmark_data/`; unsupported rows remain explicitly unscorable.
+- Verified benchmark sources include the official 3M FY2022 filing, ten Bakuraku-customer FY2022 filings, and a five-report FY2022 expansion cohort. Non-assignment gold is bound to exact PDF SHA-256, company, fiscal year and currency in the two explicit `benchmark_data/` fixtures; unsupported rows remain explicitly unscorable and every partial fixture partitions all 27 schema rows between answers and omissions.
 - Bakuraku research: `research/bakuraku/customers.csv` plus a fully linked `README.md` table.
 - Provider defaults: `.env` (gitignored).
 - Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest

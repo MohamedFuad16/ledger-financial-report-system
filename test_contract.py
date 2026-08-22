@@ -100,10 +100,12 @@ for source_hash, audited in sorted(SOURCE_BOUND_GOLDEN_ANSWERS.items()):
             str([item for item in report["checks"] if item["status"] == "failed"]),
         )
     else:
+        unscorable = set(audited.get("unscorable_rows") or [])
         check(
-            f"source-bound FY{year} partial key has an explicitly supported row count",
-            len(answers) in {22, 24},
-            str(len(answers)),
+            f"source-bound FY{year} partial key explicitly accounts for every schema row",
+            set(answers).isdisjoint(unscorable)
+            and set(answers).union(unscorable) == set(CANONICAL_ITEMS),
+            f"answers={len(answers)}, unscorable={sorted(unscorable)}",
         )
 
 for year, answers in sorted(GOLDEN_ANSWERS_STORE.items()):

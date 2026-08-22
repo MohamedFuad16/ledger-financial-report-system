@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "fiscal_year": "2022",
+  "sources": [
+    {
+      "company": "株式会社アップガレージグループ",
+      "filing_issuer": "株式会社クルーバー",
+      "url": "https://pdf.irpocket.com/C7134/efCi/qQTp/AG5m.pdf",
+      "sha256": "dc12bdf4b79485a558b6b04573f1cea34d0c11c062c06d6369523e3ed621e5d5",
+      "pages": 93,
+      "source": "official IR Pocket filing archive",
+      "audit": "Poppler plus PyMuPDF"
+    },
+    {
+      "company": "株式会社トーエネック",
+      "url": "https://www.toenec.co.jp/ir/docs/yuka/104_yuuka.pdf",
+      "sha256": "0a90950a2a311e44f18c570c9a1ab749a14a4ce5aa9763113d5268de80309b57",
+      "pages": 121,
+      "source": "official issuer IR archive",
+      "audit": "Poppler plus PyMuPDF"
+    },
+    {
+      "company": "西尾レントオール株式会社",
+      "url": "https://www.nishio-rent.co.jp/wordpress/wp-content/uploads/2022/12/20221221-1.pdf",
+      "sha256": "fdf47701b4bb1704792dc3b320d7fe5bb0bf6e88ba89675dc820ea61e6fdff60",
+      "pages": 120,
+      "source": "official issuer IR archive",
+      "audit": "Poppler plus PyMuPDF"
+    },
+    {
+      "company": "トヨタ自動車株式会社",
+      "url": "https://global.toyota/pages/global_toyota/ir/library/sec/20-F_202203_final.pdf",
+      "sha256": "860863a86954f71d530d6efcb23695af09598fb8abba76ca31c9406c64f2e50c",
+      "pages": 247,
+      "source": "official issuer 20-F archive",
+      "audit": "Poppler plus PyMuPDF"
+    },
+    {
+      "company": "ソニーグループ株式会社",
+      "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100OJ0K.pdf",
+      "sha256": "262c03e67a52e35033c248743db381a49530fd4833ca66aea3b7d457a8bcd441",
+      "pages": 280,
+      "source": "official FSA EDINET filing",
+      "audit": "Poppler plus PyMuPDF"
+    }
+  ]
+}

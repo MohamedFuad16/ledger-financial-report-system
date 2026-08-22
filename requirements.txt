@@ -1,6 +1,7 @@
 # Core pipeline
 requests>=2.32
 pypdf>=5.0
+cryptography>=3.1
 pymupdf4llm>=0.0.17
 rapidocr>=3.9,<4
 pydantic>=2.7

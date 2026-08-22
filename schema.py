@@ -412,21 +412,48 @@ SOURCE_BOUND_GOLDEN_ANSWERS = {
         "fiscal_year": "2025",
         "status": "independently_verified_partial",
         "answers": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2025"],
+        "unscorable_rows": [
+            "Financial Assets",
+            "Investments",
+            "Long-term Loan",
+            "Other Financial Assets",
+            "Other Fixed Assets",
+        ],
     },
 }
 
 
 def _load_external_source_bound_gold() -> dict:
-    """Load reviewed benchmark fixtures without placing answers in prompts."""
-    path = Path(__file__).resolve().parent / "benchmark_data" / "bakuraku_fy2022_gold.json"
-    if not path.is_file():
-        return {}
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    documents = payload.get("documents") if isinstance(payload, dict) else None
-    return documents if isinstance(documents, dict) else {}
+    """Load reviewed benchmark fixtures without placing answers in prompts.
+
+    Files are explicit rather than globbed so an arbitrary JSON artifact cannot
+    silently become benchmark gold merely by landing in ``benchmark_data``.
+    Duplicate source hashes are rejected: an exact PDF must have one audit
+    authority, never last-file-wins semantics.
+    """
+    root = Path(__file__).resolve().parent / "benchmark_data"
+    fixture_names = (
+        "bakuraku_fy2022_gold.json",
+        "fy2022_expansion_gold.json",
+    )
+    merged: dict[str, dict] = {}
+    for fixture_name in fixture_names:
+        path = root / fixture_name
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        documents = payload.get("documents") if isinstance(payload, dict) else None
+        if not isinstance(documents, dict):
+            continue
+        duplicates = set(merged).intersection(documents)
+        if duplicates:
+            duplicate = sorted(duplicates)[0]
+            raise ValueError(f"Duplicate source-bound gold for PDF SHA-256 {duplicate}")
+        merged.update(documents)
+    return merged
 
 
 SOURCE_BOUND_GOLDEN_ANSWERS.update(_load_external_source_bound_gold())

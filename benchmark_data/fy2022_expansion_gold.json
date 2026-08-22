@@ -1,0 +1,820 @@
+{
+  "version": 1,
+  "benchmark": "FY2022 native-currency asset-schema expansion: three customer issuers plus two public controls",
+  "answer_unit": "M JPY",
+  "documents": {
+    "dc12bdf4b79485a558b6b04573f1cea34d0c11c062c06d6369523e3ed621e5d5": {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 0.001,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T134033Z_001",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 3535.891,
+        "Quick Assets": 2850.076,
+        "Cash & Cash Equivalents": 2074.588,
+        "Accounts Receivable - Trade": 775.488,
+        "Other Quick Assets": 0.0,
+        "Inventories, Net": 555.258,
+        "Other Current Assets (subtotal)": 130.555,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 7.207,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 123.348,
+        "Fixed Assets": 1802.282,
+        "Tangible Assets": 907.489,
+        "Land": 167.908,
+        "Buildings": 988.71,
+        "Plant & Machinery": 269.446,
+        "Construction in Progress": 0.0,
+        "Other Equipment": 391.752,
+        "Accumulated Depreciation": -910.328,
+        "Intangible Assets": 301.763,
+        "Financial Assets": 508.118,
+        "Investments": 18.936,
+        "Long-term Loan": 167.8,
+        "Other Financial Assets": 321.382,
+        "Other Fixed Assets": 84.911,
+        "Deferred Charges": 0.0,
+        "Total Assets": 5338.173
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 52,
+          "source_label": "Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Quick Assets": {
+          "page": 52,
+          "source_label": "Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 52,
+          "source_label": "Cash & Cash Equivalents",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 52,
+          "source_label": "Accounts Receivable - Trade",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Quick Assets": {
+          "page": 52,
+          "source_label": "Other Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Inventories, Net": {
+          "page": 52,
+          "source_label": "Inventories, Net",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 52,
+          "source_label": "Other Current Assets (subtotal)",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Marketable Securities": {
+          "page": 52,
+          "source_label": "Marketable Securities",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Short-term Loan": {
+          "page": 66,
+          "source_label": "長期貸付金（1年以内）",
+          "evidence": "7,207千円 is contractually collectible within one year."
+        },
+        "Advance Payments": {
+          "page": 52,
+          "source_label": "Advance Payments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets": {
+          "page": 52,
+          "source_label": "その他 − 1年内回収予定長期貸付金",
+          "evidence": "130,555 − 7,207 = 123,348千円."
+        },
+        "Fixed Assets": {
+          "page": 52,
+          "source_label": "Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Tangible Assets": {
+          "page": 52,
+          "source_label": "Tangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Land": {
+          "page": 52,
+          "source_label": "Land",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Buildings": {
+          "page": 52,
+          "source_label": "Buildings",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Plant & Machinery": {
+          "page": 52,
+          "source_label": "Plant & Machinery",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Construction in Progress": {
+          "page": 52,
+          "source_label": "Construction in Progress",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Equipment": {
+          "page": 52,
+          "source_label": "工具器具備品 + リース資産",
+          "evidence": "329,074 + 62,678 = 391,752千円, before depreciation."
+        },
+        "Accumulated Depreciation": {
+          "page": 52,
+          "source_label": "Accumulated Depreciation",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Intangible Assets": {
+          "page": 52,
+          "source_label": "Intangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Financial Assets": {
+          "page": 52,
+          "source_label": "Financial Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Investments": {
+          "page": 52,
+          "source_label": "Investments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Long-term Loan": {
+          "page": 52,
+          "source_label": "長期貸付金",
+          "evidence": "167,800千円 is the non-current balance-sheet line."
+        },
+        "Other Financial Assets": {
+          "page": 52,
+          "source_label": "Other Financial Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Fixed Assets": {
+          "page": 52,
+          "source_label": "Other Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Deferred Charges": {
+          "page": 52,
+          "source_label": "Deferred Charges",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Total Assets": {
+          "page": 52,
+          "source_label": "Total Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        }
+      }
+    },
+    "0a90950a2a311e44f18c570c9a1ab749a14a4ce5aa9763113d5268de80309b57": {
+      "company": "株式会社トーエネック",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified_partial",
+      "scorable_rows": 22,
+      "unscorable_rows": [
+        "Financial Assets",
+        "Other Equipment",
+        "Other Financial Assets",
+        "Other Fixed Assets",
+        "Plant & Machinery"
+      ],
+      "candidate_navigation_run": "S3_20260822T134033Z_002",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 113270.0,
+        "Quick Assets": 99946.0,
+        "Cash & Cash Equivalents": 29015.0,
+        "Accounts Receivable - Trade": 69431.0,
+        "Other Quick Assets": 1500.0,
+        "Inventories, Net": 9865.0,
+        "Other Current Assets (subtotal)": 3458.0,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 3458.0,
+        "Fixed Assets": 188328.0,
+        "Tangible Assets": 145891.0,
+        "Land": 31633.0,
+        "Buildings": 58341.0,
+        "Construction in Progress": 9634.0,
+        "Accumulated Depreciation": -67373.0,
+        "Intangible Assets": 4047.0,
+        "Investments": 28877.0,
+        "Long-term Loan": 15.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 301599.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 53,
+          "source_label": "Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Quick Assets": {
+          "page": 53,
+          "source_label": "Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 53,
+          "source_label": "Cash & Cash Equivalents",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 53,
+          "source_label": "受取手形・完成工事未収入金等 − 貸倒引当金",
+          "evidence": "69,521 − 90 = 69,431百万円."
+        },
+        "Other Quick Assets": {
+          "page": 53,
+          "source_label": "Other Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Inventories, Net": {
+          "page": 53,
+          "source_label": "未成工事支出金 + 材料貯蔵品 + 商品",
+          "evidence": "6,577 + 3,177 + 111 = 9,865百万円."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 53,
+          "source_label": "Other Current Assets (subtotal)",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Marketable Securities": {
+          "page": 53,
+          "source_label": "Marketable Securities",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Short-term Loan": {
+          "page": 53,
+          "source_label": "Short-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Advance Payments": {
+          "page": 53,
+          "source_label": "Advance Payments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets": {
+          "page": 53,
+          "source_label": "Other Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Fixed Assets": {
+          "page": 53,
+          "source_label": "Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Tangible Assets": {
+          "page": 53,
+          "source_label": "有形固定資産合計",
+          "evidence": "145,891百万円 is directly disclosed; machinery and equipment are not split further."
+        },
+        "Land": {
+          "page": 53,
+          "source_label": "Land",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Buildings": {
+          "page": 53,
+          "source_label": "Buildings",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Construction in Progress": {
+          "page": 53,
+          "source_label": "Construction in Progress",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accumulated Depreciation": {
+          "page": 53,
+          "source_label": "Accumulated Depreciation",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Intangible Assets": {
+          "page": 53,
+          "source_label": "Intangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Investments": {
+          "page": 53,
+          "source_label": "Investments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Long-term Loan": {
+          "page": 53,
+          "source_label": "Long-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Deferred Charges": {
+          "page": 53,
+          "source_label": "Deferred Charges",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Total Assets": {
+          "page": 53,
+          "source_label": "Total Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        }
+      }
+    },
+    "fdf47701b4bb1704792dc3b320d7fe5bb0bf6e88ba89675dc820ea61e6fdff60": {
+      "company": "西尾レントオール株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified_partial",
+      "scorable_rows": 21,
+      "unscorable_rows": [
+        "Buildings",
+        "Financial Assets",
+        "Other Equipment",
+        "Other Financial Assets",
+        "Other Fixed Assets",
+        "Plant & Machinery"
+      ],
+      "candidate_navigation_run": "S3_20260822T134033Z_003",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 105927.0,
+        "Quick Assets": 89555.0,
+        "Cash & Cash Equivalents": 47695.0,
+        "Accounts Receivable - Trade": 41841.0,
+        "Other Quick Assets": 19.0,
+        "Inventories, Net": 6261.0,
+        "Other Current Assets (subtotal)": 10107.0,
+        "Marketable Securities": 0.0,
+        "Short-term Loan": 0.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 10107.0,
+        "Fixed Assets": 155771.0,
+        "Tangible Assets": 143825.0,
+        "Land": 36516.0,
+        "Construction in Progress": 5205.0,
+        "Accumulated Depreciation": -181555.0,
+        "Intangible Assets": 3547.0,
+        "Investments": 2148.0,
+        "Long-term Loan": 12.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 261699.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 49,
+          "source_label": "Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Quick Assets": {
+          "page": 49,
+          "source_label": "Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 49,
+          "source_label": "Cash & Cash Equivalents",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 49,
+          "source_label": "受取手形、売掛金及び契約資産 − 貸倒引当金",
+          "evidence": "42,743 − 902 = 41,841百万円; page 63 confirms contract assets are zero."
+        },
+        "Other Quick Assets": {
+          "page": 49,
+          "source_label": "Other Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Inventories, Net": {
+          "page": 49,
+          "source_label": "商品製品 + 仕掛品 + 原材料貯蔵品",
+          "evidence": "3,897 + 897 + 1,467 = 6,261百万円."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 49,
+          "source_label": "Other Current Assets (subtotal)",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Marketable Securities": {
+          "page": 49,
+          "source_label": "Marketable Securities",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Short-term Loan": {
+          "page": 49,
+          "source_label": "Short-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Advance Payments": {
+          "page": 49,
+          "source_label": "Advance Payments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets": {
+          "page": 49,
+          "source_label": "Other Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Fixed Assets": {
+          "page": 49,
+          "source_label": "Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Tangible Assets": {
+          "page": 49,
+          "source_label": "有形固定資産合計",
+          "evidence": "143,825百万円 is directly disclosed; component classes are presented net."
+        },
+        "Land": {
+          "page": 49,
+          "source_label": "Land",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Construction in Progress": {
+          "page": 49,
+          "source_label": "Construction in Progress",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accumulated Depreciation": {
+          "page": 63,
+          "source_label": "有形固定資産減価償却累計額",
+          "evidence": "181,555百万円; the separate 34,097 line is leased assets included in rental assets, not depreciation."
+        },
+        "Intangible Assets": {
+          "page": 49,
+          "source_label": "Intangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Investments": {
+          "page": 49,
+          "source_label": "Investments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Long-term Loan": {
+          "page": 49,
+          "source_label": "Long-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Deferred Charges": {
+          "page": 49,
+          "source_label": "Deferred Charges",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Total Assets": {
+          "page": 49,
+          "source_label": "Total Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        }
+      }
+    },
+    "860863a86954f71d530d6efcb23695af09598fb8abba76ca31c9406c64f2e50c": {
+      "company": "トヨタ自動車株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified",
+      "scorable_rows": 27,
+      "unscorable_rows": [],
+      "candidate_navigation_run": "S3_20260822T134304Z_004",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 23722290.0,
+        "Quick Assets": 9256487.0,
+        "Cash & Cash Equivalents": 6113655.0,
+        "Accounts Receivable - Trade": 2426274.0,
+        "Other Quick Assets": 716558.0,
+        "Inventories, Net": 3821356.0,
+        "Other Current Assets (subtotal)": 10644447.0,
+        "Marketable Securities": 2507248.0,
+        "Short-term Loan": 7181327.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 955872.0,
+        "Fixed Assets": 43966482.0,
+        "Tangible Assets": 12775052.0,
+        "Land": 1361791.0,
+        "Buildings": 5284620.0,
+        "Plant & Machinery": 13982362.0,
+        "Construction in Progress": 565528.0,
+        "Other Equipment": 7229641.0,
+        "Accumulated Depreciation": -15648890.0,
+        "Intangible Assets": 1191966.0,
+        "Financial Assets": 28938292.0,
+        "Investments": 4837895.0,
+        "Long-term Loan": 14583130.0,
+        "Other Financial Assets": 9517267.0,
+        "Other Fixed Assets": 1061170.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 67688771.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 132,
+          "source_label": "Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Quick Assets": {
+          "page": 132,
+          "source_label": "Quick Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 132,
+          "source_label": "Cash & Cash Equivalents",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Accounts Receivable - Trade": {
+          "page": 161,
+          "source_label": "Accounts and notes receivables − allowance",
+          "evidence": "2,466,398 − 40,124 = 2,426,274 million yen."
+        },
+        "Other Quick Assets": {
+          "page": 161,
+          "source_label": "Other receivables",
+          "evidence": "716,558 million yen."
+        },
+        "Inventories, Net": {
+          "page": 132,
+          "source_label": "Inventories, Net",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 132,
+          "source_label": "Other Current Assets (subtotal)",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Marketable Securities": {
+          "page": 164,
+          "source_label": "Other financial assets — current",
+          "evidence": "2,507,248 million yen; current financial instruments are assigned to the schema's tradable-financial bucket."
+        },
+        "Short-term Loan": {
+          "page": 132,
+          "source_label": "Receivables related to financial services — current",
+          "evidence": "7,181,327 million yen."
+        },
+        "Advance Payments": {
+          "page": 132,
+          "source_label": "Advance Payments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets": {
+          "page": 132,
+          "source_label": "Other Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Fixed Assets": {
+          "page": 132,
+          "source_label": "Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Tangible Assets": {
+          "page": 132,
+          "source_label": "Tangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Land": {
+          "page": 132,
+          "source_label": "Land",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Buildings": {
+          "page": 132,
+          "source_label": "Buildings",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Plant & Machinery": {
+          "page": 132,
+          "source_label": "Plant & Machinery",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Construction in Progress": {
+          "page": 132,
+          "source_label": "Construction in Progress",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Equipment": {
+          "page": 132,
+          "source_label": "Vehicles/equipment on operating leases + right-of-use assets",
+          "evidence": "6,781,229 + 448,412 = 7,229,641 million yen."
+        },
+        "Accumulated Depreciation": {
+          "page": 132,
+          "source_label": "Accumulated Depreciation",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Intangible Assets": {
+          "page": 132,
+          "source_label": "Intangible Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Financial Assets": {
+          "page": 132,
+          "source_label": "Financial Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Investments": {
+          "page": 132,
+          "source_label": "Investments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Long-term Loan": {
+          "page": 132,
+          "source_label": "Long-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Financial Assets": {
+          "page": 132,
+          "source_label": "Other Financial Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Fixed Assets": {
+          "page": 132,
+          "source_label": "Other Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Deferred Charges": {
+          "page": 132,
+          "source_label": "Deferred Charges",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Total Assets": {
+          "page": 132,
+          "source_label": "Total Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        }
+      }
+    },
+    "262c03e67a52e35033c248743db381a49530fd4833ca66aea3b7d457a8bcd441": {
+      "company": "ソニーグループ株式会社",
+      "fiscal_year": "2022",
+      "currency": "JPY",
+      "value_scale": "millions",
+      "source_value_quantum": 1.0,
+      "status": "independently_verified_partial",
+      "scorable_rows": 19,
+      "unscorable_rows": [
+        "Accounts Receivable - Trade",
+        "Investments",
+        "Long-term Loan",
+        "Other Equipment",
+        "Other Financial Assets",
+        "Other Quick Assets",
+        "Plant & Machinery",
+        "Quick Assets"
+      ],
+      "candidate_navigation_run": "S3_20260822T134338Z_005",
+      "audit_passes": [
+        "Poppler pdftotext -layout inspection of cited PDF pages",
+        "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
+      ],
+      "answers": {
+        "Current Assets": 5535208.0,
+        "Cash & Cash Equivalents": 2049636.0,
+        "Inventories, Net": 874007.0,
+        "Other Current Assets (subtotal)": 983044.0,
+        "Marketable Securities": 149301.0,
+        "Short-term Loan": 360673.0,
+        "Advance Payments": 0.0,
+        "Other Current Assets": 473070.0,
+        "Fixed Assets": 24945759.0,
+        "Tangible Assets": 1526643.0,
+        "Land": 78160.0,
+        "Buildings": 832785.0,
+        "Construction in Progress": 145940.0,
+        "Accumulated Depreciation": -1897657.0,
+        "Intangible Assets": 2745044.0,
+        "Financial Assets": 19409907.0,
+        "Other Fixed Assets": 1264165.0,
+        "Deferred Charges": 0.0,
+        "Total Assets": 30480967.0
+      },
+      "citations": {
+        "Current Assets": {
+          "page": 111,
+          "source_label": "Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Cash & Cash Equivalents": {
+          "page": 111,
+          "source_label": "Cash & Cash Equivalents",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Inventories, Net": {
+          "page": 111,
+          "source_label": "Inventories, Net",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets (subtotal)": {
+          "page": 111,
+          "source_label": "Other Current Assets (subtotal)",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Marketable Securities": {
+          "page": 111,
+          "source_label": "Marketable Securities",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Short-term Loan": {
+          "page": 111,
+          "source_label": "Short-term Loan",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Advance Payments": {
+          "page": 111,
+          "source_label": "Advance Payments",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Other Current Assets": {
+          "page": 111,
+          "source_label": "Other Current Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Fixed Assets": {
+          "page": 111,
+          "source_label": "Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Tangible Assets": {
+          "page": 111,
+          "source_label": "有形固定資産 + 使用権資産",
+          "evidence": "1,113,213 + 413,430 = 1,526,643百万円."
+        },
+        "Land": {
+          "page": 174,
+          "source_label": "土地（取得原価）",
+          "evidence": "78,160百万円."
+        },
+        "Buildings": {
+          "page": 174,
+          "source_label": "建物及び構築物（取得原価）",
+          "evidence": "832,785百万円."
+        },
+        "Construction in Progress": {
+          "page": 174,
+          "source_label": "建設仮勘定（取得原価）",
+          "evidence": "145,940百万円."
+        },
+        "Accumulated Depreciation": {
+          "page": 174,
+          "source_label": "減価償却累計額及び減損損失累計額",
+          "evidence": "−1,897,657百万円."
+        },
+        "Intangible Assets": {
+          "page": 111,
+          "source_label": "のれん + コンテンツ資産 + その他無形",
+          "evidence": "952,895 + 1,342,046 + 450,103 = 2,745,044百万円."
+        },
+        "Financial Assets": {
+          "page": 111,
+          "source_label": "持分法投資 + 金融分野投資貸付 + その他金融",
+          "evidence": "268,513 + 18,445,088 + 696,306 = 19,409,907百万円; child split is not scored."
+        },
+        "Other Fixed Assets": {
+          "page": 111,
+          "source_label": "Other Fixed Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Deferred Charges": {
+          "page": 111,
+          "source_label": "Deferred Charges",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        },
+        "Total Assets": {
+          "page": 111,
+          "source_label": "Total Assets",
+          "evidence": "Twice checked against the cited consolidated filing page."
+        }
+      }
+    }
+  }
+}

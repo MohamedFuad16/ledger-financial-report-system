@@ -1,6 +1,6 @@
 import unittest
 
-from corpus.screen import _balance_sheet_page, _year_mentions
+from corpus.screen import _balance_sheet_page, _statement_currency, _year_mentions
 
 
 class JapaneseCorpusScreenTests(unittest.TestCase):
@@ -20,6 +20,32 @@ class JapaneseCorpusScreenTests(unittest.TestCase):
 注記事項
 """
         self.assertEqual(70, _balance_sheet_page(text))
+
+    def test_japanese_construction_statement_terms_are_located(self):
+        text = """--- PAGE 53 ---
+連結貸借対照表
+流動資産 113,270
+現金預金 29,015
+未成工事支出金 6,577
+資産合計 301,599
+--- PAGE 54 ---
+負債の部
+"""
+        self.assertEqual(53, _balance_sheet_page(text))
+
+    def test_statement_currency_ignores_foreign_currency_notes(self):
+        text = """--- PAGE 132 ---
+CONSOLIDATED STATEMENT OF FINANCIAL POSITION
+Yen in millions
+Assets
+Current assets 23,722,290
+Cash and cash equivalents 6,113,655
+Inventories 3,821,356
+Total assets 67,688,771
+--- PAGE 200 ---
+U.S. dollars in millions
+"""
+        self.assertEqual("JPY", _statement_currency(text, 132))
 
 
 if __name__ == "__main__":

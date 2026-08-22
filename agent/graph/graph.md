@@ -16,7 +16,7 @@
 | `runs/_corpus_jobs` | server corpus-job registry | corpus job list/detail API, client rehydration | Changes affect navigation-safe discovery visibility and restart audit state |
 | `corpus/fetch.py` | download/screen/manifest | corpus service | Changes affect PDF trust, Unicode canonical naming, screening-before-replacement, and SHA-bound candidate artifacts |
 | `corpus/manifest.py` | schema, file/OS locks | corpus API, pipeline scoring | Changes affect canonical corpus identity, human approval, deletion, and exact-accuracy eligibility |
-| `benchmark_data/bakuraku_fy2022_gold.json` | twice-audited exact PDF sources | schema, corpus review, pipeline scoring | Changes affect native-JPY gold, citations, immutable review tables, and Bakuraku accuracy |
+| `benchmark_data/*_gold.json` (explicit allowlist in `schema.py`) | twice-audited exact PDF sources | schema, corpus review, pipeline scoring | Changes affect native-JPY gold, citations, immutable review tables, and exact-source accuracy; duplicate hashes are rejected |
 | `research/benchmark/run_five_company_bakeoff.py` | pipeline, source-bound gold, five pinned FY2022 PDFs | benchmark Markdown/CSV/JSON | Changes affect the reproducibility and completeness of the 45-arm cross-parser comparison |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
@@ -36,4 +36,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-22 after the source-verified dashboard feed, two-arm aggregation, and grouped 100-company corpus library.
+- 2026-08-22 after adding the explicit multi-fixture exact-source gold loader and five-report FY2022 expansion audit.

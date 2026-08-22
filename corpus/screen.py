@@ -30,8 +30,8 @@ YEAR_PATTERNS = (
 
 FINANCIAL_TERM_GROUPS = (
     (r"current\s+assets", r"流動資産"),
-    (r"cash\s+and\s+cash", r"現金及び(?:預金|現金同等物)"),
-    (r"inventor", r"(?:棚卸|たな卸)資産"),
+    (r"cash\s+and\s+cash", r"現金(?:及び)?(?:預金|現金同等物)|現金預金"),
+    (r"inventor", r"(?:棚卸|たな卸)資産|未成工事支出金|材料貯蔵品"),
     (r"total\s+assets", r"資産(?:合計|の部合計)"),
     (r"liabilit", r"負債(?:合計|の部)"),
 )
@@ -71,17 +71,32 @@ def _balance_sheet_page(text: str) -> int | None:
     return max(candidates, default=(0.0, None), key=lambda item: (item[0], -item[1]))[1]
 
 
+def _page_text(text: str, page_number: int | None) -> str:
+    if page_number is None:
+        return text
+    marker = re.search(rf"^--- PAGE {int(page_number)} ---$", text, re.M)
+    if not marker:
+        return text
+    following = PAGE_MARKER.search(text, marker.end())
+    return text[marker.end():following.start() if following else len(text)]
+
+
+def _statement_currency(text: str, balance_page: int | None) -> str:
+    """Detect the currency of the audited statement, not any translated note."""
+    statement = _page_text(text, balance_page)
+    if re.search(r"yen\s+in\s+(?:thousands|millions)|Japanese\s+yen|(?:単位\s*[:：]?\s*)?(?:千円|百万円)|日本円", statement, re.I):
+        return "JPY"
+    if re.search(r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars", statement, re.I):
+        return "USD"
+    return "unknown"
+
+
 def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
     extracted = extract_with_pypdf(path)
     mentions = _year_mentions(extracted.text)
     year_confirmed = str(expected_year) in mentions
     balance_page = _balance_sheet_page(extracted.text)
-    if re.search(r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars", extracted.text, re.I):
-        currency = "USD"
-    elif re.search(r"(?:単位\s*[:：]?\s*)?(?:千円|百万円)|日本円", extracted.text):
-        currency = "JPY"
-    else:
-        currency = "unknown"
+    currency = _statement_currency(extracted.text, balance_page)
 
     reasons: list[str] = []
     if not year_confirmed:
