@@ -1,6 +1,6 @@
 import unittest
 
-from corpus.screen import _balance_sheet_page, _statement_currency, _year_mentions
+from corpus.screen import _balance_sheet_page, _statement_currency, _statement_years, _year_mentions
 
 
 class JapaneseCorpusScreenTests(unittest.TestCase):
@@ -46,6 +46,18 @@ Total assets 67,688,771
 U.S. dollars in millions
 """
         self.assertEqual("JPY", _statement_currency(text, 132))
+
+    def test_statement_year_uses_current_not_comparative_year(self):
+        text = """--- PAGE 5 ---
+連結貸借対照表
+2022年3月31日 2021年3月31日
+流動資産 100
+現金及び預金 50
+棚卸資産 10
+資産合計 500
+負債合計 250
+"""
+        self.assertEqual([2021, 2022], _statement_years(text, 5))
 
 
 if __name__ == "__main__":

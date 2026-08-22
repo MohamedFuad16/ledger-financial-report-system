@@ -81,6 +81,15 @@ def _page_text(text: str, page_number: int | None) -> str:
     return text[marker.end():following.start() if following else len(text)]
 
 
+def _statement_years(text: str, balance_page: int | None) -> list[int]:
+    """Return calendar years printed on the selected balance-sheet page."""
+    statement = _page_text(text, balance_page)
+    return sorted({
+        int(year)
+        for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", statement)
+    })
+
+
 def _statement_currency(text: str, balance_page: int | None) -> str:
     """Detect the currency of the audited statement, not any translated note."""
     statement = _page_text(text, balance_page)
@@ -94,8 +103,14 @@ def _statement_currency(text: str, balance_page: int | None) -> str:
 def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
     extracted = extract_with_pypdf(path)
     mentions = _year_mentions(extracted.text)
-    year_confirmed = str(expected_year) in mentions
     balance_page = _balance_sheet_page(extracted.text)
+    statement_years = _statement_years(extracted.text, balance_page)
+    reporting_year = max(statement_years, default=None)
+    year_confirmed = (
+        reporting_year == expected_year
+        if reporting_year is not None
+        else str(expected_year) in mentions
+    )
     currency = _statement_currency(extracted.text, balance_page)
 
     reasons: list[str] = []
@@ -118,6 +133,8 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
         "balance_sheet_page": balance_page,
         "currency": currency,
         "fiscal_year_confirmed": year_confirmed,
+        "reporting_year": reporting_year,
+        "statement_years": statement_years,
         "internal_year_mentions": sorted(set(mentions)),
         "warnings": extracted.warnings,
     }

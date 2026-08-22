@@ -199,6 +199,52 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual([], reports[2022])
 
+    def test_quarterly_filing_is_not_an_annual_report(self):
+        class QuarterlySearch(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://example.jp/ir/2022_q1.pdf",
+                    "title": "2022年3月期 第1四半期決算短信",
+                    "description": "有価証券報告書ライブラリ",
+                }]
+
+        reports = discover_company_reports(
+            QuarterlySearch(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2022],
+        )
+        self.assertEqual([], reports[2022])
+
+    def test_one_result_is_assigned_to_only_its_primary_year(self):
+        class ComparativeSnippet(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://example.jp/ir/annual_report.pdf",
+                    "title": "2022年3月期 有価証券報告書",
+                    "description": "2021年との比較情報",
+                }]
+
+        reports = discover_company_reports(
+            ComparativeSnippet(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2021, 2022],
+        )
+        self.assertEqual([], reports[2021])
+        self.assertEqual(1, len(reports[2022]))
+
+    def test_future_reporting_period_is_not_relabelled_as_requested_year(self):
+        class FuturePeriod(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://example.jp/ir/annual_report.pdf",
+                    "title": "有価証券報告書 第62期 (2025/04/01-2026/03/31)",
+                    "description": "",
+                }]
+
+        reports = discover_company_reports(
+            FuturePeriod(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2025],
+        )
+        self.assertEqual([], reports[2025])
+
     def test_deep_search_retries_each_missing_year_with_broader_queries(self):
         class DeepSearch(_FakeFirecrawl):
             def __init__(self):

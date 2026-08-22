@@ -17,6 +17,11 @@ REPORT_WORDS = re.compile(
     re.I,
 )
 
+NON_ANNUAL_WORDS = re.compile(
+    r"quarter(?:ly)?|interim|半期報告書|四半期|決算短信|決算説明",
+    re.I,
+)
+
 # EDINET is the Japanese Financial Services Agency's filing system.  Search
 # results on this host may be accepted without an issuer-domain URL, but only
 # when the result itself names the exact requested legal entity.  Generic CDN
@@ -53,7 +58,33 @@ def _looks_like_report(item: dict, year: int) -> bool:
     # A PDF extension plus a year is not sufficient: investor sites contain
     # thousands of year-stamped releases and presentations. Require explicit
     # annual-report/filing language before a candidate can reach download.
-    return str(year) in text and REPORT_WORDS.search(text) is not None
+    return (
+        str(year) in text
+        and REPORT_WORDS.search(text) is not None
+        and NON_ANNUAL_WORDS.search(text) is None
+    )
+
+
+def _primary_report_year(item: dict, requested_years: Iterable[int]) -> int | None:
+    """Choose one fiscal-year identity for a search result.
+
+    Search snippets often mention the current and comparative year.  Treating
+    every mention as the document identity can store one PDF under multiple
+    fiscal years.  Prefer the title, then the URL, then the description, and
+    choose the newest requested year in the first field that identifies one.
+    The downloaded PDF is screened independently before it is admitted.
+    """
+    requested = {int(year) for year in requested_years}
+    for key in ("title", "url", "description"):
+        value = str(item.get(key) or "")
+        matches = {
+            int(year)
+            for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", value)
+        }
+        if matches:
+            primary = max(matches)
+            return primary if primary in requested else None
+    return None
 
 
 def _score(item: dict, year: int, official_domain: str) -> int:
@@ -181,8 +212,9 @@ def discover_company_reports(
             and not trusted_public_filing
         ):
             continue
+        primary_year = _primary_report_year(item, years)
         for year in years:
-            if not _looks_like_report(item, year) or (year, url) in seen:
+            if year != primary_year or not _looks_like_report(item, year) or (year, url) in seen:
                 continue
             seen.add((year, url))
             output[year].append(ReportCandidate(
