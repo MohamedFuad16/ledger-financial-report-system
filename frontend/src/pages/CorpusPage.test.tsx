@@ -89,6 +89,7 @@ describe('CorpusPage answer review', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
+    fireEvent.click(await screen.findByRole('button', { name: /Example.*1 fiscal year/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('Extracted prefill — verify, then correct')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledWith(document.sha256)
@@ -113,6 +114,7 @@ describe('CorpusPage answer review', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
+    fireEvent.click(await screen.findByRole('button', { name: /Example.*1 fiscal year/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('PDF extraction did not complete')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry PDF extraction' })).toBeInTheDocument()
@@ -132,6 +134,7 @@ describe('CorpusPage answer review', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
+    fireEvent.click(await screen.findByRole('button', { name: /Example.*1 fiscal year/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'View answers' }))
     expect(await screen.findByText('Audited answers — read only')).toBeInTheDocument()
     expect(screen.getByLabelText('Cash & Cash Equivalents answer')).toBeDisabled()

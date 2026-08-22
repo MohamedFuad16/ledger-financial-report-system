@@ -30,6 +30,26 @@ class WorkspaceIsolationTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         list_runs.assert_called_once_with("legacy-public")
 
+    def test_dashboard_benchmark_feed_exposes_only_verified_source_hashes(self):
+        manifest = {
+            "documents": [
+                {"sha256": "verified", "verification": {"status": "human_verified"}},
+                {"sha256": "draft", "verification": {"status": "human_review_required"}},
+            ]
+        }
+        summaries = [
+            {"run_id": "safe", "source_pdf_sha256": "verified"},
+            {"run_id": "private", "source_pdf_sha256": "draft"},
+        ]
+        with patch.object(server, "load_manifest", return_value=manifest), patch.object(
+            server, "verification_payload", side_effect=lambda document: document["verification"]
+        ), patch.object(server, "list_runs", return_value=summaries) as list_runs:
+            response = server.app.test_client().get("/api/benchmark-runs")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["safe"], [run["run_id"] for run in response.get_json()["runs"]])
+        list_runs.assert_called_once_with(None)
+
     def test_bulk_delete_removes_only_predictions_owned_by_the_caller(self):
         owned = Path("runs/example/FY2024/owned")
         other = Path("runs/example/FY2024/other")

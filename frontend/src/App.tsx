@@ -25,6 +25,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('ledger-sidebar-collapsed') === 'true')
   const [runs, setRuns] = useState<RunSummary[]>([])
+  const [benchmarkRuns, setBenchmarkRuns] = useState<RunSummary[]>([])
   const [schema, setSchema] = useState<SchemaRow[]>([])
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -51,6 +52,7 @@ export default function App() {
     window.addEventListener('hashchange', onHash)
     Promise.all([
       api.runs().then(setRuns),
+      api.benchmarkRuns().then(setBenchmarkRuns),
       api.schema().then(setSchema),
       api.settings().then(setSettings),
       api.providers().then((data) => setProviders(data.providers)),
@@ -149,7 +151,7 @@ export default function App() {
     <div className={`app-shell${sidebarCollapsed ? ' sidebar-is-collapsed' : ''}`}>
       <Sidebar active={panel} onNavigate={navigate} theme={theme} onThemeToggle={() => setTheme((current) => current === 'light' ? 'dark' : 'light')} open={sidebarOpen} onOpenChange={setSidebarOpen} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <main className="main-content">
-        {panel === 'dashboard' && <DashboardPage runs={runs} loading={loading} onNavigate={navigate} />}
+        {panel === 'dashboard' && <DashboardPage runs={benchmarkRuns} loading={loading} onNavigate={navigate} />}
         {panel === 'strategy1' && <StrategyPage kind="s1" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
         {panel === 'strategy2' && <StrategyPage kind="s2" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
         {panel === 'strategy3' && <StrategyPage kind="s3" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}

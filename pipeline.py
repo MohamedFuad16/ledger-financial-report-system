@@ -784,6 +784,7 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
             "currency": currency,
             "value_scale": prediction.get("value_scale", "millions"),
             "answer_unit": prediction.get("answer_unit") or f"M {currency}",
+            "source_pdf_sha256": prediction.get("source_pdf_sha256"),
             "model": prediction.get("model", ""),
             "fiscal_year": fiscal_year,
             "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),

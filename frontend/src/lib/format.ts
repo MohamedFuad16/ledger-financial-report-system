@@ -21,6 +21,11 @@ export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
   intelligent_scan: ['s3'],
 }
 
+export const comparisonExperimentMeta = {
+  no_ocr: { label: 'No OCR', color: '#2563eb' },
+  ocr: { label: 'OCR enabled', color: '#10b981' },
+} as const
+
 export function experimentForStrategyPage(kind: StrategyPageKind): BenchmarkExperiment {
   if (kind === 's1') return 'no_ocr'
   if (kind === 's2') return 'ocr'
@@ -143,6 +148,47 @@ export function groupParserStats(runs: RunSummary[], experiment: BenchmarkExperi
       coverage: average('coverage'),
       precision: average('precision'),
       extractSeconds: average('extract_seconds'),
+    }
+  })
+}
+
+/**
+ * Compare OCR and no-OCR as two experiment arms. Repeated executions of the
+ * same parser/report are averaged first, so reruns cannot silently outweigh a
+ * different report. Timing is end-to-end when available, with parse time only
+ * as a compatibility fallback for older artifacts.
+ */
+export function groupExperimentStats(runs: RunSummary[]) {
+  return (['no_ocr', 'ocr'] as const).map((experiment) => {
+    const eligible = runs.filter((run) => run.experiment === experiment && reportCohortKey(run))
+    const passGroups = Object.values(eligible.reduce<Record<string, RunSummary[]>>((groups, run) => {
+      const key = `${reportCohortKey(run)}::${run.strategy}`
+      ;(groups[key] ||= []).push(run)
+      return groups
+    }, {}))
+    const passMeans = passGroups.map((passRuns) => {
+      const mean = (field: keyof RunSummary, fallback?: keyof RunSummary) => {
+        const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      }
+      return {
+        totalSeconds: mean('total_seconds', 'extract_seconds'),
+        accuracy: mean('accuracy'),
+        coverage: mean('coverage'),
+      }
+    })
+    const average = (field: keyof typeof passMeans[number]) => {
+      const values = passMeans.map((item) => item[field]).filter((value): value is number => value != null)
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+    }
+    return {
+      key: experiment,
+      ...comparisonExperimentMeta[experiment],
+      passes: passGroups.length,
+      reports: new Set(eligible.map(reportCohortKey)).size,
+      totalSeconds: average('totalSeconds'),
+      accuracy: average('accuracy'),
+      coverage: average('coverage'),
     }
   })
 }

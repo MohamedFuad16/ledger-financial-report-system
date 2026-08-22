@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ClipboardCheck, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, Save, ScanText, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, ExternalLink, FileDown, FolderSearch2, LoaderCircle, Play, RefreshCw, Save, ScanText, Search, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
-import type { CorpusDocument, CorpusJob, CorpusManifest, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
+import type { CorpusDocument, CorpusJob, CorpusManifest, CorpusTarget, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
@@ -24,11 +24,14 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [savingReview, setSavingReview] = useState(false)
   const [confirmApprove, setConfirmApprove] = useState(false)
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
+  const [tableQuery, setTableQuery] = useState('')
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
   const restoreLatestJob = () => api.corpusJobs()
     .then(async ({ jobs }) => {
-      const latest = jobs.find((item) => ['queued', 'running'].includes(item.status)) || jobs[0]
+      const ordered = [...jobs].sort((left, right) => Date.parse(right.updated_at || right.created_at || '') - Date.parse(left.updated_at || left.created_at || ''))
+      const latest = ordered.find((item) => ['queued', 'running'].includes(item.status)) || ordered[0]
       setJob(latest ? await api.corpusJob(latest.id) : null)
     })
     .catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not restore corpus progress.', 'コーパス進捗を復元できませんでした。'), 'error'))
@@ -147,7 +150,29 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     } finally { setSavingReview(false) }
   }
 
-  const latestEvents = (job?.events || []).slice(-8).reverse()
+  const latestEvents = [...(job?.events || [])].sort((left, right) => Date.parse(String(right.at || '')) - Date.parse(String(left.at || ''))).slice(0, 8)
+  const companyGroups = useMemo(() => {
+    const needle = tableQuery.trim().toLocaleLowerCase()
+    const groups: Record<string, { company: string; target?: CorpusTarget; documents: CorpusDocument[] }> = {}
+    for (const target of manifest?.targets || []) {
+      groups[target.company] = { company: target.company, target, documents: [] }
+    }
+    for (const document of manifest?.documents || []) {
+      ;(groups[document.company] ||= { company: document.company, documents: [] }).documents.push(document)
+    }
+    return Object.values(groups)
+      .map((group) => ({ ...group, documents: [...group.documents].sort((left, right) => right.fiscal_year - left.fiscal_year) }))
+      .filter((group) => !needle || `${group.company} ${group.target?.official_url || ''} ${group.documents.map((document) => `${document.filename} ${document.fiscal_year}`).join(' ')}`.toLocaleLowerCase().includes(needle))
+      .sort((left, right) => left.company.localeCompare(right.company))
+  }, [manifest, tableQuery])
+  const isVerified = (document: CorpusDocument) => ['assignment_supplied', 'human_verified', 'independently_verified'].includes(document.verification_status || '')
+  const screeningState = (document: CorpusDocument) => document.screened === 'unreadable' ? 'unreadable' : isVerified(document) ? 'verified' : 'review'
+  const toggleCompany = (company: string) => setExpandedCompanies((current) => {
+    const next = new Set(current)
+    if (next.has(company)) next.delete(company)
+    else next.add(company)
+    return next
+  })
   const reviewAnswerUnit = verification?.answer_unit || `M ${reviewing?.currency || 'USD'}`
   const reviewIsImmutable = Boolean(verification?.immutable) || verification?.status === 'assignment_supplied'
   const eventLabel = (type: unknown) => {
@@ -165,7 +190,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     <div className="page corpus-page">
       <header className="page-header"><div><div className="page-kicker">{tr('Cloud benchmark data', 'クラウドベンチマークデータ')}</div><h1>{tr('Annual Report corpus', '年次報告書コーパス')}</h1><p>{tr('Discover official Annual Reports with Firecrawl, download the PDFs, verify their fiscal year from inside the document, and pin every file by SHA-256.', 'Firecrawlで公式年次報告書を探索し、PDFをダウンロードして文書内の会計年度を検証し、SHA-256で固定します。')}</p></div></header>
       <div className="corpus-summary">
-        <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies ?? 0}</strong><small>{tr('official-source targets', '公式ソース対象')}</small></Card>
+        <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies ?? 0}</strong><small>{tr(`${manifest?.summary.companies_with_reports ?? 0} with stored reports`, `保存済みレポートあり ${manifest?.summary.companies_with_reports ?? 0}社`)}</small></Card>
         <Card><span>{tr('Documents', '文書')}</span><strong>{manifest?.summary.documents ?? 0}</strong><small>FY2020–FY2025</small></Card>
         <Card><span>{tr('Benchmark verified', 'ベンチマーク検証済み')}</span><strong>{manifest?.summary.verified ?? 0}</strong><small>{tr('assignment gold or human approved', '課題正解または人による承認')}</small></Card>
         <Card><span>{tr('Ready for human review', '人による確認待ち')}</span><strong>{manifest?.summary.human_review_required ?? 0}</strong><small>{tr('PDF answers are extracted and prefilled', 'PDF回答を抽出して入力済み')}</small></Card>
@@ -183,34 +208,57 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
         <Card className="corpus-progress">
           <SectionHeading eyebrow={tr('Background worker', 'バックグラウンドワーカー')} title={tr('Discovery activity', '探索アクティビティ')} description={tr('Firecrawl finds links; the AWS worker downloads and screens each PDF before replacing its canonical company/year file.', 'Firecrawlでリンクを発見し、AWSワーカーがPDFをダウンロード・検査して会社・年度ごとの標準ファイルを置き換えます。')} action={<Button variant="ghost" onClick={() => void refreshAll()}><RefreshCw size={15} /> {tr('Refresh', '更新')}</Button>} />
           {!job ? <EmptyState icon={<FolderSearch2 size={21} />} title={tr('No active discovery', '実行中の探索はありません')} description={tr('Start with one company, verify the result, then scale the company list.', 'まず1社で結果を確認してから会社リストを拡大してください。')} /> : <>
-            <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' || job.status === 'interrupted' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' || job.status === 'interrupted' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}</small></div></div>
+            <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' || job.status === 'interrupted' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' || job.status === 'interrupted' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}{job.updated_at ? ` · ${tr('updated', '更新')} ${new Date(job.updated_at).toLocaleString()}` : ''}</small></div></div>
             <div className="job-events">{latestEvents.map((event, index) => <div key={`${String(event.at)}-${index}`}><span>{eventLabel(event.type)}</span><strong>{[event.company, event.year && `FY${event.year}`, event.message || event.screened].filter(Boolean).join(' · ')}</strong></div>)}</div>
           </>}
         </Card>
       </div>
 
       <Card className="corpus-table-card">
-        <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Downloaded Annual Reports', 'ダウンロード済み年次報告書')} description={tr('Crawled files do not enter extraction automatically; review the screening verdict first.', 'クロール済みファイルは自動抽出されません。先に検査結果を確認してください。')} />
-        {!manifest?.documents.length ? <EmptyState icon={<FileDown size={21} />} title={tr('No corpus documents yet', 'コーパス文書はまだありません')} description={tr('The first verified download will appear here.', '最初の確認済みダウンロードがここに表示されます。')} /> : <div className="table-wrap"><table className="corpus-table"><thead><tr>
-          <th>{tr('Company', '会社')}</th><th>{tr('Year', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('Answer verification', '回答検証')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th>
-        </tr></thead><tbody>{manifest.documents.map((document) => <tr key={document.sha256}>
-          <td><strong>{document.company}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></td>
-          <td>FY{document.fiscal_year}</td>
-          <td><Badge tone={document.screened === 'ok' ? 'green' : document.screened === 'unreadable' ? 'red' : 'amber'}>{document.screened === 'ok' ? tr('OK', 'OK') : tr('Review', '確認')}</Badge></td>
-          <td><div className="corpus-verification-cell"><Badge tone={document.verification_status === 'human_review_required' ? 'amber' : 'green'}>{document.verification_status === 'human_review_required' ? tr('Review', '確認') : tr('Verified', '確認済み')}</Badge><button className="corpus-review-button" type="button" onClick={() => openReview(document)}><ClipboardCheck size={14} /> {document.verification_status && document.verification_status !== 'human_review_required' ? tr('View answers', '回答を表示') : tr('Review answers', '回答を確認')}</button></div></td>
-          <td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td>
-          <td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td>
-          <td><code>{document.local_path}</code></td>
-          <td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td>
-          <td className="corpus-delete-column"><button className="corpus-delete-button" type="button" onClick={() => setPendingDelete(document)} aria-label={tr(`Delete ${document.filename}`, `${document.filename}を削除`)}><Trash2 size={15} /><span>{tr('Delete', '削除')}</span></button></td>
-        </tr>)}</tbody></table></div>}
+        <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Annual Report Library', '年次報告書ライブラリ')} description={tr('One row per company across 100 evidence-backed research targets. Expand stored reports by fiscal year; pending targets remain clearly unverified.', '根拠のある調査対象100社を会社ごとに1行表示します。保存済みレポートは年度別に展開でき、未取得対象は未検証として明示されます。')} action={<label className="search-field corpus-table-search"><Search size={15} /><input value={tableQuery} onChange={(event) => setTableQuery(event.target.value)} placeholder={tr('Search companies or years', '会社または年度を検索')} /></label>} />
+        {!companyGroups.length ? <EmptyState icon={<Search size={21} />} title={tr('No matching companies', '一致する会社がありません')} description={tr('Try a different company name or fiscal year.', '別の会社名または年度をお試しください。')} /> : <div className="table-wrap corpus-company-table-wrap"><table className="corpus-table corpus-company-table"><thead><tr>
+          <th>{tr('Company', '会社')}</th><th>{tr('Years', '年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('Answers', '回答')}</th><th>{tr('PDF health', 'PDF状態')}</th><th>{tr('Source', 'ソース')}</th><th>{tr('Stored PDF', '保存PDF')}</th><th>{tr('Extraction outputs', '抽出出力')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th>
+        </tr></thead><tbody>{companyGroups.flatMap(({ company, documents, target }) => {
+          const expanded = expandedCompanies.has(company) || Boolean(tableQuery.trim())
+          const verifiedCount = documents.filter(isVerified).length
+          const unreadableCount = documents.filter((document) => document.screened === 'unreadable').length
+          const groupState = !documents.length ? 'pending' : unreadableCount ? 'unreadable' : verifiedCount === documents.length ? 'verified' : 'review'
+          const yearLabel = !documents.length
+            ? tr('No report stored', 'レポート未保存')
+            : documents.length === 1
+            ? `FY${documents[0].fiscal_year}`
+            : `FY${documents[documents.length - 1].fiscal_year}–FY${documents[0].fiscal_year}`
+          const rows = [<tr className="corpus-company-row" key={`company-${company}`}>
+            <td><button className="corpus-company-toggle" type="button" onClick={() => documents.length && toggleCompany(company)} aria-expanded={expanded} disabled={!documents.length}>{documents.length ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="corpus-company-placeholder" />}<span><strong>{company}</strong><small>{documents.length ? `${documents.length} ${tr(documents.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}` : tr('research target', '調査対象')}</small></span></button></td>
+            <td>{yearLabel}</td>
+            <td><Badge tone={groupState === 'unreadable' ? 'red' : groupState === 'verified' ? 'green' : 'amber'}>{groupState === 'pending' ? tr('Awaiting report', 'レポート待ち') : groupState === 'unreadable' ? tr('Unreadable', '読取不可') : groupState === 'verified' ? tr('Verified', '確認済み') : tr('Review', '確認')}</Badge></td>
+            <td><span className="company-answer-summary">{documents.length ? `${verifiedCount}/${documents.length} ${tr('verified', '確認済み')}` : '—'}</span></td>
+            <td>{documents.length ? `${documents.reduce((sum, document) => sum + document.readable_pages, 0)}/${documents.reduce((sum, document) => sum + document.pages, 0)} ${tr('pages', 'ページ')}` : tr('Acquisition pending', '取得待ち')}</td>
+            <td colSpan={4}>{documents.length ? <span className="company-expand-hint">{tr('Expand to inspect annual reports', '展開して年次報告書を確認')}</span> : target?.official_url ? <a href={target.official_url} target="_blank" rel="noreferrer">{tr('Open official website', '公式サイトを開く')} <ExternalLink size={13} /></a> : '—'}</td>
+          </tr>]
+          if (!expanded) return rows
+          return rows.concat(documents.map((document) => {
+            const state = screeningState(document)
+            return <tr className="corpus-year-row" key={document.sha256}>
+              <td><span className="corpus-year-file"><FileDown size={14} /><span><strong>{document.filename}</strong><small>{document.official_source_verified ? <><ShieldCheck size={12} /> {tr('official domain', '公式ドメイン')}</> : tr('source review required', 'ソース確認が必要')}</small></span></span></td>
+              <td>FY{document.fiscal_year}</td>
+              <td><Badge tone={state === 'unreadable' ? 'red' : state === 'verified' ? 'green' : 'amber'}>{state === 'unreadable' ? tr('Unreadable', '読取不可') : state === 'verified' ? tr('Verified', '確認済み') : tr('Review', '確認')}</Badge></td>
+              <td><button className="corpus-review-button" type="button" onClick={() => openReview(document)}><ClipboardCheck size={14} /> {isVerified(document) ? tr('View answers', '回答を表示') : tr('Review answers', '回答を確認')}</button></td>
+              <td>{document.readable_pages}/{document.pages} {tr('readable', '読取可')}<small>{document.balance_sheet_page ? `${tr('Balance sheet', '貸借対照表')} p.${document.balance_sheet_page}` : document.screen_reasons?.[0] || tr('No balance-sheet page found', '貸借対照表ページが見つかりません')}</small></td>
+              <td><a href={document.source_url} target="_blank" rel="noreferrer">{tr('Open source', 'ソースを開く')} <ExternalLink size={13} /></a></td>
+              <td><code>{document.local_path}</code></td>
+              <td><code>{document.output_directory}</code><small>{document.output_count || 0} {tr('stored runs', '件の保存済み実行')}</small></td>
+              <td className="corpus-delete-column"><button className="corpus-delete-button" type="button" onClick={() => setPendingDelete(document)} aria-label={tr(`Delete ${document.filename}`, `${document.filename}を削除`)}><Trash2 size={15} /><span>{tr('Delete', '削除')}</span></button></td>
+            </tr>
+          }))
+        })}</tbody></table></div>}
       </Card>
       {reviewing && <div className="review-sheet-backdrop" role="presentation">
         <section className="review-sheet" role="dialog" aria-modal="true" aria-labelledby="review-sheet-title">
           <header><div><div className="eyebrow">{tr('Answer review', '回答の確認')}</div><h2 id="review-sheet-title">{reviewing.company} · FY{reviewing.fiscal_year}</h2><p>{tr('Ledger extracts and pre-fills all 27 rows from the pinned PDF first. Compare the values with the PDF, correct any mistakes, then save and approve the reviewed table.', 'Ledgerが固定PDFから27項目を先に抽出して入力します。PDFと照合し、誤りを修正してから確認表を保存・承認してください。')}</p></div><button type="button" onClick={() => { setReviewing(null); setConfirmApprove(false); setReviewError(null) }} aria-label={tr('Close review', 'レビューを閉じる')}><X size={18} /></button></header>
           <div className="review-sheet-actions"><a className="button secondary" href={api.corpusPdfUrl(reviewing.sha256)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {tr('Open searchable PDF', '検索可能なPDFを開く')}</a>{reviewPhase === 'extracting' ? <Badge tone="blue">{tr('Extracting from PDF…', 'PDFから抽出中…')}</Badge> : verification && <Badge tone={verification.status === 'human_review_required' ? 'amber' : 'green'}>{verification.status === 'human_review_required' ? tr('Review', '確認') : tr('Verified', '確認済み')}</Badge>}{verification?.candidate_extracted && <span className="candidate-row-summary">{tr(`27 rows prefilled · ${reviewRows.filter((row) => row.answer_m_usd !== null).length} values found`, `27項目を入力済み・${reviewRows.filter((row) => row.answer_m_usd !== null).length}件の値を検出`)}</span>}{verification?.consensus_summary && <span className="candidate-consensus-summary">{tr(`${verification.consensus_summary.successful_passes} semantic-mapping pass · ${verification.consensus_summary.exact_agreement_rows + verification.consensus_summary.stable_rows}/27 stable rows`, `セマンティックマッピング ${verification.consensus_summary.successful_passes}回 · 安定行 ${verification.consensus_summary.exact_agreement_rows + verification.consensus_summary.stable_rows}/27`)}</span>}</div>
           <div className="review-workspace">
-            <aside className="review-pdf-pane"><div><ScanText size={16} /><strong>{tr('Pinned source PDF', '固定元PDF')}</strong><small>SHA-256 {reviewing.sha256.slice(0, 12)}…</small></div><p className="pdf-search-hint">{tr('A4 page fit. Click inside the PDF, then press ⌘F / Ctrl+F to search.', 'A4ページ全体表示。PDF内をクリックしてから⌘F / Ctrl+Fで検索できます。')}</p><div className="review-pdf-frame"><iframe src={`${api.corpusPdfUrl(reviewing.sha256)}#page=1&zoom=page-fit&view=Fit&toolbar=1&navpanes=0`} title={tr('Source annual report PDF', '元の年次報告書PDF')} tabIndex={0} onLoad={(event) => event.currentTarget.focus()} /></div></aside>
+            <aside className="review-pdf-pane"><div><ScanText size={16} /><strong>{tr('Pinned source PDF', '固定元PDF')}</strong><small>SHA-256 {reviewing.sha256.slice(0, 12)}…</small></div><p className="pdf-search-hint">{tr(`A4 single-page fit · opened at the detected balance sheet${reviewing.balance_sheet_page ? ` (p.${reviewing.balance_sheet_page})` : ''}. Click inside, then press ⌘F / Ctrl+F to search.`, `A4単ページ表示・検出した貸借対照表${reviewing.balance_sheet_page ? `（p.${reviewing.balance_sheet_page}）` : ''}を表示。内部をクリックして⌘F / Ctrl+Fで検索できます。`)}</p><div className="review-pdf-frame"><iframe src={`${api.corpusPdfUrl(reviewing.sha256)}#page=${reviewing.balance_sheet_page || 1}&zoom=page-fit&view=Fit&toolbar=1&navpanes=0`} title={tr('Source annual report PDF', '元の年次報告書PDF')} tabIndex={0} onLoad={(event) => event.currentTarget.focus()} /></div></aside>
             <div className="review-answer-pane">
               {reviewPhase !== 'idle' ? <div className="review-sheet-loading" role="status"><LoaderCircle className="spin" size={22} /><strong>{reviewPhase === 'extracting' ? tr('Preparing a PDF-derived review draft…', 'PDFから確認用の下書きを作成中…') : tr('Loading the stored answer sheet…', '保存済み回答表を読み込んでいます…')}</strong><span>{reviewPhase === 'extracting' ? tr('No verified answer sheet is stored for this exact PDF yet. Ledger is mapping the 27 rows now; you will only need to check and correct them.', 'このPDFに固定された検証済み回答表はまだありません。Ledgerが27項目をマッピング中です。確認と修正のみ行ってください。') : tr('Verified source-bound answers appear immediately when they exist for this PDF hash.', 'このPDFハッシュに固定された検証済み回答がある場合は、すぐに表示されます。')}</span></div> : reviewError ? <div className="review-extraction-error"><TriangleAlert size={24} /><strong>{tr('PDF extraction did not complete', 'PDF抽出が完了しませんでした')}</strong><p>{reviewError}</p><Button variant="secondary" onClick={() => void loadReview(reviewing)}><RefreshCw size={15} /> {tr('Retry PDF extraction', 'PDF抽出を再試行')}</Button></div> : <><div className="review-prefill-note"><ScanText size={17} /><div><strong>{reviewIsImmutable ? tr('Audited answers — read only', '監査済み回答 — 読み取り専用') : tr('Extracted prefill — verify, then correct', '抽出済み入力 — 照合して修正')}</strong><span>{reviewIsImmutable ? tr('This source-bound table has already been independently verified against the exact PDF.', 'この元資料固定の表は、対象PDFと照合して独立検証済みです。') : tr('These values came from the PDF. Edit only the rows that do not match the source, then approve the full table.', 'これらの値はPDFから抽出されています。元資料と一致しない行のみ修正し、表全体を承認してください。')}</span></div></div><div className="review-table-wrap"><table className="review-table"><thead><tr><th>#</th><th>{tr('Classification', '分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Extracted answer', '抽出回答')} ({reviewAnswerUnit})</th><th>{tr('Agreement', '一致度')}</th><th>{tr('Page', 'ページ')}</th><th>{tr('Extracted evidence', '抽出根拠')}</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={row.item}><td>{String(index + 1).padStart(2, '0')}</td><td>{row.classification}<small>{row.subclassification || '—'}</small></td><td><strong>{row.item}</strong></td><td><input type="number" step="any" value={row.answer_m_usd ?? ''} disabled={reviewIsImmutable} onChange={(event) => updateReviewAnswer(index, event.target.value)} aria-label={`${row.item} answer`} /></td><td>{row.agreement_count !== undefined ? <Badge tone={row.stability === 'disagreement' || row.stability === 'missing' ? 'amber' : 'green'}>{row.agreement_count}/{verification?.consensus_summary?.requested_passes ?? row.successful_passes ?? 1}</Badge> : '—'}</td><td>{row.source_page ?? '—'}</td><td>{row.evidence || '—'}</td></tr>)}</tbody></table></div></>}
             </div>

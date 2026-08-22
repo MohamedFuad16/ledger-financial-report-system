@@ -74,6 +74,7 @@ export const api = {
   resetPrompt: () =>
     jsonRequest<{ ok: boolean; system_prompt: string }>('/api/prompt', { method: 'DELETE' }),
   runs: async () => (await jsonRequest<{ runs: RunSummary[] }>('/api/runs')).runs,
+  benchmarkRuns: async () => (await jsonRequest<{ runs: RunSummary[] }>('/api/benchmark-runs')).runs,
   run: (id: string) => jsonRequest<RunDetail>(`/api/runs/${encodeURIComponent(id)}`),
   deleteRun: (id: string) =>
     jsonRequest<{ ok: boolean }>(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' }),

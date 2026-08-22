@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, groupParserStats, matchedParserCohort, parserMetricLeaders } from './format'
+import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders } from './format'
 import type { RunSummary } from '../types'
 
 const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
@@ -26,6 +26,20 @@ describe('strategy page identity', () => {
 })
 
 describe('matched historical parser cohort', () => {
+  it('reduces the dashboard comparison to one no-OCR mean and one OCR mean', () => {
+    const runs = [
+      { ...run('s1', '3M_annual_report_2022.pdf', 80, 10), total_seconds: 100 },
+      { ...run('s1', '3M_annual_report_2022.pdf', 100, 10), total_seconds: 200 },
+      { ...run('s1-pymupdf', '3M_annual_report_2022.pdf', 100, 10), total_seconds: 50 },
+      { ...run('s2-pypdf', '3M_annual_report_2022.pdf', 90, 10, 'ocr'), total_seconds: 90 },
+      { ...run('s2', '3M_annual_report_2022.pdf', 100, 10, 'ocr'), total_seconds: 110 },
+    ]
+    const stats = groupExperimentStats(runs)
+    expect(stats).toHaveLength(2)
+    expect(stats[0]).toMatchObject({ key: 'no_ocr', passes: 2, totalSeconds: 100, accuracy: 95 })
+    expect(stats[1]).toMatchObject({ key: 'ocr', passes: 2, totalSeconds: 100, accuracy: 95 })
+  })
+
   it('excludes a report until every represented parser completed it', () => {
     const runs = [
       run('s1', '3M_annual_report_2022.pdf', 80),

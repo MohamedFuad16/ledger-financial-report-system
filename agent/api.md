@@ -16,10 +16,11 @@
 | GET/POST | `/api/extraction/jobs` | List or start backend-owned, browser-rehydratable extraction batches |
 | GET | `/api/extraction/jobs/<job_id>` | Poll persisted job state and replay unseen execution events by offset |
 | GET | `/api/runs` | List stored predictions |
+| GET | `/api/benchmark-runs` | List only exact-source-verified run summaries for the shared public dashboard; private workspace history remains separate |
 | GET/DELETE | `/api/runs/<run_id>` | Read or remove one run |
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |
-| GET | `/api/corpus` | Read the pinned local corpus manifest and screening summary |
+| GET | `/api/corpus` | Read the pinned local corpus manifest, screening summary, and exactly 100 evidence-backed company targets; research seeds are explicitly distinct from stored reports |
 | GET/PUT | `/api/corpus/<sha256>/verification` | Read extracted review rows or save the reviewer's SHA-bound approval |
 | POST | `/api/corpus/<sha256>/verification/extract` | Ensure a legacy/missing review sheet is extracted and prefilled from the pinned PDF before editing |
 | GET | `/api/corpus/<sha256>/pdf` | Serve the pinned source PDF inside the review workspace |

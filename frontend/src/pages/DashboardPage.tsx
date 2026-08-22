@@ -1,6 +1,6 @@
 import { ArrowRight, Gauge, Layers3, SearchCheck } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
-import { type BenchmarkExperiment, formatDuration, formatMetric, groupParserStats, matchedParserCohort, parserMetricLeaders, reportCohortKey } from '../lib/format'
+import { formatDuration, formatMetric, groupExperimentStats, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
 import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
@@ -16,26 +16,25 @@ export function DashboardPage({
   onNavigate: (key: PanelKey) => void
 }) {
   const { tr } = useLocale()
-  const experiment: BenchmarkExperiment = 'no_ocr'
-  const armRuns = runs.filter((run) => run.experiment === experiment)
-  const benchmarkRuns = matchedParserCohort(runs, experiment)
-  const stats = groupParserStats(runs, experiment).filter((entry) => entry.runs)
+  const benchmarkRuns = runs.filter((run) => run.experiment === 'no_ocr' || run.experiment === 'ocr')
+  const stats = groupExperimentStats(benchmarkRuns).filter((entry) => entry.passes)
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
   }
-  const fastest = stats.length ? stats.reduce((a, b) => Number(a.extractSeconds ?? Infinity) <= Number(b.extractSeconds ?? Infinity) ? a : b) : null
-  const accuracyLeaders = parserMetricLeaders(stats, 'accuracy')
+  const fastest = stats.filter((entry) => entry.totalSeconds != null).reduce<(typeof stats)[number] | null>((best, entry) => !best || Number(entry.totalSeconds) < Number(best.totalSeconds) ? entry : best, null)
+  const bestAccuracy = Math.max(...stats.map((entry) => Number(entry.accuracy ?? -Infinity)))
+  const accuracyLeaders = stats.filter((entry) => Math.round(Number(entry.accuracy) * 10) === Math.round(bestAccuracy * 10))
   const accuracyLeader = accuracyLeaders[0] || null
-  const tiedAccuracyLabel = accuracyLeaders.map((entry) => entry.short).join(tr(' and ', '・'))
+  const tiedAccuracyLabel = accuracyLeaders.map((entry) => entry.label).join(tr(' and ', '・'))
   const completeReportCount = new Set(benchmarkRuns.map(reportCohortKey)).size
-  const hasUnverifiedReports = armRuns.some((run) => run.gold_status === 'human_review_required')
+  const hasUnverifiedReports = benchmarkRuns.some((run) => run.gold_status === 'human_review_required')
   const conclusion = fastest && accuracyLeader && completeReportCount
     ? accuracyLeaders.length > 1
-      ? tr(`${fastest.short} is fastest; ${tiedAccuracyLabel} are tied for exact accuracy at ${formatMetric(accuracyLeader.accuracy)}.`, `${fastest.short} が最速で、${tiedAccuracyLabel} が完全一致率 ${formatMetric(accuracyLeader.accuracy)} で同率首位です。`)
+      ? tr(`${fastest.label} is faster; ${tiedAccuracyLabel} are tied for exact accuracy at ${formatMetric(accuracyLeader.accuracy)}.`, `${fastest.label} が高速で、${tiedAccuracyLabel} が完全一致率 ${formatMetric(accuracyLeader.accuracy)} で同率首位です。`)
       : fastest.key === accuracyLeader.key
-      ? tr(`${fastest.short} is currently the fastest and most accurate parser for this project.`, `${fastest.short} が現在このプロジェクトで最速かつ最も正確なパーサーです。`)
-      : tr(`${fastest.short} is fastest; ${accuracyLeader.short} leads exact accuracy.`, `${fastest.short} が最速で、${accuracyLeader.short} が完全一致率で首位です。`)
+      ? tr(`${fastest.label} currently has the best mean speed and exact accuracy.`, `${fastest.label} が現在、平均速度と完全一致率の両方で首位です。`)
+      : tr(`${fastest.label} is faster; ${accuracyLeader.label} leads exact accuracy.`, `${fastest.label} が高速で、${accuracyLeader.label} が完全一致率で首位です。`)
     : tr('Run the benchmark to identify the leading parser.', 'ベンチマークを実行して最良のパーサーを確認します。')
 
   return (
@@ -51,10 +50,10 @@ export function DashboardPage({
       </header>
 
       <div className="metric-grid">
-        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.runs} ${tr('matched reports', '対応レポート')}` : tr('Awaiting a matched parser cohort', '対応するパーサー比較を待っています')} />
+        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned by the model; low confidence is flagged for review', 'モデルが返した項目。低信頼度はレビュー対象として表示')} />
         <MetricCard label={tr('Matched reports', '対応レポート')} value={completeReportCount.toLocaleString()} detail={tr('Every parser in this arm completed the same report', 'この条件の全パーサーが同じレポートを完了')} />
-        <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastest?.short || '—'} detail={fastest ? `${formatDuration(fastest.extractSeconds)} ${tr('mean parse time', '平均解析時間')}` : tr('No timing data yet', '時間データはまだありません')} />
+        <MetricCard label={tr('Fastest arm', '最速条件')} value={fastest?.label || '—'} detail={fastest ? `${formatDuration(fastest.totalSeconds)} ${tr('mean end-to-end pass time', '平均パス総時間')}` : tr('No timing data yet', '時間データはまだありません')} />
       </div>
 
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
@@ -79,8 +78,8 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Relative parser speed', 'パーサー相対速度')} description={tr('Strategy 1 is the 1.0× baseline. Higher multiples finish the same extraction faster.', '戦略1を1.0倍の基準とし、倍率が高いほど同じ抽出を速く完了します。')} />
-          {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} experiment={experiment} />}
+          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Mean pass speed: OCR versus no OCR', '平均パス速度：OCRあり対なし')} description={tr('Two points only. Each arm averages end-to-end time across its successful parser/report passes; No OCR is the 1.0× baseline.', '2点のみ。各条件で成功したパーサー／レポートパスの総時間を平均し、OCRなしを1.0倍の基準とします。')} />
+          {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
           <SectionHeading eyebrow={tr('Quality composition', '品質構成')} title={tr('Accuracy versus coverage', '正確度とカバレッジ')} description={tr('Coverage says a field was returned; exact accuracy says it matched the gold value.', 'カバレッジは項目の取得率、完全一致率は正解値との一致を示します。')} />
@@ -90,12 +89,12 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Parser frontier', 'パーサーフロンティア')} title={tr('Speed × accuracy quadrant', '速度 × 正確度クアドラント')} description={tr('The blue upper-left quadrant is the target: at least 50% accuracy with lower parse time.', '青い左上領域が目標です。50%以上の正確度と短い解析時間を示します。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('OCR versus no-OCR: speed × accuracy', 'OCRあり対なし：速度 × 正確度')} description={tr('Each point is one arm mean across successful passes. Upper-left is faster and more accurate.', '各点は成功パスに基づく条件別平均です。左上ほど高速かつ高精度です。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
-          <SectionHeading eyebrow={tr('Benchmark', 'ベンチマーク')} title={tr('Mean exact accuracy', '平均完全一致率')} description={tr('Scored rows only, grouped by parser.', '評価対象行をパーサー別に集計しています。')} />
-          {loading ? <div className="chart-skeleton" /> : <ParserAccuracyChart runs={benchmarkRuns} experiment={experiment} />}
+          <SectionHeading eyebrow={tr('Benchmark', 'ベンチマーク')} title={tr('Mean exact accuracy', '平均完全一致率')} description={tr('Scored source-bound passes, grouped into OCR and no-OCR arms.', '元資料に固定された評価済みパスをOCRあり／なしで集計しています。')} />
+          {loading ? <div className="chart-skeleton" /> : <ParserAccuracyChart runs={benchmarkRuns} />}
         </Card>
       </div>
 

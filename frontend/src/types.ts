@@ -182,11 +182,20 @@ export interface CorpusConsensusSummary {
   missing_rows: number
 }
 
+export interface CorpusTarget {
+  company: string
+  official_url: string
+  country: string
+  evidence_url: string
+  status: 'report_stored' | 'research_seed'
+}
+
 export interface CorpusManifest {
   version: number
   updated_at: string | null
   documents: CorpusDocument[]
-  summary: { documents: number; companies: number; ok: number; review: number; unreadable: number; verified?: number; human_review_required?: number }
+  targets?: CorpusTarget[]
+  summary: { documents: number; companies: number; companies_with_reports?: number; ok: number; review: number; unreadable: number; verified?: number; human_review_required?: number }
 }
 
 export interface CorpusVerificationRow {

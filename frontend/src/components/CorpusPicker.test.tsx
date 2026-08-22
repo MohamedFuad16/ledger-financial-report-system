@@ -19,7 +19,17 @@ describe('CorpusPicker', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Search company or year'), { target: { value: 'LayerX' } })
     expect(screen.queryByText('3M')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('LayerX'))
+    fireEvent.click(screen.getByRole('button', { name: /FY2024/ }))
     expect(onSelectionChange).toHaveBeenCalledWith(['layer-x'])
+  })
+
+  it('shows one expandable company row for multiple fiscal years', () => {
+    const multiYear = [{ ...documents[0], fiscal_year: 2021, sha256: 'three-m-2021', filename: '3M_annual_report_2021.pdf' }, documents[0]]
+    render(<LocaleProvider><CorpusPicker documents={multiYear} selected={[]} mode="single" onModeChange={() => undefined} onSelectionChange={() => undefined} /></LocaleProvider>)
+
+    expect(screen.getAllByText('3M')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /3M.*2 fiscal years/ }))
+    expect(screen.getByRole('button', { name: /FY2021/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /FY2022/ })).toBeInTheDocument()
   })
 })

@@ -647,12 +647,46 @@ def get_corpus():
             "output_directory": str(output_directory),
             "output_count": _workspace_prediction_count(output_directory, workspace_id),
         })
+    # Keep the library useful before every research seed has yielded a valid
+    # filing. Stored reports come first; the remaining slots are filled from
+    # the evidence-backed Bakuraku company registry. A seed is never presented
+    # as a downloaded or verified report.
+    target_by_company: dict[str, dict] = {}
+    for item in documents:
+        company = str(item.get("company") or "").strip()
+        if company and company not in target_by_company:
+            target_by_company[company] = {
+                "company": company,
+                "official_url": str(item.get("source_url") or ""),
+                "country": "",
+                "evidence_url": "",
+                "status": "report_stored",
+            }
+    customers_path = Path("research/bakuraku/customers.csv")
+    if customers_path.exists():
+        with customers_path.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                company = str(row.get("company_name") or "").strip()
+                if not company or company in target_by_company:
+                    continue
+                target_by_company[company] = {
+                    "company": company,
+                    "official_url": str(row.get("official_website") or ""),
+                    "country": "JP",
+                    "evidence_url": str(row.get("evidence_url") or ""),
+                    "status": "research_seed",
+                }
+                if len(target_by_company) >= 100:
+                    break
+    targets = list(target_by_company.values())[:100]
     return jsonify({
         **manifest,
         "documents": documents,
+        "targets": targets,
         "summary": {
             "documents": len(documents),
-            "companies": len({item.get("company_slug") for item in documents}),
+            "companies": len(targets),
+            "companies_with_reports": len({item.get("company_slug") for item in documents}),
             "ok": sum(item.get("screened") == "ok" for item in documents),
             "review": sum(item.get("screened") == "review" for item in documents),
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
@@ -1375,6 +1409,27 @@ def batch_extract():
 @app.route("/api/runs", methods=["GET"])
 def get_runs():
     return jsonify({"runs": list_runs(request_workspace_id())})
+
+
+@app.route("/api/benchmark-runs", methods=["GET"])
+def get_benchmark_runs():
+    """Return safe summaries for source-verified corpus runs across workspaces.
+
+    Personal history remains workspace-isolated. The dashboard may compare
+    only runs whose exact source hash is bound to an audited corpus sheet.
+    """
+    verified_hashes = {
+        str(document.get("sha256") or "")
+        for document in load_manifest().get("documents", [])
+        if verification_payload(document).get("status")
+        in {"assignment_supplied", "human_verified", "independently_verified"}
+    }
+    return jsonify({
+        "runs": [
+            run for run in list_runs(None)
+            if str(run.get("source_pdf_sha256") or "") in verified_hashes
+        ]
+    })
 
 
 @app.route("/api/runs/all", methods=["DELETE"])

@@ -8,7 +8,7 @@
 | `extraction.py` | parser libraries | pipeline, server, tests | Changes affect every strategy run and preflight estimate |
 | `intelligent_scan.py` | fixed schema | Strategy 3 extraction, focused tests | Changes affect Strategy 3 page ranking, selected evidence and model input size |
 | `pipeline.py` | extraction, prompts, providers, contract, scoring | server, Streamlit UI, tests | Changes affect all executions and stored predictions |
-| `server.py` | pipeline/settings/schema/corpus | browser client | Changes affect every client workflow |
+| `server.py` | pipeline/settings/schema/corpus, evidence-backed company registry | browser client | Changes affect every client workflow, the source-verified dashboard feed, and 100-company corpus target library |
 | `traffic.py` | Upstash REST, AWS SES v2 | `server.py` | Changes affect private visit persistence and owner notifications |
 | `corpus/service.py` | discovery/fetch/manifest | Flask corpus jobs, CLI worker | Changes affect discovery and source acquisition only; answer mapping is on-demand through the pipeline |
 | `corpus/discover.py` | Firecrawl client | corpus service | Changes affect link ranking and Firecrawl credits |
@@ -26,7 +26,7 @@
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
 | `frontend/src/components/CorpusPicker.tsx` | corpus manifest, locale provider | strategy pages | Changes affect stored-report search and single/batch selection |
 | `frontend/src/components/RunTable.tsx` | runs API, row-local result sheet | dashboard, history, strategy pages | Changes affect where every stored result opens |
-| `frontend/src/lib/format.ts` | stored run identities and metrics | dashboard, strategy comparison, tests | Changes affect matched-cohort membership and parser averages |
+| `frontend/src/lib/format.ts` | stored run identities and metrics | dashboard, strategy comparison, tests | Changes affect matched-cohort membership, parser averages, and equal-weight OCR/no-OCR arm means |
 | `runs/_extraction_jobs` | server job registry | job list/detail/events API, client rehydration | Changes affect navigation-safe long-running extraction state |
 
 Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API boundary. Corpus review prefill now crosses `server.py` → `pipeline.py` → `corpus/fetch.py`; Firecrawl is no longer on that path.
@@ -36,4 +36,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-22 after the five-company parser-bake-off runner and corpus-review UI refinement.
+- 2026-08-22 after the source-verified dashboard feed, two-arm aggregation, and grouped 100-company corpus library.
