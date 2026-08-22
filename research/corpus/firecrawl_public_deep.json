@@ -1,0 +1,973 @@
+{
+  "job_id": "7d066af8e8c1",
+  "job_status": "complete",
+  "updated_at": "2026-08-22T16:43:41.438626+00:00",
+  "companies": 16,
+  "requested_company_years": 96,
+  "status_counts": {
+    "downloaded": 1,
+    "not_downloaded": 95
+  },
+  "rows": [
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://ir.appbank.co.jp/ir/announce/main/00/teaserItems1/0/linkList/04/link/20210226.pdf: Downloaded PDF failed Annual Report screening: No balance sheet heading found."
+    },
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "AppBank株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "note株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "アルピコホールディングス株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.dainichi-net.co.jp/uploads/2020/05/2013_securities_report.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2020 was not confirmed inside the PDF."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.dainichi-net.co.jp/uploads/2023/11/2024_q2_report.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2024 was not confirmed inside the PDF."
+    },
+    {
+      "company": "ダイニチ工業株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.dainichi-net.co.jp/ir/library/securities-report/: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://corp.raksul.com/wp-content/uploads/2022/06/d04f39c9310e8b0f3b7b350014b5200a.pdf: Downloaded PDF failed Annual Report screening: No balance sheet heading found."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UK9Z.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2023 was not confirmed inside the PDF."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://corp.raksul.com/wp-content/uploads/2024/12/14e37d6e579665d0b2f882a2f8cc34b9.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2024 was not confirmed inside the PDF.; No balance sheet heading found."
+    },
+    {
+      "company": "ラクスル株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://corp.raksul.com/news/press/250313_raksul-report-2025: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.resol.jp/news/2022.html: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.resol.jp/news/2023.html: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.resol.jp/news/2024.html: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "リソルホールディングス株式会社",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 4,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.resol.jp/news/2025.html: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社 帝国ホテル",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社TENTIAL",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.upgarage-g.co.jp/ir/news/archive/?year=2022: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/news/archive/?year=2022: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.upgarage-g.co.jp/ir/news/archive/?year=2024: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社アップガレージグループ",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.upgarage-g.co.jp/ir/library/report/: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/ir/news/archive/?year: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/ir/news/archive/?year=2025: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://goodpatch.com/blog/2023-10-kamikawa: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社グッドパッチ",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 2,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://goodpatch.com/blog/2025-10-kansaizadankai: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-knowledge-ai: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-kyushuuniv04: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-kyusyuuniv5: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ストライダーズ",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.striders.co.jp/LinkClick.aspx?fileticket=i9V7Gduak%2BU%3D&tabid=86: Downloaded PDF failed Annual Report screening: No balance sheet heading found."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社タイミー",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.toenec.co.jp/news/2021/: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2022,
+      "status": "downloaded",
+      "company_candidates_found": 3,
+      "screened": "ok",
+      "sha256": "a3fa1613d9758f991586bf216627f964a73f98a50e38c97a61dbdd82881c348b",
+      "source_url": "https://www.toenec.co.jp/ir/docs/yuka/105_hanki1.pdf",
+      "reason": ""
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社トーエネック",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 3,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://www.toenec.co.jp/news/2025/: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "https://plaid.co.jp/ir/library/: The discovered URL did not return a PDF file."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社プレイド",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 1,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ベルク",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2020,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2021,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2022,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2023,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2024,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    },
+    {
+      "company": "株式会社ホーライ",
+      "fiscal_year": 2025,
+      "status": "not_downloaded",
+      "company_candidates_found": 0,
+      "screened": "",
+      "sha256": "",
+      "source_url": "",
+      "reason": "No report URL discovered."
+    }
+  ]
+}

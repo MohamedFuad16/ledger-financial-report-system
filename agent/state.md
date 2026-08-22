@@ -12,6 +12,8 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-23 — Completed a deep exact-company/year Firecrawl retry over 16 likely public Bakuraku legal entities: 96 requested company-years, 22 search candidates, one initially admitted PDF, and 95 misses/failures. The admitted Toenec PDF was a spaced-character quarterly title, so discovery now normalizes NFKC/whitespace before applying non-annual exclusions and the mislabeled production entry was removed — why: Japanese display spacing must not bypass document-type identity — by: leader — session: Strategy 3 results + 50-company corpus rebuild
+
 - 2026-08-23 — Completed the first Firecrawl availability audit over all 112 evidence-backed Bakuraku clients and FY2020-FY2025: 672 requested company-years, five raw downloads, 667 misses, and zero complete client series. Post-run inspection found three invalid annual-report identities (two quarterly filings and one FY2026 filing relabelled as FY2025). Discovery now rejects non-annual releases, assigns one primary year per result, and requires the expected year to be current on the selected balance sheet — why: broader search must not amplify mislabeled PDFs or create false gold — by: leader — session: Strategy 3 results + 50-company corpus rebuild
 
 - 2026-08-23 — Added a bounded deep Firecrawl mode that retries each missing company/year with both Japanese securities-report and English annual-report queries while retaining exact-entity source gates — why: the first all-client series search proved that Firecrawl can find isolated and multi-year filings but misses known public years inconsistently — by: leader — session: Strategy 3 results + 50-company corpus rebuild

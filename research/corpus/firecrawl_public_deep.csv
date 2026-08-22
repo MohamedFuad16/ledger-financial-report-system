@@ -1,0 +1,97 @@
+company,fiscal_year,status,company_candidates_found,screened,sha256,source_url,reason
+AppBank株式会社,2020,not_downloaded,1,,,,No report URL discovered.
+AppBank株式会社,2021,not_downloaded,1,,,,https://ir.appbank.co.jp/ir/announce/main/00/teaserItems1/0/linkList/04/link/20210226.pdf: Downloaded PDF failed Annual Report screening: No balance sheet heading found.
+AppBank株式会社,2022,not_downloaded,1,,,,No report URL discovered.
+AppBank株式会社,2023,not_downloaded,1,,,,No report URL discovered.
+AppBank株式会社,2024,not_downloaded,1,,,,No report URL discovered.
+AppBank株式会社,2025,not_downloaded,1,,,,No report URL discovered.
+note株式会社,2020,not_downloaded,0,,,,No report URL discovered.
+note株式会社,2021,not_downloaded,0,,,,No report URL discovered.
+note株式会社,2022,not_downloaded,0,,,,No report URL discovered.
+note株式会社,2023,not_downloaded,0,,,,No report URL discovered.
+note株式会社,2024,not_downloaded,0,,,,No report URL discovered.
+note株式会社,2025,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2020,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2021,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2022,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2023,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2024,not_downloaded,0,,,,No report URL discovered.
+アルピコホールディングス株式会社,2025,not_downloaded,0,,,,No report URL discovered.
+ダイニチ工業株式会社,2020,not_downloaded,3,,,,https://www.dainichi-net.co.jp/uploads/2020/05/2013_securities_report.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2020 was not confirmed inside the PDF.
+ダイニチ工業株式会社,2021,not_downloaded,3,,,,No report URL discovered.
+ダイニチ工業株式会社,2022,not_downloaded,3,,,,No report URL discovered.
+ダイニチ工業株式会社,2023,not_downloaded,3,,,,No report URL discovered.
+ダイニチ工業株式会社,2024,not_downloaded,3,,,,https://www.dainichi-net.co.jp/uploads/2023/11/2024_q2_report.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2024 was not confirmed inside the PDF.
+ダイニチ工業株式会社,2025,not_downloaded,3,,,,https://www.dainichi-net.co.jp/ir/library/securities-report/: The discovered URL did not return a PDF file.
+ラクスル株式会社,2020,not_downloaded,4,,,,No report URL discovered.
+ラクスル株式会社,2021,not_downloaded,4,,,,No report URL discovered.
+ラクスル株式会社,2022,not_downloaded,4,,,,https://corp.raksul.com/wp-content/uploads/2022/06/d04f39c9310e8b0f3b7b350014b5200a.pdf: Downloaded PDF failed Annual Report screening: No balance sheet heading found.
+ラクスル株式会社,2023,not_downloaded,4,,,,https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UK9Z.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2023 was not confirmed inside the PDF.
+ラクスル株式会社,2024,not_downloaded,4,,,,https://corp.raksul.com/wp-content/uploads/2024/12/14e37d6e579665d0b2f882a2f8cc34b9.pdf: Downloaded PDF failed Annual Report screening: Fiscal year 2024 was not confirmed inside the PDF.; No balance sheet heading found.
+ラクスル株式会社,2025,not_downloaded,4,,,,https://corp.raksul.com/news/press/250313_raksul-report-2025: The discovered URL did not return a PDF file.
+リソルホールディングス株式会社,2020,not_downloaded,4,,,,No report URL discovered.
+リソルホールディングス株式会社,2021,not_downloaded,4,,,,No report URL discovered.
+リソルホールディングス株式会社,2022,not_downloaded,4,,,,https://www.resol.jp/news/2022.html: The discovered URL did not return a PDF file.
+リソルホールディングス株式会社,2023,not_downloaded,4,,,,https://www.resol.jp/news/2023.html: The discovered URL did not return a PDF file.
+リソルホールディングス株式会社,2024,not_downloaded,4,,,,https://www.resol.jp/news/2024.html: The discovered URL did not return a PDF file.
+リソルホールディングス株式会社,2025,not_downloaded,4,,,,https://www.resol.jp/news/2025.html: The discovered URL did not return a PDF file.
+株式会社 帝国ホテル,2020,not_downloaded,0,,,,No report URL discovered.
+株式会社 帝国ホテル,2021,not_downloaded,0,,,,No report URL discovered.
+株式会社 帝国ホテル,2022,not_downloaded,0,,,,No report URL discovered.
+株式会社 帝国ホテル,2023,not_downloaded,0,,,,No report URL discovered.
+株式会社 帝国ホテル,2024,not_downloaded,0,,,,No report URL discovered.
+株式会社 帝国ホテル,2025,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2020,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2021,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2022,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2023,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2024,not_downloaded,0,,,,No report URL discovered.
+株式会社TENTIAL,2025,not_downloaded,0,,,,No report URL discovered.
+株式会社アップガレージグループ,2020,not_downloaded,3,,,,No report URL discovered.
+株式会社アップガレージグループ,2021,not_downloaded,3,,,,No report URL discovered.
+株式会社アップガレージグループ,2022,not_downloaded,3,,,,https://www.upgarage-g.co.jp/ir/news/archive/?year=2022: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/news/archive/?year=2022: The discovered URL did not return a PDF file.
+株式会社アップガレージグループ,2023,not_downloaded,3,,,,No report URL discovered.
+株式会社アップガレージグループ,2024,not_downloaded,3,,,,https://www.upgarage-g.co.jp/ir/news/archive/?year=2024: The discovered URL did not return a PDF file.
+株式会社アップガレージグループ,2025,not_downloaded,3,,,,https://www.upgarage-g.co.jp/ir/library/report/: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/ir/news/archive/?year: The discovered URL did not return a PDF file.; https://www.upgarage-g.co.jp/ir/news/archive/?year=2025: The discovered URL did not return a PDF file.
+株式会社グッドパッチ,2020,not_downloaded,2,,,,No report URL discovered.
+株式会社グッドパッチ,2021,not_downloaded,2,,,,No report URL discovered.
+株式会社グッドパッチ,2022,not_downloaded,2,,,,No report URL discovered.
+株式会社グッドパッチ,2023,not_downloaded,2,,,,https://goodpatch.com/blog/2023-10-kamikawa: The discovered URL did not return a PDF file.
+株式会社グッドパッチ,2024,not_downloaded,2,,,,No report URL discovered.
+株式会社グッドパッチ,2025,not_downloaded,2,,,,https://goodpatch.com/blog/2025-10-kansaizadankai: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-knowledge-ai: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-kyushuuniv04: The discovered URL did not return a PDF file.; https://goodpatch.com/blog/2025-10-kyusyuuniv5: The discovered URL did not return a PDF file.
+株式会社ストライダーズ,2020,not_downloaded,1,,,,No report URL discovered.
+株式会社ストライダーズ,2021,not_downloaded,1,,,,No report URL discovered.
+株式会社ストライダーズ,2022,not_downloaded,1,,,,No report URL discovered.
+株式会社ストライダーズ,2023,not_downloaded,1,,,,No report URL discovered.
+株式会社ストライダーズ,2024,not_downloaded,1,,,,No report URL discovered.
+株式会社ストライダーズ,2025,not_downloaded,1,,,,https://www.striders.co.jp/LinkClick.aspx?fileticket=i9V7Gduak%2BU%3D&tabid=86: Downloaded PDF failed Annual Report screening: No balance sheet heading found.
+株式会社タイミー,2020,not_downloaded,0,,,,No report URL discovered.
+株式会社タイミー,2021,not_downloaded,0,,,,No report URL discovered.
+株式会社タイミー,2022,not_downloaded,0,,,,No report URL discovered.
+株式会社タイミー,2023,not_downloaded,0,,,,No report URL discovered.
+株式会社タイミー,2024,not_downloaded,0,,,,No report URL discovered.
+株式会社タイミー,2025,not_downloaded,0,,,,No report URL discovered.
+株式会社トーエネック,2020,not_downloaded,3,,,,No report URL discovered.
+株式会社トーエネック,2021,not_downloaded,3,,,,https://www.toenec.co.jp/news/2021/: The discovered URL did not return a PDF file.
+株式会社トーエネック,2022,downloaded,3,ok,a3fa1613d9758f991586bf216627f964a73f98a50e38c97a61dbdd82881c348b,https://www.toenec.co.jp/ir/docs/yuka/105_hanki1.pdf,
+株式会社トーエネック,2023,not_downloaded,3,,,,No report URL discovered.
+株式会社トーエネック,2024,not_downloaded,3,,,,No report URL discovered.
+株式会社トーエネック,2025,not_downloaded,3,,,,https://www.toenec.co.jp/news/2025/: The discovered URL did not return a PDF file.
+株式会社プレイド,2020,not_downloaded,1,,,,https://plaid.co.jp/ir/library/: The discovered URL did not return a PDF file.
+株式会社プレイド,2021,not_downloaded,1,,,,No report URL discovered.
+株式会社プレイド,2022,not_downloaded,1,,,,No report URL discovered.
+株式会社プレイド,2023,not_downloaded,1,,,,No report URL discovered.
+株式会社プレイド,2024,not_downloaded,1,,,,No report URL discovered.
+株式会社プレイド,2025,not_downloaded,1,,,,No report URL discovered.
+株式会社ベルク,2020,not_downloaded,0,,,,No report URL discovered.
+株式会社ベルク,2021,not_downloaded,0,,,,No report URL discovered.
+株式会社ベルク,2022,not_downloaded,0,,,,No report URL discovered.
+株式会社ベルク,2023,not_downloaded,0,,,,No report URL discovered.
+株式会社ベルク,2024,not_downloaded,0,,,,No report URL discovered.
+株式会社ベルク,2025,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2020,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2021,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2022,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2023,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2024,not_downloaded,0,,,,No report URL discovered.
+株式会社ホーライ,2025,not_downloaded,0,,,,No report URL discovered.

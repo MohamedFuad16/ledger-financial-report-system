@@ -214,6 +214,21 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual([], reports[2022])
 
+    def test_spaced_japanese_quarterly_title_is_rejected(self):
+        class SpacedQuarterlySearch(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://example.jp/ir/105_hanki1.pdf",
+                    "title": "四 半 期 報 告 書 2022",
+                    "description": "有価証券報告書ライブラリ",
+                }]
+
+        reports = discover_company_reports(
+            SpacedQuarterlySearch(), company="Example株式会社",
+            official_url="https://example.jp/", country="JP", years=[2022],
+        )
+        self.assertEqual([], reports[2022])
+
     def test_one_result_is_assigned_to_only_its_primary_year(self):
         class ComparativeSnippet(_FakeFirecrawl):
             def search(self, query, *, limit, country):

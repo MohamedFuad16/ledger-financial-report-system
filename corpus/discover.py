@@ -55,6 +55,7 @@ def _domain(url: str) -> str:
 
 def _looks_like_report(item: dict, year: int) -> bool:
     text = " ".join(str(item.get(key) or "") for key in ("url", "title", "description"))
+    compact_text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", text))
     # A PDF extension plus a year is not sufficient: investor sites contain
     # thousands of year-stamped releases and presentations. Require explicit
     # annual-report/filing language before a candidate can reach download.
@@ -62,6 +63,7 @@ def _looks_like_report(item: dict, year: int) -> bool:
         str(year) in text
         and REPORT_WORDS.search(text) is not None
         and NON_ANNUAL_WORDS.search(text) is None
+        and NON_ANNUAL_WORDS.search(compact_text) is None
     )
 
 

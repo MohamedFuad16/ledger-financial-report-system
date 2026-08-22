@@ -326,3 +326,10 @@
 - Context: The first 112-client Firecrawl audit downloaded the same Imperial Hotel quarterly PDF as two fiscal years, accepted a Nishio quarterly report, and assigned a Striders FY2026 filing to FY2025 because the old checks accepted any requested year mentioned in a search snippet or PDF.
 - Decision: Reject quarterly, interim and earnings-release vocabulary during discovery. Derive one primary year per search result by preferring title, then URL, then description, without hiding a newer out-of-range period. After download, identify the selected balance-sheet page and require the expected fiscal year to be the newest calendar year printed on that statement when year evidence is present. Preserve the raw audit ledger, delete invalid live-corpus entries and never promote discovery output to gold.
 - Consequences: Comparative dates can no longer cause one PDF to occupy multiple company/year identities, and an FY2026 document cannot be backfilled into FY2025. Search recall may be lower for ambiguous snippets, but deep exact-year queries can recover candidates without weakening source identity.
+
+## ADR-0043 — Normalize display spacing before document-type admission
+- Date: 2026-08-23
+- Status: Accepted; refines ADR-0042
+- Context: Firecrawl returned `四 半 期 報 告 書` with whitespace between Japanese characters. The semantic text was still "quarterly report," but a literal exclusion for `四半期` did not match and the file reached the corpus.
+- Decision: Apply Unicode NFKC normalization and remove whitespace solely for the non-annual document-type check, while preserving original titles and descriptions as evidence. Delete every live document admitted through the older rule and retain it only in the audit job record.
+- Consequences: Typography cannot turn a quarterly/interim/earnings document into an annual-report candidate. Original source metadata remains inspectable, and no search/download result becomes gold without the separate exact-source review contract.
