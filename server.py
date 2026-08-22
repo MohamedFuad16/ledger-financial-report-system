@@ -686,7 +686,7 @@ def get_corpus():
         "summary": {
             "documents": len(documents),
             "companies": len(targets),
-            "companies_with_reports": len({item.get("company_slug") for item in documents}),
+            "companies_with_reports": len({item.get("company") for item in documents}),
             "ok": sum(item.get("screened") == "ok" for item in documents),
             "review": sum(item.get("screened") == "review" for item in documents),
             "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
