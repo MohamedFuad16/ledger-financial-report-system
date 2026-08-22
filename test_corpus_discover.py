@@ -199,6 +199,32 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual([], reports[2022])
 
+    def test_deep_search_retries_each_missing_year_with_broader_queries(self):
+        class DeepSearch(_FakeFirecrawl):
+            def __init__(self):
+                super().__init__()
+                self.queries = []
+
+            def search(self, query, *, limit, country):
+                self.queries.append((query, limit, country))
+                if "FY2023" in query:
+                    return [{
+                        "url": "https://example.jp/ir/annual_report_2023.pdf",
+                        "title": "2023 Annual Report",
+                        "description": "Example株式会社",
+                    }]
+                return []
+
+        client = DeepSearch()
+        reports = discover_company_reports(
+            client, company="Example株式会社", official_url="https://example.jp/",
+            country="JP", years=[2023], deep_search=True,
+        )
+
+        self.assertEqual(3, len(client.queries))
+        self.assertTrue(any("FY2023" in query for query, _, _ in client.queries))
+        self.assertEqual(1, len(reports[2023]))
+
 
 if __name__ == "__main__":
     unittest.main()

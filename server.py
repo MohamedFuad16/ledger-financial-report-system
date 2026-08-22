@@ -943,6 +943,7 @@ def start_corpus_job():
         "worker_pid": os.getpid(),
         "companies": cleaned,
         "years": years,
+        "deep_search": bool(data.get("deep_search")),
         "events": [],
         "result": None,
         "error": None,
@@ -966,6 +967,7 @@ def start_corpus_job():
                 years,
                 api_key=settings["firecrawl_api_key"],
                 max_downloads=min(settings.get("max_concurrency", 3), 6),
+                deep_search=bool(data.get("deep_search")),
                 on_event=on_event,
             )
         except Exception as exc:  # noqa: BLE001 - background failures are reported to the UI

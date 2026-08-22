@@ -12,6 +12,8 @@ Anonymous browser workspace IDs isolate staged files, jobs, run history and run 
 
 ## Recent changes (latest first — keep ~15)
 
+- 2026-08-23 — Added a bounded deep Firecrawl mode that retries each missing company/year with both Japanese securities-report and English annual-report queries while retaining exact-entity source gates — why: the first all-client series search proved that Firecrawl can find isolated and multi-year filings but misses known public years inconsistently — by: leader — session: Strategy 3 results + 50-company corpus rebuild
+
 - 2026-08-23 — Replaced the completed live-stage millisecond label with total elapsed time, formatted all durations as seconds/minutes, expanded Strategy 3 results with report/mode/accuracy/coverage/pages/tokens/parse/model/total columns, and required both experiment and parser identity when scoping prior runs — why: the former 10 ms display measured only the final file write and a malformed record could look like a Strategy 2 result on the Strategy 3 page — by: leader — session: Strategy 3 results + 50-company corpus rebuild
 
 - 2026-08-22 — Audited the live all-client Firecrawl sweep against a known note FY2022 positive control, added exact-legal-entity EDINET trust without allowing parent substitutions, collapsed six redundant year searches into one PDF-series search, and added a 112-client/year availability ledger — why: distinguish genuine Firecrawl availability from a false negative caused by rejecting Japan FSA filing URLs only because they are off the issuer homepage domain — by: leader — session: 50-company corpus rebuild

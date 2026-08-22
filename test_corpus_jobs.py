@@ -39,9 +39,11 @@ class CorpusJobPersistenceTests(unittest.TestCase):
             api_key,
             max_downloads,
             on_event,
+            deep_search=False,
         ):
             self.assertEqual("test-firecrawl", api_key)
             self.assertEqual([2024], years)
+            self.assertFalse(deep_search)
             on_event({"type": "discovered", "company": "Example"})
             return {"requested": 1, "downloaded": [], "failed": [], "years": years}
 

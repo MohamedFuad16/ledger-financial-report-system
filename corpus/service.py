@@ -20,6 +20,7 @@ def build_corpus(
     *,
     api_key: str = "",
     max_downloads: int = 3,
+    deep_search: bool = False,
     on_event: Progress | None = None,
 ) -> dict[str, Any]:
     years = sorted({int(year) for year in years if 2020 <= int(year) <= 2025})
@@ -49,6 +50,7 @@ def build_corpus(
             official_url=str(company.get("official_url") or "").strip(),
             country=str(company.get("country") or "US"),
             years=years,
+            deep_search=deep_search,
         )
         for year in years:
             choices = discovered.get(year) or []

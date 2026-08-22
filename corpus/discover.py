@@ -101,6 +101,7 @@ def discover_company_reports(
     years: Iterable[int],
     official_url: str = "",
     country: str = "US",
+    deep_search: bool = False,
 ) -> dict[int, list[ReportCandidate]]:
     years = sorted({int(year) for year in years})
     official_domain = _domain(official_url)
@@ -139,6 +140,27 @@ def discover_company_reports(
             query = f'"{company}" official annual report 10-k filetype:pdf'
         pool.extend((item, "search") for item in client.search(query, limit=50, country=country))
 
+    if deep_search:
+        found_years = {
+            year for year in years if any(_looks_like_report(item, year) for item, _ in pool)
+        }
+        for year in years:
+            if year in found_years:
+                continue
+            queries = (
+                (
+                    f'"{company}" {year} 有価証券報告書 PDF',
+                    f'"{company}" FY{year} annual report PDF',
+                )
+                if is_japanese
+                else (
+                    f'"{company}" {year} annual report filetype:pdf',
+                    f'"{company}" FY{year} 10-k PDF',
+                )
+            )
+            for query in queries:
+                pool.extend((item, "deep_search") for item in client.search(query, limit=25, country=country))
+
     output: dict[int, list[ReportCandidate]] = {year: [] for year in years}
     seen: set[tuple[int, str]] = set()
     for item, discovery in pool:
@@ -153,7 +175,7 @@ def discover_company_reports(
         # reached them by following the supplied official site, which commonly
         # delegates filings to a disclosure/CDN host.
         if (
-            discovery == "search"
+            discovery in {"search", "deep_search"}
             and official_domain
             and not matches_official
             and not trusted_public_filing
