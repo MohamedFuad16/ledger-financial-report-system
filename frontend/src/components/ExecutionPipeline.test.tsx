@@ -56,6 +56,26 @@ describe('ExecutionPipeline', () => {
     expect(screen.getByText('No execution in progress')).toBeInTheDocument()
   })
 
+  it('shows total elapsed time after completion instead of the millisecond output-write step', () => {
+    const completed: ExecutionFile = {
+      ...comparisonFile,
+      state: 'complete',
+      passes: [{
+        strategy: 's3',
+        strategyLabel: 'Inspector Gate',
+        state: 'complete',
+        step: 'output',
+        totalSeconds: 72,
+        steps: { output: { state: 'complete', durationSeconds: 0.01 } },
+      }],
+    }
+
+    render(<LocaleProvider><ExecutionPipeline files={[completed]} running={false} /></LocaleProvider>)
+
+    expect(screen.getByText('1 min 12 s')).toHaveAttribute('title', 'Total elapsed time')
+    expect(screen.queryByText('10ms')).not.toBeInTheDocument()
+  })
+
   it('folds a six-year company batch into one active card and six report capsules', () => {
     const reports: ExecutionFile[] = Array.from({ length: 6 }, (_, index) => ({
       ...comparisonFile,

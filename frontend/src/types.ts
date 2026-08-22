@@ -263,6 +263,7 @@ export interface ExecutionPass {
   metrics?: RunMetrics
   totalSeconds?: number | null
   extractSeconds?: number | null
+  apiSeconds?: number | null
   fiscalYear?: string
   error?: string
   steps?: Record<string, {

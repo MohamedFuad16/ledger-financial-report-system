@@ -82,6 +82,7 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
     || currentGroup.reports.at(-1)!
 
   const timeLabel = (key: string, pass: ExecutionPass, step: Step, state: StepState) => {
+    if (pass.state === 'complete' && pass.totalSeconds != null) return formatDuration(pass.totalSeconds)
     const stored = pass.steps?.[step]?.durationSeconds
     if (stored != null) return formatDuration(stored)
     if (state !== 'running') return state === 'complete' ? tr('Done', '完了') : state === 'failed' ? tr('Stopped', '停止') : tr('Waiting', '待機')
@@ -165,7 +166,7 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
                       <div className="execution-parser-line"><i style={{ background: parser.color }} /><strong>{parser.short}</strong><span>{labels[step]}</span></div>
                       <p className={stepState === 'running' ? 'execution-shimmer-text' : ''}>{message}</p>
                     </div>
-                    <time>{timeLabel(timerKey, activePass, step, stepState)}</time>
+                    <time title={activePass.state === 'complete' ? tr('Total elapsed time', '合計経過時間') : labels[step]}>{timeLabel(timerKey, activePass, step, stepState)}</time>
                   </motion.div>
                 </AnimatePresence>
                 <span className={`execution-status execution-status-${file.state}`}>{statusLabel}</span>

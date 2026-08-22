@@ -36,6 +36,11 @@ export function extractionJobBelongsToStrategyPage(scope: StrategyPageKind, kind
   return scope === kind
 }
 
+export function runBelongsToStrategyPage(run: RunSummary, kind: StrategyPageKind) {
+  const experiment = experimentForStrategyPage(kind)
+  return run.experiment === experiment && experimentStrategies[experiment].includes(run.strategy)
+}
+
 export function parserFor(key?: string) {
   return parserMeta[key || ''] || { short: key || 'Unknown', label: key || 'Unknown', color: '#777' }
 }
@@ -61,9 +66,12 @@ export function formatMoney(value: number | null | undefined) {
 export function formatDuration(value: MetricValue) {
   if (value === null || value === undefined) return '—'
   const seconds = Number(value)
-  if (seconds < 1) return `${Math.round(seconds * 1000)}ms`
-  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`
-  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
+  if (!Number.isFinite(seconds) || seconds < 0) return '—'
+  if (seconds < 1) return '<1 s'
+  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`
+  const minutes = Math.floor(seconds / 60)
+  const remainder = Math.round(seconds % 60)
+  return remainder === 60 ? `${minutes + 1} min` : `${minutes} min ${remainder} s`
 }
 
 export function displayDate(run: RunSummary) {

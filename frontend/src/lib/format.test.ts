@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders } from './format'
+import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, formatDuration, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders, runBelongsToStrategyPage } from './format'
 import type { RunSummary } from '../types'
 
 const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
@@ -22,6 +22,15 @@ describe('strategy page identity', () => {
     expect(experimentForStrategyPage('s3')).toBe('intelligent_scan')
     expect(extractionJobBelongsToStrategyPage('s1', 's1')).toBe(true)
     expect(extractionJobBelongsToStrategyPage('s2', 's1')).toBe(false)
+    expect(runBelongsToStrategyPage({ ...run('s3', 'report.pdf', 100), experiment: 'intelligent_scan' }, 's3')).toBe(true)
+    expect(runBelongsToStrategyPage({ ...run('s2', 'report.pdf', 100, 1, 'ocr'), experiment: 'intelligent_scan' }, 's3')).toBe(false)
+  })
+
+  it('shows elapsed time in seconds and minutes, never milliseconds', () => {
+    expect(formatDuration(0.01)).toBe('<1 s')
+    expect(formatDuration(10.4)).toBe('10 s')
+    expect(formatDuration(72)).toBe('1 min 12 s')
+    expect(formatDuration(119.6)).toBe('2 min')
   })
 })
 

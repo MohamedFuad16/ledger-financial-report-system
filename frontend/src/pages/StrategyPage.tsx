@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { api, type SseEvent } from '../lib/api'
 import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
-import { experimentForStrategyPage, experimentStrategies, extractionJobBelongsToStrategyPage, formatDuration, formatMetric, formatMoney, formatNumber, parserFor, type StrategyPageKind } from '../lib/format'
+import { experimentForStrategyPage, experimentStrategies, extractionJobBelongsToStrategyPage, formatDuration, formatMetric, formatMoney, formatNumber, parserFor, runBelongsToStrategyPage, type StrategyPageKind } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
 import { FolderUpload } from '../components/FolderUpload'
 import { CorpusPicker, type CorpusSelectionMode } from '../components/CorpusPicker'
@@ -87,7 +87,7 @@ export function StrategyPage({
       .finally(() => { setCorpusLoading(false); setCorpusLoaded(true) })
   }, [inputSource, corpusLoaded, corpusLoading, onNotify, tr])
 
-  const strategyRuns = useMemo(() => runs.filter((run) => run.experiment === experiment), [runs, experiment])
+  const strategyRuns = useMemo(() => runs.filter((run) => runBelongsToStrategyPage(run, kind)), [runs, kind])
   const acceptFiles = (incoming: File[]) => {
     const pdfs = incoming.filter((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))
     if (pdfs.length !== incoming.length) onNotify(tr('Only PDF files can be staged.', '追加できるのはPDFファイルのみです。'), 'error')
@@ -210,6 +210,7 @@ export function StrategyPage({
             metrics: data.metrics,
             totalSeconds: data.total_seconds,
             extractSeconds: data.extract_seconds,
+            apiSeconds: data.api_elapsed_seconds,
             fiscalYear: data.fiscal_year,
             error: data.error,
             steps: data.ok ? pass.steps : {
@@ -329,13 +330,13 @@ export function StrategyPage({
   }
 
   const completedComparison = executions
-    .flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass })))
+    .flatMap((file) => file.passes.map((pass) => ({ file: file.name, pages: file.pages, approxTokens: file.approxTokens, ...pass })))
     .filter((pass) => pass.state === 'complete')
   const expectedStrategies = executions[0]?.passes.map((pass) => pass.strategy) || []
   const matchedExecutions = executions.filter((file) => expectedStrategies.length > 0 && expectedStrategies.every((strategy) =>
     file.passes.some((pass) => pass.strategy === strategy && pass.state === 'complete'),
   ))
-  const matchedComparison = matchedExecutions.flatMap((file) => file.passes.map((pass) => ({ file: file.name, ...pass })))
+  const matchedComparison = matchedExecutions.flatMap((file) => file.passes.map((pass) => ({ file: file.name, pages: file.pages, approxTokens: file.approxTokens, ...pass })))
   const comparisonSummary = Object.values(matchedComparison.reduce<Record<string, {
     strategy: string
     passes: typeof matchedComparison
@@ -441,8 +442,8 @@ export function StrategyPage({
           {comparisonSummary.length > 0 && <div className="comparison-grid">{comparisonSummary.map((summary) => { const meta = parserFor(summary.strategy); return <article key={summary.strategy}><i style={{ background: meta.color }} /><span>{meta.short}<small>{tr(`Matched average of ${summary.count} report${summary.count === 1 ? '' : 's'}`, `${summary.count}件の対応平均`)}</small></span><strong>{formatMetric(summary.accuracy)}</strong><small>{formatMetric(summary.coverage)} {tr('coverage', 'カバレッジ')} · {formatDuration(summary.totalSeconds)} {tr('average', '平均')}</small><small>{tr(`${summary.successful}/${summary.scheduled} successful · ${summary.failed} failed`, `成功 ${summary.successful}/${summary.scheduled} · 失敗 ${summary.failed}`)}</small></article> })}</div>}
           <div className="comparison-detail-wrap">
             <table className="comparison-detail-table">
-              <thead><tr><th>{tr('Report', 'レポート')}</th><th>{tr('Parser', 'パーサー')}</th><th>{tr('Accuracy', '正確度')}</th><th>{tr('Coverage', 'カバレッジ')}</th><th>{tr('Total time', '合計時間')}</th><th>{tr('Result', '結果')}</th></tr></thead>
-              <tbody>{completedComparison.map((pass) => <tr key={`${pass.file}-${pass.strategy}`}><td><strong>{pass.file}</strong></td><td>{parserFor(pass.strategy).short}</td><td>{formatMetric(pass.metrics?.accuracy)}</td><td>{formatMetric(pass.metrics?.coverage)}</td><td>{formatDuration(pass.totalSeconds)}</td><td><button disabled={!pass.runId} onClick={async () => { if (pass.runId) setLatestDetail(await api.run(pass.runId)) }}>{tr('View table', '表を表示')}</button></td></tr>)}</tbody>
+              <thead><tr><th>{tr('Report', 'レポート')}</th><th>{tr('Parser / mode', 'パーサー／モード')}</th><th>{tr('Exact accuracy', '完全一致率')}</th><th>{tr('Field coverage', 'フィールドカバレッジ')}</th><th>{tr('Pages', 'ページ')}</th><th>{tr('Estimated tokens', '推定トークン')}</th><th>{tr('Parse time', '解析時間')}</th><th>{tr('Model time', 'モデル時間')}</th><th>{tr('Total time', '合計時間')}</th><th>{tr('Result', '結果')}</th></tr></thead>
+              <tbody>{completedComparison.map((pass) => <tr key={`${pass.file}-${pass.strategy}`}><td><strong>{pass.file}</strong></td><td>{parserFor(pass.strategy).label}</td><td>{formatMetric(pass.metrics?.accuracy)}</td><td>{formatMetric(pass.metrics?.coverage)}</td><td>{formatNumber(pass.pages)}</td><td>{formatNumber(pass.approxTokens)}</td><td>{formatDuration(pass.extractSeconds)}</td><td>{formatDuration(pass.apiSeconds)}</td><td><strong>{formatDuration(pass.totalSeconds)}</strong></td><td><button disabled={!pass.runId} onClick={async () => { if (pass.runId) setLatestDetail(await api.run(pass.runId)) }}>{tr('View table', '表を表示')}</button></td></tr>)}</tbody>
             </table>
           </div>
         </Card>
@@ -450,14 +451,21 @@ export function StrategyPage({
 
       {latestDetail && (
         <Card className="inline-results">
-          <SectionHeading eyebrow={tr('Latest completed output', '最新の完了出力')} title={tr(`FY${latestDetail.fiscal_year} extracted asset-side balance sheet`, `FY${latestDetail.fiscal_year} 抽出済み資産側貸借対照表`)} description={`${parserFor(latestDetail.strategy).label} · ${latestDetail.run_id}`} action={<div className="result-badges"><Badge tone="green">{formatMetric(latestDetail.metrics.accuracy)} {tr('accuracy', '正確度')}</Badge><Badge>{formatMetric(latestDetail.metrics.coverage)} {tr('coverage', 'カバレッジ')}</Badge></div>} />
+          <SectionHeading eyebrow={tr('Latest completed output', '最新の完了出力')} title={latestDetail.pdf_file || tr(`FY${latestDetail.fiscal_year} extracted asset-side balance sheet`, `FY${latestDetail.fiscal_year} 抽出済み資産側貸借対照表`)} description={`${parserFor(latestDetail.strategy).label} · FY${latestDetail.fiscal_year || '—'} · ${latestDetail.run_id}`} action={<div className="result-badges"><Badge tone="green">{formatMetric(latestDetail.metrics.accuracy)} {tr('exact accuracy', '完全一致率')}</Badge><Badge>{formatMetric(latestDetail.metrics.coverage)} {tr('field coverage', 'フィールドカバレッジ')}</Badge></div>} />
+          <div className="detail-strip inline-result-detail-strip">
+            <div><span>{tr('Pages', 'ページ')}</span><strong>{formatNumber(latestDetail.page_count)}</strong></div>
+            <div><span>{tr('Estimated tokens', '推定トークン')}</span><strong>{formatNumber(latestDetail.approx_input_tokens)}</strong></div>
+            <div><span>{tr('Parse time', '解析時間')}</span><strong>{formatDuration(latestDetail.extract_seconds)}</strong></div>
+            <div><span>{tr('Model time', 'モデル時間')}</span><strong>{formatDuration(latestDetail.api_elapsed)}</strong></div>
+            <div><span>{tr('Total time', '合計時間')}</span><strong>{formatDuration(latestDetail.total_seconds)}</strong></div>
+          </div>
           <div className="result-table-wrap"><table className="result-table result-schema-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer', '回答')} ({latestDetail.answer_unit || `M ${latestDetail.currency || 'USD'}`})</th></tr></thead><tbody>{latestDetail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div>
         </Card>
       )}
 
       <Card className="previous-runs-card">
         <SectionHeading eyebrow={tr('History', '履歴')} title={tr(`Previous Strategy ${isStrategy3 ? '3' : isStrategy1 ? '1' : '2'} runs`, `戦略${isStrategy3 ? '3' : isStrategy1 ? '1' : '2'}の過去実行`)} description={tr(`${strategyRuns.length} stored experiment records.`, `${strategyRuns.length}件の実験記録を保存。`)} />
-        <RunTable runs={strategyRuns.slice(0, 8)} compact />
+        <RunTable runs={strategyRuns.slice(0, 8)} />
       </Card>
     </div>
   )

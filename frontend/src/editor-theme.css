@@ -412,6 +412,7 @@ body {
 .detail-strip > div { min-height: 70px; padding: 13px 16px; display: flex; flex-direction: column; justify-content: center; gap: 5px; border-right: 1px solid var(--line); }
 .detail-strip > div span { color: var(--faint); font-size: 10px; }
 .detail-strip > div strong { color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+.inline-result-detail-strip { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
 .detail-strip .button { margin: 0 12px !important; align-self: center; }
 .sheet-table { min-width: 760px; table-layout: fixed; }
 .sheet-table th:nth-child(1),
