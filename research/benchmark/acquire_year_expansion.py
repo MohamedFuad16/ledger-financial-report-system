@@ -33,9 +33,13 @@ def main() -> int:
     args = parser.parse_args()
 
     sources = json.loads(SOURCES_PATH.read_text(encoding="utf-8"))
+    # A manifest entry only counts as existing when its pinned file is on this
+    # machine's disk: after a deploy the merged manifest can list documents the
+    # host has not downloaded yet, and those must be fetched and re-screened.
     existing = {
         (str(document.get("company")), int(document.get("fiscal_year") or 0))
         for document in load_manifest().get("documents", [])
+        if (PROJECT_ROOT / str(document.get("local_path") or "")).is_file()
     }
     attempted = failed = admitted = 0
     for source in sources:
