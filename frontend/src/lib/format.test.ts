@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, formatDuration, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders, runBelongsToStrategyPage } from './format'
+import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, formatDuration, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders, percentile, runBelongsToStrategyPage } from './format'
 import type { RunSummary } from '../types'
 
 const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' | 'intelligent_scan' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
@@ -109,6 +109,20 @@ describe('matched historical parser cohort', () => {
     ]
     expect(groupParserStats(runs, 'no_ocr').find((entry) => entry.key === 's1')?.accuracy).toBe(10)
     expect(groupParserStats(runs, 'ocr').find((entry) => entry.key === 's2-pypdf')?.accuracy).toBe(50)
+  })
+
+  it('computes the interpolated latency median over pass means', () => {
+    expect(percentile([], 0.5)).toBeNull()
+    expect(percentile([7], 0.5)).toBe(7)
+    expect(percentile([4, 1, 3, 2], 0.5)).toBe(2.5)
+
+    const runs = [
+      run('s1', 'a_2022.pdf', 80, 10, 'no_ocr', { company: 'A', source_pdf_sha256: 'aaa' }),
+      run('s1', 'b_2022.pdf', 80, 20, 'no_ocr', { company: 'B', source_pdf_sha256: 'bbb' }),
+      run('s1', 'c_2022.pdf', 80, 30, 'no_ocr', { company: 'C', source_pdf_sha256: 'ccc' }),
+    ]
+    const noOcr = groupExperimentStats(runs).find((entry) => entry.key === 'no_ocr')
+    expect(noOcr?.p50Seconds).toBe(20)
   })
 
   it('never matches different companies or different source hashes as one report', () => {

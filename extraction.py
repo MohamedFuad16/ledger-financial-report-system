@@ -173,6 +173,10 @@ class ExtractedText:
     # Empty for parsers that cannot supply any. This is the capability that
     # separates the technologies, so it is carried, not discarded.
     diagnostics: dict = field(default_factory=dict)
+    # Complete per-page text beyond what was sent to the model. Only Strategy 3
+    # populates this; the evidence-retry loop draws additional pages from it.
+    # Kept off diagnostics so full page bodies are never persisted per run.
+    retained_pages: list = field(default_factory=list)
 
     @property
     def char_count(self) -> int:
@@ -884,6 +888,11 @@ def extract_with_intelligent_scanning_gate(
         "Strategy 3 intelligent scanning",
         diagnostics,
     )
+    extracted.retained_pages = [
+        (page_no, markdown)
+        for page_no, markdown in unified_pages
+        if str(markdown or "").strip() and not page_is_unreadable(markdown)
+    ]
     extracted.warnings.append(
         f"The intelligent scanning gate retained {len(selected_pages)} of {len(raw_pages)} complete pages "
         f"for semantic mapping ({gate.get('character_reduction_percent', 0):.1f}% fewer Markdown characters)."
@@ -1039,7 +1048,13 @@ STRATEGIES: dict[str, Strategy] = {
             "only pages it marked as needing OCR were replaced by 200-DPI local RapidOCR text; the unified "
             "pages were then ranked by the deterministic intelligent scanning gate using table presence, "
             "financial headings, the fixed 27-field vocabulary, and layout metadata. Page markers identify "
-            "the original source PDF pages."
+            "the original source PDF pages. IMPORTANT: this is an excerpt, not the whole report. When a "
+            "row's evidence would normally live in a note schedule that is NOT among the supplied pages — "
+            "loan receivables nested in an 'other' line, the gross-cost and accumulated-depreciation detail "
+            "of the fixed-asset schedule, or a maturity note — return null with confidence 0.0 for that row "
+            "instead of assuming 0 or committing a partial figure; additional pages can then be supplied. "
+            "Never treat absence from this excerpt as absence from the report, and never report a partial "
+            "accumulated-depreciation figure when the complete schedule is not supplied."
         ),
         extract=extract_with_intelligent_scanning_gate,
         parser="inspector-gate",

@@ -24,12 +24,13 @@ from extraction import STRATEGIES, get_strategy
 from models import EXPECTED_ROW_COUNT, SchemaValidationError, rows_as_dicts, validate_extraction
 from normalize import normalize_payload
 from reconcile import derive_identity_values, reconcile, reconciliation_summary
-from prompts import build_user_prompt
+from prompts import build_evidence_retry_prompt, build_user_prompt
 from schema import (
     ASSET_SCHEMA,
     ASSIGNMENT_GOLDEN_SOURCE_SHA256,
     GOLDEN_ANSWERS_STORE,
     SOURCE_BOUND_GOLDEN_ANSWERS,
+    SUBTOTAL_IDENTITIES,
 )
 
 UPLOAD_DIR = Path("uploads")
@@ -209,6 +210,58 @@ def apply_confidence_gate(rows: list[dict]) -> list[dict]:
         confident = confidence is None or float(confidence) >= CONFIDENCE_THRESHOLD
         gated.append({**row, "accepted": bool(confident and row.get("answer_m_usd") is not None)})
     return gated
+
+
+def merge_retry_rows(
+    rows: list[dict],
+    retry_rows: list[dict],
+    missing_items: list[str],
+    replaceable_items: list[str] | None = None,
+) -> tuple[list[dict], list[str], list[str]]:
+    """
+    Merge one evidence-retry reply into the first-pass rows.
+
+    Rows that were null in the first pass and explicitly re-asked are filled.
+    Rows named in ``replaceable_items`` (participants of failed deterministic
+    identities) may be *proposed* for replacement; the caller must accept the
+    proposal only when reconciliation strictly improves. Any other row keeps
+    its first-pass value untouched.
+    """
+    wanted = {str(item) for item in missing_items}
+    replaceable = {str(item) for item in replaceable_items or []}
+    retry_by_item = {str(row.get("item")): row for row in retry_rows}
+    merged: list[dict] = []
+    recovered: list[str] = []
+    replaced: list[str] = []
+    for row in rows:
+        item = str(row.get("item"))
+        candidate = retry_by_item.get(item)
+        candidate_value = candidate.get("answer_m_usd") if candidate else None
+        first_pass_value = row.get("answer_m_usd")
+        take = False
+        if candidate_value is not None and item in wanted and first_pass_value is None:
+            recovered.append(item)
+            take = True
+        elif (
+            candidate_value is not None
+            and item in replaceable
+            and first_pass_value is not None
+            and float(candidate_value) != float(first_pass_value)
+        ):
+            replaced.append(item)
+            take = True
+        if take:
+            merged.append({
+                **row,
+                "answer_m_usd": candidate_value,
+                "confidence": candidate.get("confidence"),
+                "source_page": candidate.get("source_page"),
+                "source_label": candidate.get("source_label"),
+                "evidence": ("[evidence retry] " + str(candidate.get("evidence") or "")).strip(),
+            })
+        else:
+            merged.append(row)
+    return merged, recovered, replaced
 
 
 def detect_source_value_quantum(text: str) -> float:
@@ -628,10 +681,145 @@ def _run_pipeline_inner(
     rows = apply_confidence_gate(rows)
     progress("validate", f"{len(rows)} rows conform to the contract")
 
+    # Strategy 3 evaluation loop: when the selected evidence packet left rows
+    # unanswered, or deterministic identity checks failed, verify whether the
+    # needed pages were actually retrieved and, if unsent ranked pages remain,
+    # run exactly one targeted follow-up call. The retry consults the public
+    # schema and parser output only — never gold. Null rows may be filled;
+    # failed-identity rows may be replaced only when the replacement makes
+    # reconciliation strictly better, so a second call cannot corrupt evidence
+    # the first call already established.
+    evidence_retry: dict[str, Any] = {"attempted": False, "reason": None}
+    source_value_quantum = detect_source_value_quantum(extracted.text)
+    missing_items = [str(row.get("item")) for row in rows if row.get("answer_m_usd") is None]
+    failed_identity_items: list[str] = []
+    pre_reconciliation: dict[str, Any] | None = None
+    if strategy.experiment == "intelligent_scan" and getattr(extracted, "retained_pages", None):
+        pre_reconciliation = reconcile(rows, value_quantum=source_value_quantum)
+        failed_identity_names = set(pre_reconciliation.get("failed_identities") or [])
+        if failed_identity_names:
+            participants: list[str] = []
+            for total_item, parts in SUBTOTAL_IDENTITIES:
+                if total_item in failed_identity_names:
+                    participants.extend([total_item, *parts])
+            seen: set[str] = set()
+            failed_identity_items = [
+                item for item in participants
+                if item not in seen and not seen.add(item) and item not in set(missing_items)
+            ]
+    retry_items = missing_items + failed_identity_items
+    if (
+        strategy.experiment == "intelligent_scan"
+        and retry_items
+        and getattr(extracted, "retained_pages", None)
+    ):
+        from intelligent_scan import select_retry_pages
+
+        already_sent = set(extracted.diagnostics.get("selected_pages") or [])
+        retry_pages, retry_diagnostics = select_retry_pages(
+            extracted.retained_pages,
+            missing_items=retry_items,
+            exclude_pages=already_sent,
+            maximum_pages=3,
+        )
+        if retry_pages or extracted.text.strip():
+            progress(
+                "validate",
+                f"{len(missing_items)} rows unanswered, {len(failed_identity_items)} in failed identities "
+                + (
+                    "· retrying with pages " + ", ".join(str(page) for page, _ in retry_pages)
+                    if retry_pages
+                    else "· re-reading the complete packet (no unsent pages remain)"
+                ),
+            )
+            retry_prompt = build_evidence_retry_prompt(
+                additional_pages_text="\n\n".join(
+                    f"[page {page}]\n{text}" for page, text in retry_pages
+                ),
+                missing_items=retry_items,
+                detected_fiscal_year=result.detected_fiscal_year or "",
+                output_currency=output_currency,
+                # A failed identity often means a figure in the original packet
+                # was misread — and when no unsent pages remain the packet IS
+                # the complete readable report — so the second look re-reads it
+                # alongside any additional pages.
+                original_packet_text=(
+                    extracted.text if (failed_identity_items or not retry_pages) else ""
+                ),
+            )
+            try:
+                retry_response, retry_elapsed = run_extraction(
+                    api_key=settings["api_key"],
+                    model=settings["model"],
+                    base_url=settings["base_url"],
+                    system_prompt=system_prompt,
+                    user_prompt=retry_prompt,
+                    run_dir=run_dir,
+                    enable_reasoning=enable_reasoning,
+                    temperature=temperature,
+                    provider=settings.get("provider", ""),
+                    reasoning_effort=effective_effort,
+                    artifact_suffix="_evidence_retry_1",
+                    on_retry=lambda attempt, delay: progress(
+                        "validate",
+                        f"Rate limited during evidence retry — retry {attempt} in {delay:.0f}s",
+                        throttled=True,
+                    ),
+                )
+                elapsed += retry_elapsed
+                retry_result, _ = parse_and_validate(retry_response)
+                merged_rows, recovered, replaced = merge_retry_rows(
+                    rows, rows_as_dicts(retry_result), missing_items, failed_identity_items
+                )
+                if replaced:
+                    # Replacements are accepted only as a block and only when
+                    # they deterministically improve reconciliation.
+                    trial = reconcile(merged_rows, value_quantum=source_value_quantum)
+                    improves = (
+                        int(trial.get("failed") or 0) < int(pre_reconciliation.get("failed") or 0)
+                        and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
+                    )
+                    if not improves:
+                        merged_rows, recovered, replaced = merge_retry_rows(
+                            rows, rows_as_dicts(retry_result), missing_items, []
+                        )
+                merged_rows, retry_derivations = derive_identity_values(merged_rows)
+                deterministic_derivations = deterministic_derivations + retry_derivations
+                rows = apply_confidence_gate(merged_rows)
+                evidence_retry = {
+                    "attempted": True,
+                    "missing_rows": missing_items,
+                    "failed_identity_rows": failed_identity_items,
+                    "pages_added": retry_diagnostics.get("retry_pages"),
+                    "page_scores": retry_diagnostics.get("retry_scores"),
+                    "recovered_rows": recovered,
+                    "replaced_rows": replaced,
+                    "still_missing_rows": [
+                        str(row.get("item")) for row in rows if row.get("answer_m_usd") is None
+                    ],
+                    "usage": response_usage(retry_response),
+                    "elapsed_seconds": round(retry_elapsed, 2),
+                }
+                progress(
+                    "validate",
+                    f"Evidence retry recovered {len(recovered)} and re-derived {len(replaced)} "
+                    f"of {len(retry_items)} targeted rows",
+                )
+            except Exception as exc:  # noqa: BLE001 - the retry must never fail the run
+                evidence_retry = {
+                    "attempted": True,
+                    "missing_rows": missing_items,
+                    "failed_identity_rows": failed_identity_items,
+                    "pages_added": retry_diagnostics.get("retry_pages"),
+                    "recovered_rows": [],
+                    "replaced_rows": [],
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+                progress("validate", "Evidence retry failed — keeping first-pass values")
+
     # Deterministic arithmetic check, separate from the type contract above and
     # from scoring below. Needs no answer key, so it is the only quality signal
     # that survives the move to companies we have no golden data for.
-    source_value_quantum = detect_source_value_quantum(extracted.text)
     reconciliation = reconcile(rows, value_quantum=source_value_quantum)
     progress("validate", reconciliation_summary(reconciliation), done=True)
 
@@ -684,6 +872,7 @@ def _run_pipeline_inner(
         "warnings": extracted.warnings,
         "contract_repairs": repairs,
         "contract_repair_attempts": contract_repair_attempts,
+        "evidence_retry": evidence_retry,
         "deterministic_derivations": deterministic_derivations,
         "reconciliation": reconciliation,
         "schema_rows": EXPECTED_ROW_COUNT,
@@ -840,6 +1029,7 @@ __all__ = [
     "evidence_table",
     "list_runs",
     "load_prediction",
+    "merge_retry_rows",
     "result_table",
     "run_pipeline",
     "safe_filename",

@@ -78,8 +78,29 @@ def _company_identity_confirmed(text: str, expected_company: str) -> bool:
     )
 
 
+# Japanese statutory filings identify their own type on the cover with the
+# 【提出書類】 label. Whitespace is stripped before matching, so spaced-out
+# display titles (e.g. 四 半 期 報 告 書) cannot evade the check.
+COVER_DOCUMENT_TYPE = re.compile(r"【提出書類】([^【]{1,60})")
+
+
 def _is_annual_document(text: str) -> bool:
     compact = re.sub(r"\s+", "", unicodedata.normalize("NFKC", text))
+    # Trust the filing's own cover label over incidental cross-references: a
+    # genuine annual securities report routinely mentions its quarterly
+    # reports (縦覧場所, audit history), which must not reject it.
+    cover = COVER_DOCUMENT_TYPE.search(compact)
+    if cover:
+        stated_type = cover.group(1)
+        if NON_ANNUAL_DOCUMENT.search(stated_type):
+            return False
+        if ANNUAL_DOCUMENT.search(stated_type):
+            return True
+    head = compact[:4000]
+    if NON_ANNUAL_DOCUMENT.search(head):
+        return False
+    if ANNUAL_DOCUMENT.search(head):
+        return True
     if NON_ANNUAL_DOCUMENT.search(text) or NON_ANNUAL_DOCUMENT.search(compact):
         return False
     return ANNUAL_DOCUMENT.search(text) is not None or ANNUAL_DOCUMENT.search(compact) is not None

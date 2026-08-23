@@ -193,6 +193,110 @@ def score_pages(
     return sorted(results, key=lambda item: (-float(item["score"]), int(item["page"])))
 
 
+# Japanese navigation vocabulary per schema row, used only to rank retry pages.
+# These are fixed accounting concepts (like JAPANESE_ACCOUNTING_TERMS above),
+# never company-, year- or answer-specific values.
+JAPANESE_ITEM_TERMS: dict[str, tuple[str, ...]] = {
+    "Cash & Cash Equivalents": ("現金及び預金", "現金預金"),
+    "Accounts Receivable - Trade": ("売掛金", "受取手形", "電子記録債権", "契約資産", "完成工事未収入金"),
+    "Other Quick Assets": ("未収入金", "未収収益"),
+    "Inventories, Net": ("棚卸資産", "商品及び製品", "仕掛品", "原材料及び貯蔵品", "未成工事支出金"),
+    "Marketable Securities": ("有価証券",),
+    "Short-term Loan": ("短期貸付金", "貸付金", "償還予定"),
+    "Advance Payments": ("前渡金", "前払金"),
+    "Other Current Assets": ("前払費用",),
+    "Tangible Assets": ("有形固定資産", "有形固定資産等明細表"),
+    "Land": ("土地",),
+    "Buildings": ("建物", "構築物", "有形固定資産等明細表", "取得価額"),
+    "Plant & Machinery": ("機械及び装置", "機械装置", "有形固定資産等明細表", "取得価額"),
+    "Construction in Progress": ("建設仮勘定",),
+    "Other Equipment": ("工具、器具及び備品", "車両運搬具", "リース資産", "使用権資産", "有形固定資産等明細表"),
+    "Accumulated Depreciation": ("減価償却累計額", "有形固定資産等明細表", "取得価額"),
+    "Intangible Assets": ("無形固定資産", "のれん", "ソフトウエア"),
+    "Financial Assets": ("投資その他の資産", "敷金及び保証金", "前払年金費用", "退職給付に係る資産"),
+    "Investments": ("投資有価証券", "関係会社株式", "出資金"),
+    "Long-term Loan": ("長期貸付金", "貸付金", "償還予定"),
+    "Other Financial Assets": ("敷金及び保証金", "破産更生債権", "保険積立金", "貸倒引当金"),
+    "Other Fixed Assets": ("長期前払費用", "繰延税金資産"),
+    "Deferred Charges": ("繰延資産", "株式交付費", "社債発行費", "開発費"),
+}
+
+
+def select_retry_pages(
+    pages: list[tuple[int, str]],
+    *,
+    missing_items: list[str],
+    exclude_pages: Iterable[int],
+    maximum_pages: int = 3,
+    pages_with_tables: Iterable[Any] | None = None,
+    pages_with_columns: Iterable[Any] | None = None,
+) -> tuple[list[tuple[int, str]], dict[str, Any]]:
+    """Pick the next-best unsent pages for one bounded evidence-retry pass.
+
+    Ranking combines the gate's global score with a bonus for schema terms of
+    the specific rows that came back null. The inputs are the public schema and
+    parser output only — no golden values participate.
+    """
+    excluded = {int(page) for page in exclude_pages}
+    remaining = [(page, text) for page, text in pages if int(page) not in excluded]
+    if not remaining or maximum_pages < 1:
+        return [], {"retry_pages": [], "reason": "no_remaining_pages"}
+
+    missing_terms: set[str] = set()
+    wanted = {str(item) for item in missing_items}
+    japanese_targets: set[str] = set()
+    for row in ASSET_SCHEMA:
+        if str(row.get("item")) not in wanted:
+            continue
+        for key in ("classification", "subclassification", "item", "description"):
+            missing_terms.update(_tokens(str(row.get(key) or "")))
+    for item in wanted:
+        japanese_targets.update(JAPANESE_ITEM_TERMS.get(item, ()))
+
+    ranked = score_pages(
+        remaining,
+        pages_with_tables=pages_with_tables,
+        pages_with_columns=pages_with_columns,
+    )
+    rescored = []
+    text_by_page = {int(page): text for page, text in remaining}
+    for entry in ranked:
+        page_no = int(entry["page"])
+        page_text = text_by_page.get(page_no, "")
+        page_tokens = set(_tokens(page_text))
+        targeted_hits = len(page_tokens & missing_terms)
+        # Japanese note pages never match English schema tokens, so the label
+        # vocabulary of the specific missing rows must dominate the ranking —
+        # otherwise generically dense financial pages always win.
+        japanese_hits = sum(1 for term in japanese_targets if term in page_text)
+        rescored.append({
+            **entry,
+            "targeted_term_hits": targeted_hits,
+            "targeted_japanese_hits": japanese_hits,
+            "retry_score": round(
+                float(entry["score"])
+                + min(8.0, targeted_hits * 0.6)
+                + min(36.0, japanese_hits * 12.0),
+                4,
+            ),
+        })
+    rescored.sort(key=lambda item: (-float(item["retry_score"]), int(item["page"])))
+    chosen = rescored[:maximum_pages]
+    chosen_numbers = {int(item["page"]) for item in chosen}
+    selected = sorted(
+        ((page, text) for page, text in remaining if int(page) in chosen_numbers),
+        key=lambda item: item[0],
+    )
+    return selected, {
+        "retry_pages": [int(item["page"]) for item in chosen],
+        "retry_scores": [
+            {key: item[key] for key in ("page", "score", "retry_score", "targeted_term_hits", "targeted_japanese_hits")}
+            for item in chosen
+        ],
+        "reason": None,
+    }
+
+
 def select_evidence_pages(
     pages: list[tuple[int, str]],
     *,

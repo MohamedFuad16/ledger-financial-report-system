@@ -46,12 +46,13 @@ PROVIDERS: dict[str, Provider] = {
         reasoning_style="reasoning",
         # Pin the GA snapshot for benchmark reproducibility. Mutable "latest"
         # aliases can silently change accuracy between otherwise identical runs.
-        default_model="deepseek/deepseek-v4-flash-0731",
+        default_model="google/gemini-3.7-flash",
         suggested_models=[
+            "google/gemini-3.7-flash",
+            "openai/gpt-5-mini",
             "deepseek/deepseek-v4-flash-0731",
             "openai/gpt-5.4-nano",
             "mistralai/mistral-small-2603",
-            "google/gemini-3.7-flash",
             "qwen/qwen3.7-plus",
             "z-ai/glm-5.3",
         ],

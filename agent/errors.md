@@ -134,3 +134,21 @@ identity or job-budget boundary.
 - Cause: Search-result rejection was conditional on an official domain being present, and post-download screening checked fiscal year/balance-sheet content without rechecking expected company or annual-document identity inside the PDF.
 - Resolution: Reject unmatched search/deep-search results even when the registry has no official URL, and require local text to confirm target company plus annual/securities-report type before canonical replacement. Removed all seven invalid production entries; durable job history retains the source URLs for audit.
 - First seen: 2026-08-23
+
+## Annual-report screening rejected every genuine 有価証券報告書 (resolved)
+- Symptom: All year-expansion candidates failed admission with "The PDF is not an annual or securities report", and re-screening an already pinned, verified corpus member (note FY2022) failed identically — a dead gate.
+- Cause: The non-annual rejection pattern matched 四半期報告書 anywhere in the document. Genuine annual securities reports routinely cross-reference their own quarterly filings (縦覧場所, audit history), so the marker intended to reject mislabeled quarterlies rejected every real annual report too.
+- Resolution: `_is_annual_document` now trusts the filing's own cover label (【提出書類】, whitespace-stripped so spaced display titles cannot evade it), then the cover pages, before falling back to whole-document matching. Regression covers an annual report with an incidental quarterly cross-reference and a spaced-out quarterly cover.
+- First seen: 2026-08-23
+
+## Gazette gold recorded thousand-yen precision for million-yen sources (resolved)
+- Symptom: Independent re-verification could not find JUKI産機テクノロジー, ファインディ and 株式会社with Total Assets on their gazette pages: the search looked for 19,221,000-style thousand-yen forms while the pages print 19,221 in 百万円.
+- Cause: `materialize_statutory_gold.py` hardcoded `source_value_quantum: 0.001` although gazettes print in either 千円 or 百万円.
+- Resolution: Quantum is now derived per entry from the printed amount and the indexed yen value; the three affected fixtures were corrected (values were always right — only the stated precision was wrong).
+- First seen: 2026-08-23
+
+## Standalone note-marker lines shifted balance-sheet column selection (resolved)
+- Symptom: The gold-derivation engine read Toenec Investments as 24,253 (prior year) instead of 28,877; the audited FY2022 cross-check exposed it.
+- Cause: EDINET statements sometimes print note markers (※３，※４) on their own line between the label and the amounts. Treating that line as a value shifted the two-column [prior, current] alignment so the "current" slot held the prior-year figure. A related half-width form (※1 348,663) merged the marker digit into the amount.
+- Resolution: Marker-only lines are skipped outright, full-width-digit markers are stripped before NFKC folding, and half-width marker digits separated by a space are removed. The engine is cross-validated against all 13 human-audited FY2022 documents with zero mismatches, and every admitted printed value must be re-located by an independent pypdf pass.
+- First seen: 2026-08-23

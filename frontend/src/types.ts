@@ -95,6 +95,16 @@ export interface RunDetail extends RunSummary {
   parser_diagnostics?: Record<string, unknown>
   garbled_pages?: number[]
   readable_pages?: number
+  evidence_retry?: {
+    attempted: boolean
+    reason?: string | null
+    missing_rows?: string[]
+    pages_added?: number[]
+    recovered_rows?: string[]
+    still_missing_rows?: string[]
+    elapsed_seconds?: number
+    error?: string
+  }
 }
 
 export interface SchemaRow {

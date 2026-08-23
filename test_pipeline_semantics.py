@@ -45,6 +45,38 @@ def _payload(confidence: float = 0.95) -> dict:
     }
 
 
+class _FakeS3Strategy(_FakeStrategy):
+    key = "s3"
+    label = "Strategy 3 - intelligent scanning gate"
+    run_prefix = "S3"
+    parser = "inspector-intelligent"
+    experiment = "intelligent_scan"
+
+    def __call__(self, _path: Path, **_kwargs) -> ExtractedText:
+        result = ExtractedText(
+            text="[page 2]\nBalance sheet assets",
+            page_count=4,
+            readable_pages=4,
+            diagnostics={"selected_pages": [2], "selected_page_count": 1},
+        )
+        result.retained_pages = [
+            (1, "Corporate governance boilerplate"),
+            (2, "Balance sheet assets"),
+            (3, "Notes: cash and cash equivalents and accounts receivable detail"),
+            (4, "Officers and directors"),
+        ]
+        return result
+
+
+def _payload_with_nulls(null_items: set[str], confidence: float = 0.95) -> dict:
+    payload = _payload(confidence)
+    for row in payload["rows"]:
+        if row["item"] in null_items:
+            row["answer_m_usd"] = None
+            row["confidence"] = 0.0
+    return payload
+
+
 class PipelineSemanticsTests(unittest.TestCase):
     def test_assignment_gold_scores_only_the_supplied_pdf_hash(self):
         from schema import GOLDEN_ANSWERS_STORE
@@ -115,7 +147,7 @@ class PipelineSemanticsTests(unittest.TestCase):
         self.assertLess(scored["accuracy"], 100.0)
         self.assertEqual(scored["gold_value_quantum"], 0.001)
 
-    def _run(self, model_side_effect, confidence=0.95):
+    def _run(self, model_side_effect, confidence=0.95, strategy=None, arithmetic_side_effect=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             runs_root = Path(temp_dir) / "runs"
             run_dir = runs_root / "run"
@@ -123,13 +155,18 @@ class PipelineSemanticsTests(unittest.TestCase):
             pdf_path = Path(temp_dir) / "3M_annual_report_2022.pdf"
             pdf_path.write_bytes(b"%PDF-test")
             model_call = Mock(side_effect=model_side_effect)
-            arithmetic = Mock(return_value={
+            failing_report = {
                 "checks": [], "total_identities": 1, "evaluated": 1, "passed": 0,
                 "failed": 1, "skipped": 0, "consistency": 0.0,
                 "failed_identities": ["Current Assets"],
-            })
+            }
+            arithmetic = (
+                Mock(side_effect=arithmetic_side_effect)
+                if arithmetic_side_effect is not None
+                else Mock(return_value=failing_report)
+            )
             with patch.object(pipeline, "RUNS_DIR", runs_root), patch.object(
-                pipeline, "get_strategy", return_value=_FakeStrategy()
+                pipeline, "get_strategy", return_value=strategy or _FakeStrategy()
             ), patch.object(
                 pipeline, "create_run_dir", return_value=run_dir
             ), patch.object(pipeline, "file_run", return_value=run_dir), patch.object(
@@ -159,6 +196,90 @@ class PipelineSemanticsTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["confidence_accepted_coverage"], 0.0)
         self.assertEqual(result["reconciliation"]["failed"], 1)
         self.assertEqual(result["contract_repair_attempts"], 0)
+
+    def test_strategy3_null_rows_trigger_one_bounded_evidence_retry(self):
+        nulls = {"Cash & Cash Equivalents", "Accounts Receivable - Trade"}
+        first = {"choices": [{"message": {"content": json.dumps(_payload_with_nulls(nulls))}}], "usage": {}}
+        retry_payload = _payload_with_nulls(
+            {row["item"] for row in ASSET_SCHEMA if row["item"] not in nulls}
+        )
+        for row in retry_payload["rows"]:
+            if row["item"] == "Cash & Cash Equivalents":
+                row["answer_m_usd"] = 111
+            if row["item"] == "Accounts Receivable - Trade":
+                row["answer_m_usd"] = 222
+            if row["item"] == "Inventories, Net":
+                # A retry reply must never overwrite an answered first-pass row.
+                row["answer_m_usd"] = 999_999
+        retry = {"choices": [{"message": {"content": json.dumps(retry_payload)}}], "usage": {}}
+
+        result, model_call, _ = self._run([(first, 0.1), (retry, 0.2)], strategy=_FakeS3Strategy())
+
+        self.assertEqual(model_call.call_count, 2)
+        self.assertTrue(result["evidence_retry"]["attempted"])
+        self.assertEqual(sorted(result["evidence_retry"]["recovered_rows"]), sorted(nulls))
+        self.assertNotIn(2, result["evidence_retry"]["pages_added"])
+        by_item = {row["item"]: row for row in result["rows"]}
+        self.assertEqual(by_item["Cash & Cash Equivalents"]["answer_m_usd"], 111)
+        self.assertTrue(by_item["Cash & Cash Equivalents"]["evidence"].startswith("[evidence retry]"))
+        self.assertEqual(by_item["Accounts Receivable - Trade"]["answer_m_usd"], 222)
+        inventories_index = next(i for i, row in enumerate(ASSET_SCHEMA) if row["item"] == "Inventories, Net")
+        self.assertEqual(by_item["Inventories, Net"]["answer_m_usd"], inventories_index + 1)
+        retry_prompt = model_call.call_args_list[1].kwargs["user_prompt"]
+        self.assertIn("EVIDENCE RETRY", retry_prompt)
+        self.assertIn("Cash & Cash Equivalents", retry_prompt)
+
+    def test_strategy1_null_rows_never_trigger_the_evidence_retry(self):
+        nulls = {"Cash & Cash Equivalents", "Accounts Receivable - Trade"}
+        first = {"choices": [{"message": {"content": json.dumps(_payload_with_nulls(nulls))}}], "usage": {}}
+
+        result, model_call, _ = self._run([(first, 0.1)])
+
+        self.assertEqual(model_call.call_count, 1)
+        self.assertFalse(result["evidence_retry"]["attempted"])
+
+    def test_strategy3_identity_replacement_is_accepted_only_when_reconciliation_improves(self):
+        first = {"choices": [{"message": {"content": json.dumps(_payload())}}], "usage": {}}
+        retry_payload = _payload_with_nulls({row["item"] for row in ASSET_SCHEMA})
+        for row in retry_payload["rows"]:
+            if row["item"] == "Inventories, Net":
+                row["answer_m_usd"] = 555
+                row["confidence"] = 0.95
+        retry = {"choices": [{"message": {"content": json.dumps(retry_payload)}}], "usage": {}}
+        failing = {
+            "checks": [], "total_identities": 1, "evaluated": 1, "passed": 0,
+            "failed": 1, "skipped": 0, "consistency": 0.0,
+            "failed_identities": ["Current Assets"],
+        }
+        passing = {**failing, "passed": 1, "failed": 0, "consistency": 100.0, "failed_identities": []}
+
+        result, model_call, arithmetic = self._run(
+            [(first, 0.1), (retry, 0.2)],
+            strategy=_FakeS3Strategy(),
+            # pre-retry: failing → trial with replacement: passing → final: passing
+            arithmetic_side_effect=[failing, passing, passing],
+        )
+
+        self.assertEqual(model_call.call_count, 2)
+        self.assertEqual(arithmetic.call_count, 3)
+        self.assertEqual(result["evidence_retry"]["replaced_rows"], ["Inventories, Net"])
+        by_item = {row["item"]: row for row in result["rows"]}
+        self.assertEqual(by_item["Inventories, Net"]["answer_m_usd"], 555)
+        self.assertTrue(by_item["Inventories, Net"]["evidence"].startswith("[evidence retry]"))
+
+    def test_strategy3_failed_evidence_retry_keeps_first_pass_values(self):
+        nulls = {"Cash & Cash Equivalents", "Accounts Receivable - Trade"}
+        first = {"choices": [{"message": {"content": json.dumps(_payload_with_nulls(nulls))}}], "usage": {}}
+
+        result, model_call, _ = self._run(
+            [(first, 0.1), RuntimeError("provider unavailable")], strategy=_FakeS3Strategy()
+        )
+
+        self.assertEqual(model_call.call_count, 2)
+        self.assertTrue(result["evidence_retry"]["attempted"])
+        self.assertIn("provider unavailable", result["evidence_retry"]["error"])
+        by_item = {row["item"]: row for row in result["rows"]}
+        self.assertIsNone(by_item["Cash & Cash Equivalents"]["answer_m_usd"])
 
     def test_contract_failure_gets_at_most_one_contextual_repair_call(self):
         invalid = {"choices": [{"message": {"content": "{}"}}], "usage": {}}

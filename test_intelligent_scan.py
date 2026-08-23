@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import extraction
-from intelligent_scan import score_pages, select_evidence_pages
+from intelligent_scan import score_pages, select_evidence_pages, select_retry_pages
 
 
 class IntelligentScanningGateTests(unittest.TestCase):
@@ -68,6 +68,41 @@ class IntelligentScanningGateTests(unittest.TestCase):
         maturity = next(item for item in ranked if item["page"] == 2)
 
         self.assertIn("japanese_loan_maturity", maturity["critical_evidence"])
+
+
+class RetryPageSelectionTests(unittest.TestCase):
+    def test_retry_excludes_sent_pages_caps_at_three_and_targets_missing_terms(self):
+        pages = [
+            (1, "# Consolidated Balance Sheets\n| Cash | 100 |\n| Total assets | 900 |"),
+            (2, "# Corporate Governance\nBoard of directors."),
+            (3, "# Note 5. Inventories\nInventories raw materials finished goods 120"),
+            (4, "# Note 7. Receivables\nAccounts receivable trade allowance 300"),
+            (5, "# Note 9. Property\nLand buildings machinery accumulated depreciation"),
+            (6, "# Officers\nExecutive compensation shareholder proposal"),
+        ]
+        selected, diagnostics = select_retry_pages(
+            pages,
+            missing_items=["Inventories, Net", "Accounts Receivable - Trade"],
+            exclude_pages=[1],
+            maximum_pages=3,
+        )
+
+        chosen = [page for page, _ in selected]
+        self.assertNotIn(1, chosen)
+        self.assertLessEqual(len(chosen), 3)
+        self.assertIn(3, chosen)
+        self.assertIn(4, chosen)
+        self.assertEqual(chosen, sorted(chosen))
+        self.assertEqual(diagnostics["retry_pages"], [item["page"] for item in diagnostics["retry_scores"]])
+
+    def test_retry_reports_when_every_page_was_already_sent(self):
+        selected, diagnostics = select_retry_pages(
+            [(1, "Balance sheet"), (2, "Notes")],
+            missing_items=["Inventories, Net"],
+            exclude_pages=[1, 2],
+        )
+        self.assertEqual(selected, [])
+        self.assertEqual(diagnostics["reason"], "no_remaining_pages")
 
 
 class _Pixmap:

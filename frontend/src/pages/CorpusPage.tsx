@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, ExternalLink, FileDown, FileSearch, FolderSearch2, Image, LoaderCircle, Play, RefreshCw, Save, ScanText, Search, ShieldCheck, Sparkles, Trash2, TriangleAlert, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardCheck, ExternalLink, FileDown, FileSearch, Flame, Image, LoaderCircle, RefreshCw, Save, ScanText, Search, ShieldCheck, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
-import type { CorpusDocument, CorpusJob, CorpusManifest, CorpusTarget, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
+import type { CorpusDocument, CorpusManifest, CorpusTarget, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 import { convertCurrency, currencyPreference, restoreNativeCurrency } from '../lib/currency'
-
-const availableYears = [2020, 2021, 2022, 2023, 2024, 2025]
 
 const englishCompanyNames: Record<string, string> = {
   'AppBank株式会社': 'AppBank Inc.', 'Byside株式会社': 'Byside Inc.', 'JR九州エンジニアリング株式会社': 'JR Kyushu Engineering Co., Ltd.',
@@ -28,14 +26,16 @@ function officialHost(url?: string) {
   try { return new URL(url || '').hostname.replace(/^www\./, '') } catch { return '' }
 }
 
-export function CorpusPage({ settings, onNotify }: { settings: SettingsData | null; onNotify: (message: string, tone: 'success' | 'error') => void }) {
+function CompanyLogo({ domain, label }: { domain: string; label: string }) {
+  const [failed, setFailed] = useState(false)
+  const monogram = (label.trim()[0] || '?').toLocaleUpperCase()
+  if (!domain || failed) return <span className="corpus-logo-mark corpus-logo-monogram" aria-hidden="true">{monogram}</span>
+  return <span className="corpus-logo-mark"><img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`} alt="" loading="lazy" onError={() => setFailed(true)} /></span>
+}
+
+export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNotify: (message: string, tone: 'success' | 'error') => void }) {
   const { locale, tr, schemaText } = useLocale()
   const [manifest, setManifest] = useState<CorpusManifest | null>(null)
-  const [companiesText, setCompaniesText] = useState('3M | https://investors.3m.com/financials/annual-reports-proxy-statements')
-  const [years, setYears] = useState<number[]>(availableYears)
-  const [job, setJob] = useState<CorpusJob | null>(null)
-  const [starting, setStarting] = useState(false)
-  const [loadingBakuraku, setLoadingBakuraku] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CorpusDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [reviewing, setReviewing] = useState<CorpusDocument | null>(null)
@@ -51,30 +51,9 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   const displayCurrency = currencyPreference()
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
-  const restoreLatestJob = () => api.corpusJobs()
-    .then(async ({ jobs }) => {
-      const ordered = [...jobs].sort((left, right) => Date.parse(right.updated_at || right.created_at || '') - Date.parse(left.updated_at || left.created_at || ''))
-      const latest = ordered.find((item) => ['queued', 'running'].includes(item.status)) || ordered[0]
-      setJob(latest ? await api.corpusJob(latest.id) : null)
-    })
-    .catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not restore corpus progress.', 'コーパス進捗を復元できませんでした。'), 'error'))
-  const refreshAll = () => Promise.all([refresh(), restoreLatestJob()])
   useEffect(() => {
-    void refreshAll()
+    void refresh()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!job || !['queued', 'running'].includes(job.status)) return
-    const timer = window.setTimeout(async () => {
-      try {
-        const next = await api.corpusJob(job.id)
-        setJob(next)
-        if (next.status === 'complete') { await refresh(); onNotify(tr('Corpus discovery completed.', 'コーパス探索が完了しました。'), 'success') }
-        if (next.status === 'failed' || next.status === 'interrupted') onNotify(next.error || tr('Corpus discovery failed.', 'コーパス探索に失敗しました。'), 'error')
-      } catch (error) { onNotify(error instanceof Error ? error.message : tr('Could not read corpus progress.', 'コーパス進捗を取得できませんでした。'), 'error') }
-    }, 1500)
-    return () => window.clearTimeout(timer)
-  }, [job, onNotify]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!pendingDelete) return
@@ -84,34 +63,6 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [pendingDelete, deleting])
-
-  const companies = useMemo(() => companiesText.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [name, officialUrl = '', country = 'US'] = line.split('|').map((part) => part.trim())
-    return { name, official_url: officialUrl, country: country || 'US' }
-  }).filter((item) => item.name), [companiesText])
-
-  const loadBakuraku = async () => {
-    setLoadingBakuraku(true)
-    try {
-      const result = await api.bakurakuCustomers()
-      const usable = result.customers.filter((item) => item.company_name)
-      setCompaniesText(usable.map((item) => `${item.company_name} | ${item.official_website} | JP`).join('\n'))
-      onNotify(tr(`Loaded all ${usable.length} verified Bakuraku customers.`, `確認済みバクラク顧客${usable.length}社を読み込みました。`), 'success')
-    } catch (error) { onNotify(error instanceof Error ? error.message : tr('Could not load the Bakuraku customer research.', 'バクラク顧客調査を読み込めませんでした。'), 'error') }
-    finally { setLoadingBakuraku(false) }
-  }
-
-  const start = async () => {
-    if (!settings?.has_firecrawl_key) { onNotify(tr('Add your Firecrawl key in Settings first.', '先に設定でFirecrawlキーを追加してください。'), 'error'); return }
-    if (!companies.length || !years.length) { onNotify(tr('Add a company and at least one year.', '会社と1つ以上の年度を追加してください。'), 'error'); return }
-    setStarting(true)
-    try {
-      const response = await api.startCorpusJob({ companies, years, deep_search: true })
-      setJob({ id: response.job_id, status: 'queued', events: [] })
-      onNotify(tr('Corpus discovery is running in the background.', 'コーパス探索をバックグラウンドで実行しています。'), 'success')
-    } catch (error) { onNotify(error instanceof Error ? error.message : tr('Could not start corpus discovery.', 'コーパス探索を開始できませんでした。'), 'error') }
-    finally { setStarting(false) }
-  }
 
   const confirmDelete = async () => {
     if (!pendingDelete) return
@@ -174,12 +125,6 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     } finally { setSavingReview(false) }
   }
 
-  const latestEvents = [...(job?.events || [])]
-    .sort((left, right) => Date.parse(String(right.at || '')) - Date.parse(String(left.at || '')))
-    .slice(0, 8)
-    .map((event) => event.type === 'downloaded' && event.company && event.year && !manifest?.documents.some(
-      (document) => document.company === event.company && Number(document.fiscal_year) === Number(event.year),
-    ) ? { ...event, type: 'invalidated', message: tr('Not retained after source audit', 'ソース監査後に不採用') } : event)
   const companyGroups = useMemo(() => {
     const needle = tableQuery.trim().toLocaleLowerCase()
     const groups: Record<string, { company: string; target?: CorpusTarget; documents: CorpusDocument[] }> = {}
@@ -191,6 +136,9 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     }
     return Object.values(groups)
       .map((group) => ({ ...group, documents: [...group.documents].sort((left, right) => right.fiscal_year - left.fiscal_year) }))
+      // The library lists only companies whose reports are actually pinned;
+      // research targets without a stored report are not corpus members.
+      .filter((group) => group.documents.length > 0)
       .filter((group) => !needle || `${group.company} ${group.target?.official_url || ''} ${group.documents.map((document) => `${document.filename} ${document.fiscal_year}`).join(' ')}`.toLocaleLowerCase().includes(needle))
       .sort((left, right) => {
         if (left.company.trim().toLocaleLowerCase() === '3m') return -1
@@ -199,6 +147,25 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
         return left.company.localeCompare(right.company)
       })
   }, [manifest, tableQuery])
+  const crawledCompanies = useMemo(() => {
+    const targetByCompany = new Map((manifest?.targets || []).map((target) => [target.company, target]))
+    const seen = new Map<string, { company: string; domain: string; years: number[] }>()
+    for (const document of manifest?.documents || []) {
+      const target = targetByCompany.get(document.company)
+      const domain = officialHost(target?.official_url) || (document.official_source_verified ? officialHost(document.source_url) : '')
+      const entry = seen.get(document.company) || { company: document.company, domain, years: [] }
+      if (!entry.domain && domain) entry.domain = domain
+      entry.years.push(document.fiscal_year)
+      seen.set(document.company, entry)
+    }
+    return [...seen.values()]
+      .map((entry) => ({ ...entry, years: [...entry.years].sort() }))
+      .sort((left, right) => {
+        if (left.company.trim().toLocaleLowerCase() === '3m') return -1
+        if (right.company.trim().toLocaleLowerCase() === '3m') return 1
+        return left.company.localeCompare(right.company)
+      })
+  }, [manifest])
   const isVerified = (document: CorpusDocument) => ['assignment_supplied', 'human_verified', 'independently_verified'].includes(document.verification_status || '')
   const screeningState = (document: CorpusDocument) => document.screened === 'unreadable' ? 'unreadable' : isVerified(document) ? 'verified' : 'review'
   const toggleCompany = (company: string) => setExpandedCompanies((current) => {
@@ -209,18 +176,6 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   })
   const reviewAnswerUnit = `M ${displayCurrency.currency}`
   const reviewIsImmutable = Boolean(verification?.immutable) || verification?.status === 'assignment_supplied'
-  const eventLabel = (type: unknown) => {
-    const labels: Record<string, string> = {
-      discovering: tr('Finding reports', 'レポートを探索'),
-      discovered: tr('Reports found', 'レポートを発見'),
-      downloaded: tr('Downloaded', 'ダウンロード済み'),
-      invalidated: tr('Rejected after audit', '監査後に不採用'),
-      failed: tr('Needs attention', '要確認'),
-      retry: tr('Retrying', '再試行中'),
-    }
-    const key = String(type || 'update')
-    return labels[key] || tr('Update', '更新')
-  }
   const companyLabel = (company: string, officialUrl = '') => {
     if (locale === 'ja' || company.trim().toLocaleLowerCase() === '3m') return company
     return englishCompanyNames[company] || officialHost(officialUrl) || company
@@ -238,34 +193,27 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
   }
   return (
     <div className="page corpus-page">
-      <header className="page-header"><div><div className="page-kicker">{tr('Cloud benchmark data', 'クラウドベンチマークデータ')}</div><h1>{tr('Annual Report corpus', '年次報告書コーパス')}</h1><p>{tr('Discover official Annual Reports with Firecrawl, download the PDFs, verify their fiscal year from inside the document, and pin every file by SHA-256.', 'Firecrawlで公式年次報告書を探索し、PDFをダウンロードして文書内の会計年度を検証し、SHA-256で固定します。')}</p></div></header>
+      <header className="page-header"><div><div className="page-kicker">{tr('Cloud benchmark data', 'クラウドベンチマークデータ')}</div><h1>{tr('Annual Report corpus', '年次報告書コーパス')}</h1><p>{tr('This golden dataset was crawled once with the Firecrawl API from official sources, screened locally, pinned by SHA-256, and verified. Crawling is now closed; the library below is the frozen benchmark corpus.', 'このゴールデンデータセットはFirecrawl APIで公式ソースから一度だけクロールし、ローカルで検査してSHA-256で固定・検証したものです。クロールは終了しており、以下のライブラリが凍結済みベンチマークコーパスです。')}</p></div></header>
       <div className="corpus-summary">
-        <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies ?? 0}</strong><small>{tr(`${manifest?.summary.companies_with_reports ?? 0} with stored reports`, `保存済みレポートあり ${manifest?.summary.companies_with_reports ?? 0}社`)}</small></Card>
+        <Card><span>{tr('Companies', '会社')}</span><strong>{manifest?.summary.companies_with_reports ?? manifest?.summary.companies ?? 0}</strong><small>{tr('with pinned reports in the corpus', 'コーパスに固定レポートあり')}</small></Card>
         <Card><span>{tr('Documents', '文書')}</span><strong>{manifest?.summary.documents ?? 0}</strong><small>FY2020–FY2025</small></Card>
         <Card><span>{tr('Benchmark verified', 'ベンチマーク検証済み')}</span><strong>{manifest?.summary.verified ?? 0}</strong><small>{tr('assignment gold or human approved', '課題正解または人による承認')}</small></Card>
         <Card><span>{tr('Ready for human review', '人による確認待ち')}</span><strong>{manifest?.summary.human_review_required ?? 0}</strong><small>{tr('PDF answers are extracted and prefilled', 'PDF回答を抽出して入力済み')}</small></Card>
       </div>
 
-      <div className="corpus-layout">
-        <Card className="corpus-builder">
-          <SectionHeading eyebrow={tr('Discovery job', '探索ジョブ')} title={tr('Crawl official report libraries', '公式レポートライブラリをクロール')} description={tr('One company per line: name | official website | country.', '1行に1社：会社名｜公式サイト｜国。')} action={<Button variant="secondary" onClick={loadBakuraku} disabled={loadingBakuraku}><Sparkles size={15} /> {loadingBakuraku ? tr('Loading…', '読込中…') : tr('Load 112 Bakuraku customers', 'バクラク顧客112社を読込')}</Button>} />
-          <label className="large-field"><span>{tr('Companies and official websites', '会社と公式サイト')}</span><textarea rows={7} value={companiesText} onChange={(event) => setCompaniesText(event.target.value)} placeholder="3M | https://investors.3m.com/financials/annual-reports-proxy-statements" /></label>
-          <div className="year-picker"><span>{tr('Fiscal years', '会計年度')}</span><div>{availableYears.map((year) => <label key={year} className={years.includes(year) ? 'is-selected' : ''}><input type="checkbox" checked={years.includes(year)} onChange={() => setYears((current) => current.includes(year) ? current.filter((item) => item !== year) : [...current, year])} />FY{year}</label>)}</div></div>
-          <div className="storage-pattern"><FolderSearch2 size={20} /><div><strong>{tr('Persistent AWS storage', 'AWS永続ストレージ')}</strong><code>corpus_dataset/company/year/company_annual_report_year.pdf</code></div></div>
-          <Button className="corpus-start" onClick={start} disabled={starting || job?.status === 'queued' || job?.status === 'running'}>{job?.status === 'running' || job?.status === 'queued' ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {job?.status === 'running' || job?.status === 'queued' ? tr('Discovery running in background', 'バックグラウンドで探索中') : tr('Discover and download reports', 'レポートを探索してダウンロード')}</Button>
-        </Card>
-
-        <Card className="corpus-progress">
-          <SectionHeading eyebrow={tr('Background worker', 'バックグラウンドワーカー')} title={tr('Discovery activity', '探索アクティビティ')} description={tr('Firecrawl finds links; the AWS worker downloads and screens each PDF before replacing its canonical company/year file.', 'Firecrawlでリンクを発見し、AWSワーカーがPDFをダウンロード・検査して会社・年度ごとの標準ファイルを置き換えます。')} action={<Button variant="ghost" onClick={() => void refreshAll()}><RefreshCw size={15} /> {tr('Refresh', '更新')}</Button>} />
-          {!job ? <EmptyState icon={<FolderSearch2 size={21} />} title={tr('No active discovery', '実行中の探索はありません')} description={tr('Start with one company, verify the result, then scale the company list.', 'まず1社で結果を確認してから会社リストを拡大してください。')} /> : <>
-            <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' || job.status === 'interrupted' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' || job.status === 'interrupted' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}{job.updated_at ? ` · ${tr('updated', '更新')} ${new Date(job.updated_at).toLocaleString()}` : ''}</small></div></div>
-            <div className="job-events">{latestEvents.map((event, index) => <div key={`${String(event.at)}-${index}`}><span>{eventLabel(event.type)}</span><strong>{[event.company && companyLabel(String(event.company)), event.year && `FY${event.year}`, event.message || event.screened].filter(Boolean).join(' · ')}</strong></div>)}</div>
-          </>}
-        </Card>
-      </div>
+      <Card className="corpus-provenance">
+        <SectionHeading eyebrow={tr('Golden dataset provenance', 'ゴールデンデータセットの出所')} title={tr('How Firecrawl built this corpus', 'Firecrawlによるコーパス構築の方法')} description={tr('Every stored report below came from one bounded Firecrawl acquisition pass; no further crawling runs from this page.', '以下の全レポートは一度の限定的なFirecrawl取得パスで収集されたものです。このページから新たなクロールは実行されません。')} />
+        <div className="firecrawl-explainer">
+          <div className="firecrawl-step"><span>1</span><div><strong>{tr('Discover official sources', '公式ソースを探索')}</strong><p>{tr('Firecrawl map and search located each company’s official annual-report library, securities-report page, or public-gazette filing — never arbitrary search hits.', 'Firecrawlのmap/searchで各社の公式年次報告書ライブラリ、有価証券報告書ページ、官報公告を特定しました。任意の検索結果は採用していません。')}</p></div></div>
+          <div className="firecrawl-step"><span>2</span><div><strong>{tr('Download & screen locally', 'ダウンロードとローカル検査')}</strong><p>{tr('Ledger downloaded each candidate PDF directly, then confirmed company identity, annual-document type, fiscal year, and a readable balance sheet from inside the file.', 'LedgerがPDFを直接ダウンロードし、ファイル内部から会社の同一性、年次文書種別、会計年度、貸借対照表の可読性を確認しました。')}</p></div></div>
+          <div className="firecrawl-step"><span>3</span><div><strong>{tr('Pin & verify', '固定と検証')}</strong><p>{tr('Accepted files are pinned by SHA-256; answer tables are verified against that exact hash, and unscorable rows stay explicitly unscorable rather than fabricated.', '採用ファイルはSHA-256で固定し、回答表はそのハッシュに対して検証します。評価不能な行は捏造せず、明示的に評価対象外のまま保持します。')}</p></div></div>
+        </div>
+        <div className="corpus-logo-grid">{crawledCompanies.map((entry) => <div className="corpus-logo-tile" key={entry.company} title={entry.company}><CompanyLogo domain={entry.domain} label={companyLabel(entry.company)} /><span><strong>{companyLabel(entry.company)}</strong><small>{entry.years.map((year) => `FY${year}`).join(' · ')}</small></span></div>)}</div>
+        <p className="corpus-provenance-footnote"><Flame size={14} /> {tr('The crawl phase is complete and the remaining Firecrawl credits are reserved; this corpus is frozen for benchmarking.', 'クロール工程は完了し、残りのFirecrawlクレジットは温存しています。このコーパスはベンチマーク用に凍結済みです。')}</p>
+      </Card>
 
       <Card className="corpus-table-card">
-        <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Annual Report Library', '年次報告書ライブラリ')} description={tr('One row per company across 100 evidence-backed research targets. Expand stored reports by fiscal year; pending targets remain clearly unverified.', '根拠のある調査対象100社を会社ごとに1行表示します。保存済みレポートは年度別に展開でき、未取得対象は未検証として明示されます。')} action={<label className="search-field corpus-table-search"><Search size={15} /><input value={tableQuery} onChange={(event) => setTableQuery(event.target.value)} placeholder={tr('Search companies or years', '会社または年度を検索')} /></label>} />
+        <SectionHeading eyebrow={tr('Pinned manifest', '固定マニフェスト')} title={tr('Annual Report Library', '年次報告書ライブラリ')} description={tr('One row per company actually held in the corpus, each report pinned by SHA-256. Expand a company to inspect its fiscal years.', 'コーパスに実際に保存されている会社のみを1行ずつ表示し、各レポートはSHA-256で固定されています。会社を展開すると年度別に確認できます。')} action={<label className="search-field corpus-table-search"><Search size={15} /><input value={tableQuery} onChange={(event) => setTableQuery(event.target.value)} placeholder={tr('Search companies or years', '会社または年度を検索')} /></label>} />
         {!companyGroups.length ? <EmptyState icon={<Search size={21} />} title={tr('No matching companies', '一致する会社がありません')} description={tr('Try a different company name or fiscal year.', '別の会社名または年度をお試しください。')} /> : <div className="table-wrap corpus-company-table-wrap"><table className="corpus-table corpus-company-table"><thead><tr>
           <th>{tr('Company / PDF name', '会社／PDF名')}</th><th>{tr('Fiscal year', '会計年度')}</th><th>{tr('Screening', '検査')}</th><th>{tr('Answers', '回答')}</th><th>{tr('Source', 'ソース')}</th><th className="corpus-delete-column">{tr('Delete', '削除')}</th>
         </tr></thead><tbody>{companyGroups.flatMap(({ company, documents, target }) => {

@@ -548,8 +548,11 @@ from providers import (DEFAULT_PROVIDER, PROVIDERS, REASONING_EFFORTS, cache_usa
                        get_provider, reasoning_payload)
 
 check("OpenRouter is the default provider", DEFAULT_PROVIDER == "openrouter")
-check("DeepSeek V4 Flash is the default model",
-      PROVIDERS["openrouter"].default_model == "deepseek/deepseek-v4-flash-0731")
+check("Gemini 3.7 Flash is the default OpenRouter model",
+      PROVIDERS["openrouter"].default_model == "google/gemini-3.7-flash")
+check("both wired OpenRouter models are offered",
+      {"google/gemini-3.7-flash", "openai/gpt-5-mini"}
+      <= set(PROVIDERS["openrouter"].suggested_models))
 check("Z.AI uses the thinking parameter",
       "thinking" in reasoning_payload(get_provider("zai"), "high"))
 check("OpenRouter uses the reasoning parameter",

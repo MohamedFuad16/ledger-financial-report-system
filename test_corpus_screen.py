@@ -47,6 +47,21 @@ U.S. dollars in millions
 """
         self.assertEqual("JPY", _statement_currency(text, 132))
 
+    def test_annual_report_with_quarterly_cross_reference_is_still_annual(self):
+        from corpus.screen import _is_annual_document
+
+        annual = (
+            "【表紙】\n【提出書類】\n有価証券報告書\n【根拠条文】\n金融商品取引法第24条第１項\n"
+            "【会社名】\nテスト株式会社\n"
+            "……当社は四半期報告書を関東財務局長に提出しています。\n"
+        )
+        quarterly = (
+            "【表紙】\n【提出書類】\n四 半 期 報 告 書\n【根拠条文】\n金融商品取引法第24条の４の７第１項\n"
+            "【会社名】\nテスト株式会社\n"
+        )
+        self.assertTrue(_is_annual_document(annual))
+        self.assertFalse(_is_annual_document(quarterly))
+
     def test_statement_year_uses_current_not_comparative_year(self):
         text = """--- PAGE 5 ---
 連結貸借対照表

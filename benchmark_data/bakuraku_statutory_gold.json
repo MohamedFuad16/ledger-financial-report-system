@@ -116,7 +116,7 @@
       "fiscal_year": "2022",
       "currency": "JPY",
       "value_scale": "millions",
-      "source_value_quantum": 0.001,
+      "source_value_quantum": 1.0,
       "status": "independently_verified_partial",
       "scorable_rows": 1,
       "unscorable_rows": [
@@ -332,7 +332,7 @@
       "fiscal_year": "2025",
       "currency": "JPY",
       "value_scale": "millions",
-      "source_value_quantum": 0.001,
+      "source_value_quantum": 1.0,
       "status": "independently_verified_partial",
       "scorable_rows": 1,
       "unscorable_rows": [
@@ -1034,7 +1034,7 @@
       "fiscal_year": "2025",
       "currency": "JPY",
       "value_scale": "millions",
-      "source_value_quantum": 0.001,
+      "source_value_quantum": 1.0,
       "status": "independently_verified_partial",
       "scorable_rows": 1,
       "unscorable_rows": [

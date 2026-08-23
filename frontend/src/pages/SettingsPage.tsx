@@ -12,6 +12,7 @@ function ProviderLogo({ providerKey }: { providerKey: string }) {
     openai: { src: '/providers/openai.svg', alt: 'OpenAI' },
     zai: { src: '/providers/zai.svg', alt: 'Z.AI' },
     'zai-coding': { src: '/providers/zai.svg', alt: 'Z.AI' },
+    glm: { src: '/providers/zai.svg', alt: 'Z.AI' },
   }
   const logo = logos[providerKey]
   return <span className={`provider-mark provider-mark-${providerKey}`}>{logo ? <img src={logo.src} alt={`${logo.alt} logo`} /> : <Cable size={18} strokeWidth={1.9} />}</span>
@@ -50,6 +51,25 @@ export function SettingsPage({
   const [outputCurrency, setOutputCurrency] = useState<DisplayCurrency>(() => currencyPreference().currency)
   const [jpyPerUsd, setJpyPerUsd] = useState(() => currencyPreference().jpyPerUsd)
   const provider = useMemo(() => providers.find((item) => item.key === providerKey), [providers, providerKey])
+  const GLM_KEYS = ['zai-coding', 'zai']
+  const isGlmSelected = GLM_KEYS.includes(providerKey)
+  // One tile represents both GLM destinations; the endpoint toggle below picks
+  // between the Coding Plan endpoint and the Open Platform base URL.
+  const displayProviders = useMemo(() => {
+    const merged: (ProviderInfo & { glmGroup?: boolean })[] = []
+    for (const item of providers) {
+      if (GLM_KEYS.includes(item.key)) {
+        if (!merged.some((entry) => entry.glmGroup)) merged.push({ ...item, key: 'glm', glmGroup: true })
+        continue
+      }
+      merged.push(item)
+    }
+    return merged
+  }, [providers])
+  const wiredOpenRouterModels = [
+    { id: 'google/gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
+    { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini' },
+  ]
   const providerCredentialSaved = Boolean(settings?.has_key && settings.provider === providerKey && settings.base_url.replace(/\/$/, '') === baseUrl.replace(/\/$/, ''))
   const finiteRate = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback
 
@@ -63,8 +83,11 @@ export function SettingsPage({
   }, [outputCurrency, jpyPerUsd])
 
   const chooseProvider = (key: string) => {
-    const next = providers.find((item) => item.key === key)
-    setProviderKey(key)
+    // The merged GLM tile keeps the currently selected GLM endpoint and
+    // defaults new selections to the Coding Plan endpoint.
+    const resolved = key === 'glm' ? (isGlmSelected ? providerKey : 'zai-coding') : key
+    const next = providers.find((item) => item.key === resolved)
+    setProviderKey(resolved)
     if (next) { setModel(next.default_model); setBaseUrl(next.base_url) }
   }
 
@@ -100,7 +123,16 @@ export function SettingsPage({
         <div className="settings-stack">
         <Card className="settings-main">
           <SectionHeading eyebrow={tr('Provider', 'プロバイダー')} title={tr('Model gateway', 'モデルゲートウェイ')} description={tr('Changing the destination requires re-entering the API key.', '接続先を変更する場合はAPIキーの再入力が必要です。')} />
-          <div className="provider-grid">{providers.map((item) => <button className={providerKey === item.key ? 'is-selected' : ''} onClick={() => chooseProvider(item.key)} key={item.key}><ProviderLogo providerKey={item.key} /><span><strong>{item.label}</strong><small>{item.automatic_prompt_caching ? tr('Automatic prompt cache', '自動プロンプトキャッシュ') : item.reasoning_style === 'thinking' ? tr('GLM thinking mode', 'GLM思考モード') : tr('Compatible endpoint', '互換エンドポイント')}</small></span>{providerKey === item.key && <CheckCircle2 size={16} />}</button>)}</div>
+          <div className="provider-grid">{displayProviders.map((item) => {
+            const selected = item.key === 'glm' ? isGlmSelected : providerKey === item.key
+            const subtitle = item.key === 'glm'
+              ? tr('Coding Plan or Open Platform endpoint', 'コーディングプラン／オープンプラットフォーム')
+              : item.automatic_prompt_caching ? tr('Automatic prompt cache', '自動プロンプトキャッシュ') : item.reasoning_style === 'thinking' ? tr('GLM thinking mode', 'GLM思考モード') : tr('Compatible endpoint', '互換エンドポイント')
+            const label = item.key === 'glm' ? 'GLM (Z.AI)' : item.label
+            return <button className={selected ? 'is-selected' : ''} onClick={() => chooseProvider(item.key)} key={item.key}><ProviderLogo providerKey={item.key} /><span><strong>{label}</strong><small>{subtitle}</small></span>{selected && <CheckCircle2 size={16} />}</button>
+          })}</div>
+          {isGlmSelected && <div className="provider-subselect"><span><strong>{tr('GLM endpoint', 'GLMエンドポイント')}</strong><small>{tr('Coding Plan keys work only on the Coding Plan endpoint; Open Platform keys use the standard base URL.', 'コーディングプランのキーは専用エンドポイントのみで有効です。オープンプラットフォームのキーは標準ベースURLを使用します。')}</small></span><div className="segmented-control"><button type="button" className={providerKey === 'zai-coding' ? 'is-active' : ''} onClick={() => chooseProvider('zai-coding')}>{tr('Coding Plan', 'コーディングプラン')}</button><button type="button" className={providerKey === 'zai' ? 'is-active' : ''} onClick={() => chooseProvider('zai')}>{tr('Open Platform base URL', 'オープンプラットフォームURL')}</button></div></div>}
+          {providerKey === 'openrouter' && <div className="provider-subselect"><span><strong>{tr('OpenRouter model', 'OpenRouterモデル')}</strong><small>{tr('Both wired models are cheap and fast; Gemini 3.7 Flash is the default. Any other OpenRouter model ID can still be typed below.', 'どちらも低コストで高速です。既定はGemini 3.7 Flashです。他のモデルIDも下の欄に直接入力できます。')}</small></span><div className="segmented-control">{wiredOpenRouterModels.map((item) => <button type="button" key={item.id} className={model === item.id ? 'is-active' : ''} onClick={() => setModel(item.id)}>{item.label}</button>)}</div></div>}
           <div className="settings-fields">
             <CredentialField label={tr('Provider API key', 'プロバイダーAPIキー')} value={apiKey} onChange={setApiKey} saved={providerCredentialSaved} masked={settings?.api_key_masked || ''} placeholder={providerCredentialSaved ? tr('Enter replacement key', '置換するキーを入力') : tr('Enter provider API key', 'プロバイダーAPIキーを入力')} icon="key" />
             <label><span>{tr('Model ID', 'モデルID')}</span><input value={model} onChange={(event) => setModel(event.target.value)} list="suggested-models" /><datalist id="suggested-models">{provider?.suggested_models.map((item) => <option value={item} key={item} />)}</datalist></label>

@@ -81,7 +81,10 @@ MAPPING GUIDANCE (general, not company-specific)
   component, move only that component (net of its related allowance) into
   Financial Assets; keep the undisclosed residual in Other Fixed Assets. The
   presence of a receivable allowance does not make the entire residual line a
-  financial asset.
+  financial asset. Move a component only when the note presents it as a
+  quantified financial instrument (a loan, deposit, or insurance-related
+  asset); an intercompany or related-party receivable mentioned narratively
+  inside a residual "other" line stays in Other Fixed Assets.
 - "Advance Payments" means amounts advanced to suppliers or paid on account. It
   is not prepaid expenses / prepaid taxes: those belong in Other Current Assets.
   If the report shows no advances line, Advance Payments is 0, not the prepaids
@@ -96,14 +99,23 @@ MAPPING GUIDANCE (general, not company-specific)
 - An unallocated allowance for doubtful accounts (貸倒引当金) offsets the
   corresponding receivable bucket: current allowances normally net Accounts
   Receivable - Trade, and long-term allowances normally net Other Financial
-  Assets. Do not move the allowance into residual Other Current Assets or Other
-  Fixed Assets unless the report explicitly ties it there.
+  Assets. This holds even when no financial receivable is separately presented
+  in the section — a small negative Other Financial Assets balance is the
+  correct result. Do not move the allowance into residual Other Current Assets
+  or Other Fixed Assets unless the report explicitly ties it there.
 - Deferred Charges means a separately presented deferred-assets/deferred-charges
   category (for example Japanese 繰延資産). Prepaid expenses and long-term prepaid
   expenses (長期前払費用) remain in Other Current Assets or Other Fixed Assets;
   they are not Deferred Charges merely because their cost is recognized over time.
   When no deferred-charges category is presented and Total Assets equals Current
   Assets plus Fixed Assets, Deferred Charges is the established residual 0, not null.
+- In a condensed statutory balance-sheet summary (貸借対照表の要旨), identify
+  Total Assets by reconciliation, never by size or repetition: the assets total
+  must equal the sum of the printed asset components AND equal liabilities plus
+  net assets computed from the printed equity components. The largest printed
+  figure is often a capital reserve, not the total, when the company carries an
+  accumulated deficit, and equity sub-lines (資本剰余金 and its 資本準備金
+  component) can legitimately print the same value twice.
 - Before returning, check each subtotal against the sum of its components and
   check Total Assets against the total printed in the report. Allow only the
   small arithmetic difference mathematically possible when the report prints
@@ -231,4 +243,77 @@ The uploaded PDF was converted to {extraction_note}
 Detect the fiscal year from the report, fill all {EXPECTED_ROW_COUNT} TARGET_SCHEMA rows,
 and return the required JSON including detected_fiscal_year and a confidence score for
 each row.
+"""
+
+
+def build_evidence_retry_prompt(
+    *,
+    additional_pages_text: str,
+    missing_items: list[str],
+    detected_fiscal_year: str = "",
+    output_currency: str = "USD",
+    original_packet_text: str = "",
+) -> str:
+    """
+    Second bounded Strategy 3 pass: the first semantic mapping left specific
+    schema rows without a value, so additional ranked pages are supplied and
+    only those rows are re-asked. Contains schema labels and parser output
+    only — never any expected value.
+    """
+    schema_json = json.dumps(ASSET_SCHEMA, ensure_ascii=False, indent=2)
+    currency = str(output_currency or "USD").strip().upper()
+    if not currency or not currency.replace("_", "").isalnum():
+        currency = "USD"
+    output_unit = f"M {currency}"
+    items_list = "\n".join(f"- {item}" for item in missing_items)
+    fy_note = (
+        f"The first pass detected fiscal year {detected_fiscal_year.strip()}.\n"
+        if detected_fiscal_year and detected_fiscal_year.strip()
+        else ""
+    )
+    packet_section = (
+        "PREVIOUSLY SUPPLIED PAGES (re-read them carefully — the correct figure "
+        "may already be here; distinguish look-alike note amounts by their labels)\n"
+        f"{original_packet_text}\n\n"
+        if original_packet_text.strip()
+        else ""
+    )
+    if not additional_pages_text.strip():
+        additional_section = (
+            "NO ADDITIONAL PAGES EXIST\n"
+            "The previously supplied pages are the complete readable content of "
+            "this report, so absence from them IS absence from the report — "
+            "apply the normal null/zero rules directly. For a partially garbled "
+            "statutory summary, commit the reading whose totals reconcile with "
+            "the printed components (with reduced confidence) rather than "
+            "returning null; never pick a figure merely because it is the "
+            "largest or appears twice.\n"
+        )
+    else:
+        additional_section = f"ADDITIONAL ANNUAL REPORT PAGES\n{additional_pages_text}\n"
+    return f"""TARGET_SCHEMA
+{schema_json}
+
+OUTPUT UNIT
+Return every monetary answer in {output_unit}. The legacy JSON field name
+"answer_m_usd" is retained for API compatibility; for this run it means {output_unit}.
+Use the report's own currency and scale. No foreign-exchange conversion is authorized.
+
+EVIDENCE RETRY
+A first extraction pass over other pages of the same Annual Report either could
+not establish values for the rows listed below or produced values that failed a
+deterministic balance-sheet identity check. {fy_note}Additional complete pages
+from the same report follow. Re-derive ONLY these rows from the additional
+evidence:
+
+{items_list}
+
+{packet_section}{additional_section}
+
+Return the full required JSON for all {EXPECTED_ROW_COUNT} TARGET_SCHEMA rows,
+including detected_fiscal_year and a confidence score per row. For the listed
+rows, supply a value only when these pages provide traceable evidence, following
+the same null/zero rules as before; check that related subtotals reconcile. For
+every row NOT listed above, return null; those rows are already answered and
+will not be read from this reply.
 """

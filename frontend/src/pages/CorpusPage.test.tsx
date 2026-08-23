@@ -75,6 +75,20 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+describe('CorpusPage provenance', () => {
+  it('shows the Firecrawl provenance explainer and company tiles instead of discovery controls', async () => {
+    vi.spyOn(api, 'corpus').mockResolvedValue(manifest)
+
+    render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
+
+    expect(await screen.findByText('How Firecrawl built this corpus')).toBeInTheDocument()
+    expect(screen.getByTitle('Example')).toHaveTextContent('FY2024')
+    expect(screen.queryByRole('button', { name: /Discover and download reports/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Load 112 Bakuraku customers/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Discovery activity')).not.toBeInTheDocument()
+  })
+})
+
 describe('CorpusPage answer review', () => {
   it('extracts and prefills PDF answers before allowing corrections and approval', async () => {
     vi.spyOn(api, 'corpus').mockResolvedValue(manifest)

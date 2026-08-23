@@ -212,12 +212,17 @@ def main() -> int:
     for record in accepted:
         unscorable = [item for item in canonical_items if item != "Total Assets"]
         total_m_jpy = int(record["total_assets_index_value_yen"]) / 1_000_000
+        # Gazette announcements print in 千円 or 百万円 depending on the
+        # company; the printed unit is the yen value divided by the printed
+        # number, and the exact-match tolerance must reflect that real
+        # precision instead of assuming thousand-yen everywhere.
+        printed_unit_yen = int(record["total_assets_index_value_yen"]) / int(record["source_amount"])
         documents[record["source_pdf_sha256"]] = {
             "company": record["registry_company"],
             "fiscal_year": str(record["fiscal_year"]),
             "currency": "JPY",
             "value_scale": "millions",
-            "source_value_quantum": 0.001,
+            "source_value_quantum": round(printed_unit_yen) / 1_000_000,
             "status": "independently_verified_partial",
             "scorable_rows": 1,
             "unscorable_rows": unscorable,

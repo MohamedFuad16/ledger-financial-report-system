@@ -98,6 +98,20 @@ export function DashboardPage({
         </Card>
       </div>
 
+      <Card className="chart-card latency-distribution-card">
+        <SectionHeading eyebrow={tr('Latency distribution', 'レイテンシ分布')} title={tr('Median (P50) end-to-end pass time', 'パス総時間の中央値（P50）')} description={tr('The median is computed over per-report pass means, so reruns of one report cannot skew the distribution. Tokens are provider-reported input tokens when available.', '中央値はレポート単位のパス平均から算出するため、同一レポートの再実行が分布を歪めません。トークンは可能な限りプロバイダー報告値を使用します。')} />
+        <div className="table-wrap"><table className="latency-table"><thead><tr><th>{tr('Strategy', '戦略')}</th><th>{tr('Passes', 'パス数')}</th><th>{tr('Reports', 'レポート')}</th><th>P50</th><th>{tr('Mean', '平均')}</th><th>{tr('Mean input tokens', '平均入力トークン')}</th></tr></thead><tbody>
+          {stats.map((entry) => <tr key={entry.key}>
+            <td><strong>{entry.label}</strong></td>
+            <td>{entry.passes}</td>
+            <td>{entry.reports}</td>
+            <td>{formatDuration(entry.p50Seconds)}</td>
+            <td>{formatDuration(entry.totalSeconds)}</td>
+            <td>{entry.inputTokens != null ? Math.round(entry.inputTokens).toLocaleString() : '—'}</td>
+          </tr>)}
+        </tbody></table></div>
+      </Card>
+
       <div className="dashboard-lower">
         <Card className="method-card conclusion-card">
           <SectionHeading eyebrow={tr('Current conclusion', '現在の結論')} title={conclusion} description={tr('This conclusion is calculated from the completed benchmark runs currently stored in the workspace.', 'この結論は、ワークスペースに保存された完了済みベンチマークから算出されます。')} />

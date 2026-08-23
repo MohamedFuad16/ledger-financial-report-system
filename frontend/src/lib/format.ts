@@ -167,6 +167,16 @@ export function groupParserStats(runs: RunSummary[], experiment: BenchmarkExperi
  * different report. Timing is end-to-end when available, with parse time only
  * as a compatibility fallback for older artifacts.
  */
+/** Linear-interpolated percentile over an unsorted sample; null when empty. */
+export function percentile(values: number[], fraction: number): number | null {
+  const sorted = values.filter(Number.isFinite).sort((left, right) => left - right)
+  if (!sorted.length) return null
+  const rank = (sorted.length - 1) * Math.min(1, Math.max(0, fraction))
+  const lower = Math.floor(rank)
+  const upper = Math.ceil(rank)
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (rank - lower)
+}
+
 export function groupExperimentStats(runs: RunSummary[]) {
   return (['no_ocr', 'ocr', 'intelligent_scan'] as const).map((experiment) => {
     const eligible = runs.filter((run) => run.experiment === experiment && reportCohortKey(run))
@@ -184,20 +194,24 @@ export function groupExperimentStats(runs: RunSummary[]) {
         totalSeconds: mean('total_seconds', 'extract_seconds'),
         accuracy: mean('accuracy'),
         coverage: mean('coverage'),
+        inputTokens: mean('input_tokens', 'approx_input_tokens'),
       }
     })
     const average = (field: keyof typeof passMeans[number]) => {
       const values = passMeans.map((item) => item[field]).filter((value): value is number => value != null)
       return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
     }
+    const secondsSample = passMeans.map((item) => item.totalSeconds).filter((value): value is number => value != null)
     return {
       key: experiment,
       ...comparisonExperimentMeta[experiment],
       passes: passGroups.length,
       reports: new Set(eligible.map(reportCohortKey)).size,
       totalSeconds: average('totalSeconds'),
+      p50Seconds: percentile(secondsSample, 0.5),
       accuracy: average('accuracy'),
       coverage: average('coverage'),
+      inputTokens: average('inputTokens'),
     }
   })
 }

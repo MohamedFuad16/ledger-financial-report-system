@@ -2,6 +2,15 @@
 
 Last verified: 22 August 2026
 
+> **Addendum (23 August 2026):** the corpus now holds 102 SHA-pinned, gold-backed
+> reports across 41 companies (year expansion acquired manually from EDINET
+> indexes; no Firecrawl credits spent). All stored answers were independently
+> re-verified against source pages; ambiguous rows are explicitly unscorable.
+> Strategy 3 gained a bounded evidence-retry loop, the public corpus page shows
+> provenance instead of discovery controls, and Settings merged the GLM
+> endpoints behind one toggle with wired OpenRouter models
+> (`google/gemini-3.7-flash` default, `openai/gpt-5-mini`).
+
 ## What is running
 
 Ledger is a split React/Flask application:

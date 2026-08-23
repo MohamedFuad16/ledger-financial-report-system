@@ -1,0 +1,626 @@
+[
+ {
+  "company": "AppBank株式会社",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100L16X.pdf",
+  "title": "有価証券報告書-第9期(令和2年1月1日-令和2年12月31日)",
+  "doc_id": "S100L16X",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "AppBank株式会社",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100NRYM.pdf",
+  "title": "有価証券報告書-第10期(令和3年1月1日-令和3年12月31日)",
+  "doc_id": "S100NRYM",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "AppBank株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100T6CG.pdf",
+  "title": "有価証券報告書-第12期(2023/01/01-2023/12/31)",
+  "doc_id": "S100T6CG",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "AppBank株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100XVHM.pdf",
+  "title": "有価証券報告書-第14期(2025/01/01-2025/12/31)",
+  "doc_id": "S100XVHM",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "note株式会社",
+  "year": 2020,
+  "unavailable": true,
+  "reason": "no annual securities report with a period ending in this year on the EDINET index"
+ },
+ {
+  "company": "note株式会社",
+  "year": 2021,
+  "unavailable": true,
+  "reason": "no annual securities report with a period ending in this year on the EDINET index"
+ },
+ {
+  "company": "note株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100SY1F.pdf",
+  "title": "有価証券報告書-第12期(2022/12/01-2023/11/30)",
+  "doc_id": "S100SY1F",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "note株式会社",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100VAPS.pdf",
+  "title": "有価証券報告書-第13期(2023/12/01-2024/11/30)",
+  "doc_id": "S100VAPS",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "note株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100XMWX.pdf",
+  "title": "有価証券報告書-第14期(2024/12/01-2025/11/30)",
+  "doc_id": "S100XMWX",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ダイニチ工業株式会社",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100IW3P.pdf",
+  "title": "有価証券報告書-第57期(平成31年4月1日-令和2年3月31日)",
+  "doc_id": "S100IW3P",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ダイニチ工業株式会社",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LN68.pdf",
+  "title": "有価証券報告書-第58期(令和2年4月1日-令和3年3月31日)",
+  "doc_id": "S100LN68",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ダイニチ工業株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100R4W2.pdf",
+  "title": "有価証券報告書-第60期(2022/04/01-2023/03/31)",
+  "doc_id": "S100R4W2",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ダイニチ工業株式会社",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TQJ0.pdf",
+  "title": "有価証券報告書-第61期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TQJ0",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ダイニチ工業株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W3U0.pdf",
+  "title": "有価証券報告書-第62期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W3U0",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ラクスル株式会社",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100JZEF.pdf",
+  "title": "有価証券報告書-第11期(令和1年8月1日-令和2年7月31日)",
+  "doc_id": "S100JZEF",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ラクスル株式会社",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100MNBZ.pdf",
+  "title": "有価証券報告書-第12期(令和2年8月1日-令和3年7月31日)",
+  "doc_id": "S100MNBZ",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ラクスル株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100S1UH.pdf",
+  "title": "有価証券報告書-第14期(2022/08/01-2023/07/31)",
+  "doc_id": "S100S1UH",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ラクスル株式会社",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UK9Z.pdf",
+  "title": "有価証券報告書-第15期(2023/08/01-2024/07/31)",
+  "doc_id": "S100UK9Z",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "ラクスル株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100WW0E.pdf",
+  "title": "有価証券報告書-第16期(2024/08/01-2025/07/31)",
+  "doc_id": "S100WW0E",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "リソルホールディングス株式会社",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100J2US.pdf",
+  "title": "有価証券報告書-第127期(平成31年4月1日-令和2年3月31日)",
+  "doc_id": "S100J2US",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "リソルホールディングス株式会社",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LV8O.pdf",
+  "title": "有価証券報告書-第128期(令和2年4月1日-令和3年3月31日)",
+  "doc_id": "S100LV8O",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "リソルホールディングス株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100RA6Y.pdf",
+  "title": "有価証券報告書-第130期(2022/04/01-2023/03/31)",
+  "doc_id": "S100RA6Y",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "リソルホールディングス株式会社",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TWR2.pdf",
+  "title": "有価証券報告書-第131期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TWR2",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "リソルホールディングス株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W6E1.pdf",
+  "title": "有価証券報告書-第132期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W6E1",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社グッドパッチ",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100K9YM.pdf",
+  "title": "有価証券報告書-第9期(令和1年9月1日-令和2年8月31日)",
+  "doc_id": "S100K9YM",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社グッドパッチ",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100MYNP.pdf",
+  "title": "有価証券報告書-第10期(令和2年9月1日-令和3年8月31日)",
+  "doc_id": "S100MYNP",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社グッドパッチ",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100SD3A.pdf",
+  "title": "有価証券報告書-第12期(2022/09/01-2023/08/31)",
+  "doc_id": "S100SD3A",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社グッドパッチ",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UV57.pdf",
+  "title": "有価証券報告書-第13期(2023/09/01-2024/08/31)",
+  "doc_id": "S100UV57",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社グッドパッチ",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100X6Y8.pdf",
+  "title": "有価証券報告書-第14期(2024/09/01-2025/08/31)",
+  "doc_id": "S100X6Y8",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ストライダーズ",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100IT88.pdf",
+  "title": "有価証券報告書-第56期(平成31年4月1日-令和2年3月31日)",
+  "doc_id": "S100IT88",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ストライダーズ",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LK4X.pdf",
+  "title": "有価証券報告書-第57期(令和2年4月1日-令和3年3月31日)",
+  "doc_id": "S100LK4X",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ストライダーズ",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100R2AV.pdf",
+  "title": "有価証券報告書-第59期(2022/04/01-2023/03/31)",
+  "doc_id": "S100R2AV",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ストライダーズ",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TP9W.pdf",
+  "title": "有価証券報告書-第60期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TP9W",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ストライダーズ",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W17P.pdf",
+  "title": "有価証券報告書-第61期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W17P",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社プレイド",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100KGCX.pdf",
+  "title": "有価証券報告書-第9期(令和1年10月1日-令和2年9月30日)",
+  "doc_id": "S100KGCX",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社プレイド",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100N4IA.pdf",
+  "title": "有価証券報告書-第10期(令和2年10月1日-令和3年9月30日)",
+  "doc_id": "S100N4IA",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社プレイド",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100SILW.pdf",
+  "title": "有価証券報告書-第12期(2022/10/01-2023/09/30)",
+  "doc_id": "S100SILW",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社プレイド",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UZ8M.pdf",
+  "title": "有価証券報告書-第13期(2023/10/01-2024/09/30)",
+  "doc_id": "S100UZ8M",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社プレイド",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100XAX3.pdf",
+  "title": "有価証券報告書-第14期(2024/10/01-2025/09/30)",
+  "doc_id": "S100XAX3",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ベルク",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100IOQJ.pdf",
+  "title": "有価証券報告書-第61期(平成31年3月1日-令和2年2月29日)",
+  "doc_id": "S100IOQJ",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ベルク",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LF0I.pdf",
+  "title": "有価証券報告書-第62期(令和2年3月1日-令和3年2月28日)",
+  "doc_id": "S100LF0I",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ベルク",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100QTSP.pdf",
+  "title": "有価証券報告書-第64期(2022/03/01-2023/02/28)",
+  "doc_id": "S100QTSP",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ベルク",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100THFF.pdf",
+  "title": "有価証券報告書-第65期(2023/03/01-2024/02/29)",
+  "doc_id": "S100THFF",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社ベルク",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100VSN7.pdf",
+  "title": "有価証券報告書-第66期(2024/03/01-2025/02/28)",
+  "doc_id": "S100VSN7",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社帝国ホテル",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100J1DM.pdf",
+  "title": "有価証券報告書-第179期(平成31年4月1日-令和2年3月31日)",
+  "doc_id": "S100J1DM",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社帝国ホテル",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LNYJ.pdf",
+  "title": "有価証券報告書-第180期(令和2年4月1日-令和3年3月31日)",
+  "doc_id": "S100LNYJ",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社帝国ホテル",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100R71G.pdf",
+  "title": "有価証券報告書-第182期(2022/04/01-2023/03/31)",
+  "doc_id": "S100R71G",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社帝国ホテル",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TU84.pdf",
+  "title": "有価証券報告書-第183期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TU84",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社帝国ホテル",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W0PW.pdf",
+  "title": "有価証券報告書-第184期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W0PW",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社アップガレージグループ",
+  "year": 2020,
+  "unavailable": true,
+  "reason": "no annual securities report with a period ending in this year on the EDINET index"
+ },
+ {
+  "company": "株式会社アップガレージグループ",
+  "year": 2021,
+  "unavailable": true,
+  "reason": "no annual securities report with a period ending in this year on the EDINET index"
+ },
+ {
+  "company": "株式会社アップガレージグループ",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100R6TO.pdf",
+  "title": "有価証券報告書-第9期(2022/04/01-2023/03/31)",
+  "doc_id": "S100R6TO",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社アップガレージグループ",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TW7L.pdf",
+  "title": "有価証券報告書-第10期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TW7L",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社アップガレージグループ",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W2GN.pdf",
+  "title": "有価証券報告書-第11期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W2GN",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社トーエネック",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100J0KO.pdf",
+  "title": "有価証券報告書-第102期(平成31年4月1日-令和2年3月31日)",
+  "doc_id": "S100J0KO",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社トーエネック",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100LRO6.pdf",
+  "title": "有価証券報告書-第103期(令和2年4月1日-令和3年3月31日)",
+  "doc_id": "S100LRO6",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社トーエネック",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100R7IM.pdf",
+  "title": "有価証券報告書-第105期(2022/04/01-2023/03/31)",
+  "doc_id": "S100R7IM",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社トーエネック",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TV1S.pdf",
+  "title": "有価証券報告書-第106期(2023/04/01-2024/03/31)",
+  "doc_id": "S100TV1S",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "株式会社トーエネック",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W5OK.pdf",
+  "title": "有価証券報告書-第107期(2024/04/01-2025/03/31)",
+  "doc_id": "S100W5OK",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "西尾レントオール株式会社",
+  "year": 2020,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100KDTZ.pdf",
+  "title": "有価証券報告書-第62期(令和1年10月1日-令和2年9月30日)",
+  "doc_id": "S100KDTZ",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "西尾レントオール株式会社",
+  "year": 2021,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100N2XQ.pdf",
+  "title": "有価証券報告書-第63期(令和2年10月1日-令和3年9月30日)",
+  "doc_id": "S100N2XQ",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "西尾レントオール株式会社",
+  "year": 2023,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100SHP9.pdf",
+  "title": "有価証券報告書-第65期(2022/10/01-2023/09/30)",
+  "doc_id": "S100SHP9",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "西尾レントオール株式会社",
+  "year": 2024,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100UYS5.pdf",
+  "title": "有価証券報告書-第66期(2023/10/01-2024/09/30)",
+  "doc_id": "S100UYS5",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ },
+ {
+  "company": "西尾レントオール株式会社",
+  "year": 2025,
+  "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100XB09.pdf",
+  "title": "有価証券報告書-第67期(2024/10/01-2025/09/30)",
+  "doc_id": "S100XB09",
+  "official_domain": "disclosure2dl.edinet-fsa.go.jp",
+  "source_verified": true,
+  "discovery": "manual_direct_download_irbank_edinet_index"
+ }
+]

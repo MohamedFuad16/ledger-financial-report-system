@@ -75,6 +75,17 @@ function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => vo
         {detail.reconciliation.failed ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
         <div><strong>{detail.reconciliation.failed ? tr(`${detail.reconciliation.failed} balance-sheet identities need attention`, `貸借対照表の恒等式${detail.reconciliation.failed}件を要確認`) : tr('All evaluated balance-sheet identities reconcile', '評価対象の貸借対照表恒等式はすべて一致')}</strong><span>{tr(`${detail.reconciliation.passed} passed · ${detail.reconciliation.skipped} skipped because a component was unavailable`, `${detail.reconciliation.passed}件合格・構成要素不足で${detail.reconciliation.skipped}件スキップ`)}</span></div>
       </section>}
+      {detail.evidence_retry?.attempted && <section className={`reconciliation-summary ${detail.evidence_retry.error ? 'has-failures' : ''}`}>
+        {detail.evidence_retry.error ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+        <div>
+          <strong>{detail.evidence_retry.error
+            ? tr('Evidence retry failed — first-pass values kept', '追加根拠の再試行に失敗 — 初回の値を保持')
+            : tr(`Evidence retry recovered ${detail.evidence_retry.recovered_rows?.length ?? 0} of ${detail.evidence_retry.missing_rows?.length ?? 0} unanswered rows`, `追加根拠の再試行で未回答${detail.evidence_retry.missing_rows?.length ?? 0}行中${detail.evidence_retry.recovered_rows?.length ?? 0}行を回復`)}</strong>
+          <span>{detail.evidence_retry.error
+            ? detail.evidence_retry.error
+            : tr(`Pages ${(detail.evidence_retry.pages_added || []).join(', ') || '—'} were added in one bounded follow-up call; a retry can only fill nulls, never overwrite a value.`, `ページ${(detail.evidence_retry.pages_added || []).join('、') || '—'}を1回の追加呼び出しで送信。再試行は未回答行のみを補完し、既存の値を上書きしません。`)}</span>
+        </div>
+      </section>}
       <section className="drawer-section">
         <div className="drawer-section-title"><h3>{tr('Extracted balance-sheet rows', '抽出された貸借対照表項目')}</h3><Badge tone="green">{detail.rows.filter((row) => row.accepted).length}/27 {tr('accepted', '採用')}</Badge></div>
         {detail.rows.length ? <div className="result-table-wrap"><table className="sheet-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer', '回答')} ({answerUnit})</th></tr></thead><tbody>{detail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(convertCurrency(row.answer_m_usd, detail.currency || 'USD', displayCurrency.currency, displayCurrency.jpyPerUsd)) : '—'}</strong></td></tr>)}</tbody></table></div> : <EmptyState icon={<FileSearch size={20} />} title={tr('No rows', '行がありません')} description={tr('This run has no completed prediction rows.', 'この実行には完了した予測行がありません。')} />}
