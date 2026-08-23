@@ -603,6 +603,7 @@ def _run_pipeline_inner(
         enable_reasoning=enable_reasoning,
         temperature=temperature,
         provider=settings.get("provider", ""),
+        session_id=run_dir.name,
         # A per-run override from the strategy panel wins over the saved default.
         reasoning_effort=effective_effort,
         on_retry=lambda attempt, delay: progress(
@@ -663,6 +664,7 @@ def _run_pipeline_inner(
             enable_reasoning=enable_reasoning,
             temperature=temperature,
             provider=settings.get("provider", ""),
+            session_id=run_dir.name,
             reasoning_effort=effective_effort,
             messages=repair_messages,
             artifact_suffix="_repair_1",
@@ -758,6 +760,7 @@ def _run_pipeline_inner(
                     enable_reasoning=enable_reasoning,
                     temperature=temperature,
                     provider=settings.get("provider", ""),
+            session_id=run_dir.name,
                     reasoning_effort=effective_effort,
                     artifact_suffix="_evidence_retry_1",
                     on_retry=lambda attempt, delay: progress(

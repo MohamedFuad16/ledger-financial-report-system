@@ -233,8 +233,34 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--limit", type=int, default=0, help="cap the number of live arms this invocation runs")
     parser.add_argument("--one-per-company", action="store_true", help="evaluate one document per company (richest gold, preferring the audited FY2022 vintage)")
+    parser.add_argument("--provider", default="", help="override the configured provider key (e.g. openrouter)")
+    parser.add_argument("--model", default="", help="override the configured model id (e.g. google/gemini-3.7-flash:nitro)")
+    parser.add_argument("--base-url", default="", help="override the provider base URL")
+    parser.add_argument("--api-key-env", default="", help="read the API key from this environment variable instead of saved settings")
+    parser.add_argument("--reasoning-effort", default="", help="override the reasoning effort (e.g. low)")
+    parser.add_argument("--output-suffix", default="", help="write results to full_corpus_eval_results<suffix>.{json,md}")
     args = parser.parse_args()
-    settings = current_settings()
+    settings = dict(current_settings())
+    if args.provider:
+        settings["provider"] = args.provider
+    if args.model:
+        settings["model"] = args.model
+    if args.base_url:
+        settings["base_url"] = args.base_url
+    if args.api_key_env:
+        import os
+
+        key = os.environ.get(args.api_key_env, "").strip()
+        if not key:
+            raise SystemExit(f"Environment variable {args.api_key_env} is empty.")
+        settings["api_key"] = key
+    if args.reasoning_effort:
+        settings["reasoning_effort"] = args.reasoning_effort
+        settings["enable_reasoning"] = args.reasoning_effort != "none"
+    if args.output_suffix:
+        global OUTPUT_JSON, OUTPUT_MD
+        OUTPUT_JSON = OUTPUT_JSON.with_name(f"full_corpus_eval_results{args.output_suffix}.json")
+        OUTPUT_MD = OUTPUT_MD.with_name(f"full_corpus_eval_results{args.output_suffix}.md")
     if not settings.get("api_key"):
         raise SystemExit("No configured LLM API key.")
 

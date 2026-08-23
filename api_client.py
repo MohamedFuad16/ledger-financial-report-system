@@ -234,6 +234,7 @@ def run_extraction(
     reasoning_effort: str = "",
     messages: list[dict[str, str]] | None = None,
     artifact_suffix: str = "",
+    session_id: str = "",
 ) -> tuple[dict[str, Any], float]:
     endpoint = f"{base_url.rstrip('/')}/chat/completions"
     prov = get_provider(provider or None)
@@ -255,6 +256,11 @@ def run_extraction(
     if prov.automatic_prompt_caching:
         # OpenRouter returns per-request cost and cache accounting when asked.
         payload["usage"] = {"include": True}
+    if session_id and prov.key == "openrouter":
+        # Sticky routing: follow-up calls of one run (repair, evidence retry)
+        # should land on the provider endpoint that already holds the warm
+        # prefix cache.
+        payload["session_id"] = session_id
 
     # Save request details without any Authorization header or API key.
     request_record = {
