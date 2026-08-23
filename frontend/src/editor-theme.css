@@ -644,25 +644,23 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .candidate-row-summary { color: var(--text); font-size: 11px; font-weight: 700; }
 .candidate-consensus-summary { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 650; }
 .review-sheet-actions .button { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
-.review-workspace { min-height: 0; display: grid; grid-template-columns: minmax(620px, 48%) minmax(0, 52%); overflow: hidden; }
-.review-pdf-pane { min-width: 0; min-height: 0; padding: 8px; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 7px; border-right: 1px solid var(--line); background: var(--surface-soft); }
-.review-pdf-pane > div { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; color: var(--muted); }
-.review-pdf-pane strong { color: var(--text); font-size: 11px; }
-.review-pdf-pane small { color: var(--faint); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.review-workspace { min-height: 0; display: grid; grid-template-columns: minmax(480px, 41%) minmax(0, 59%); overflow: hidden; }
+.review-pdf-pane { min-width: 0; min-height: 0; padding: 10px; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px; border-right: 1px solid var(--line); background: var(--surface-soft); }
+.review-pdf-head { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.review-pdf-title { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.review-pdf-title strong { overflow: hidden; color: var(--text); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.review-pdf-title small { color: var(--faint); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .pdf-search-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; align-self: stretch; justify-self: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
-.review-pdf-pane iframe { width: 100%; height: 100%; display: block; border: 0; background: var(--surface-raised); }
-.review-pdf-frame > img { width: 100%; height: 100%; padding: 2px; display: block; object-fit: contain; object-position: center; background: color-mix(in srgb, var(--surface-soft) 70%, var(--surface-raised)); }
-.review-pdf-frame.is-a4-page { display: grid; place-items: center; }
-.review-pdf-frame.is-a4-page > img { width: auto; height: 100%; max-width: 100%; padding: 0; }
-.review-page-nav { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.review-pdf-frame iframe { width: 100%; height: 100%; display: block; border: 0; background: var(--surface-raised); }
+.review-pdf-pane > .review-page-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .review-page-nav > button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); cursor: pointer; }
 .review-page-nav > button:disabled { opacity: .4; cursor: default; }
-.review-page-indicator { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 650; }
-.review-page-indicator input { width: 54px; min-height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 11px; text-align: center; }
-.review-balance-jump { min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--muted); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+.review-page-indicator { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 650; white-space: nowrap; }
+.review-page-indicator input { width: 56px; min-height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 11px; text-align: center; }
+.review-balance-jump { min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--muted); font: inherit; font-size: 10px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .review-balance-jump.is-active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
-.review-page-nav small { color: var(--faint); font-size: 9.5px; }
+.review-page-nav small { margin-left: auto; color: var(--faint); font-size: 9.5px; white-space: nowrap; }
 .review-pdf-mode { justify-self: start; padding: 2px; display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-raised); }
 .review-pdf-mode button { min-height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; }
 .review-pdf-mode button.is-active { background: var(--text); color: var(--surface-raised); }
@@ -804,8 +802,8 @@ html[lang='ja'] .creator-link strong { font-size: 13px; }
   .page > *, .dashboard-layout > *, .dashboard-lower > *, .strategy-workspace > *, .settings-layout > * { min-width: 0; }
   .table-shell, .table-scroll, .run-table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .review-workspace { display: block; overflow: auto; }
-  .review-pdf-pane { height: 38dvh; min-height: 280px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .review-pdf-frame { width: min(100%, 480px); height: auto; min-height: 0; max-height: none; }
+  .review-pdf-pane { height: 52dvh; min-height: 340px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-height: none; }
   .review-answer-pane { min-height: 440px; overflow: visible; }
 }
 
@@ -853,8 +851,7 @@ html[lang='ja'] .creator-link strong { font-size: 13px; }
   .review-sheet-actions { padding: 10px 16px; }
   .candidate-row-summary { width: 100%; }
   .candidate-consensus-summary { width: 100%; margin-left: 0; }
-  .review-pdf-pane { height: 34dvh; min-height: 240px; padding: 10px; }
-  .review-pdf-pane > div { grid-template-columns: auto 1fr; }
+  .review-pdf-pane { height: 46dvh; min-height: 300px; padding: 10px; }
   .review-pdf-pane small { grid-column: 2; }
   .review-prefill-note { padding: 10px 12px; }
   .review-sheet > footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); align-items: stretch; flex-direction: column; }

@@ -82,7 +82,7 @@ describe('CorpusPage provenance', () => {
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
     expect(await screen.findByText('How I used Firecrawl to build this corpus')).toBeInTheDocument()
-    expect(screen.getByTitle('Example')).toHaveTextContent('FY2024')
+    expect(screen.getByText('and 1 more client')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Discover and download reports/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Load 112 Bakuraku customers/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Discovery activity')).not.toBeInTheDocument()
@@ -109,11 +109,13 @@ describe('CorpusPage answer review', () => {
     expect(extract).toHaveBeenCalledWith(document.sha256)
     expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M USD')
 
-    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
+    const pdfFrame = () => screen.getByTitle('Source annual report PDF') as HTMLIFrameElement
+    expect(pdfFrame().src).toContain('#page=42')
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(screen.getByAltText('Report page 43')).toBeInTheDocument()
+    expect(pdfFrame().src).toContain('#page=43')
     fireEvent.click(screen.getByRole('button', { name: 'Balance sheet p.42' }))
-    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
+    expect(pdfFrame().src).toContain('#page=42')
+    expect(screen.getAllByText(document.filename).length).toBeGreaterThanOrEqual(2)
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
     expect(cash).toHaveValue(125 / 150)

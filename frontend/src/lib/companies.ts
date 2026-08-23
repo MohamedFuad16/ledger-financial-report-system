@@ -47,3 +47,21 @@ export function companyDisplayName(company: string, locale: 'en' | 'ja'): string
   if (locale === 'ja') return company
   return englishCompanyNames[company] || company
 }
+// Curated official domains for the corpus-page logo showcase. Only companies
+// with a real, working brand site belong here; everyone else gets a monogram.
+export const showcaseDomains: Record<string, string> = {
+  '3M': '3m.com',
+  'AppBank株式会社': 'appbank.co.jp',
+  'note株式会社': 'note.jp',
+  'ラクスル株式会社': 'corp.raksul.com',
+  'キャディ株式会社': 'caddi.com',
+  'ダイニチ工業株式会社': 'dainichi-net.co.jp',
+  '株式会社グッドパッチ': 'goodpatch.com',
+  '株式会社プレイド': 'plaid.co.jp',
+  '株式会社帝国ホテル': 'imperialhotel.co.jp',
+  '株式会社ベルク': 'belc.jp',
+  'ファインディ株式会社': 'findy.co.jp',
+  '西尾レントオール株式会社': 'nishio-rent.co.jp',
+  'リソルホールディングス株式会社': 'resol.jp',
+  'クラスター株式会社': 'cluster.mu',
+}
