@@ -21,6 +21,18 @@ export function DashboardPage({
     (run.experiment === 'no_ocr' || run.experiment === 'ocr' || run.experiment === 'intelligent_scan')
     && runMatchesSource(run, source))
   const stats = groupExperimentStats(benchmarkRuns).filter((entry) => entry.passes)
+  const s3Runs = benchmarkRuns.filter((run) => run.experiment === 'intelligent_scan')
+  const s3Stat = stats.find((entry) => entry.key === 'intelligent_scan') || null
+  const s3ReportCount = new Set(s3Runs.map(reportCohortKey)).size
+  const worstTokensFor = (experiment: string) => {
+    const values = benchmarkRuns.filter((run) => run.experiment === experiment)
+      .map((run) => run.input_tokens ?? run.approx_input_tokens).filter((value) => value != null)
+      .map(Number).filter((value) => Number.isFinite(value) && value > 0)
+    return values.length ? Math.max(...values) : null
+  }
+  const s3WorstTokens = worstTokensFor('intelligent_scan')
+  const heaviestWorstTokens = Math.max(...['no_ocr', 'ocr'].map((experiment) => worstTokensFor(experiment) ?? 0))
+  const worstCaseRatio = s3WorstTokens && heaviestWorstTokens > 0 ? heaviestWorstTokens / s3WorstTokens : null
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
@@ -54,10 +66,10 @@ export function DashboardPage({
       </header>
 
       <div className="metric-grid">
-        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(accuracyLeader?.accuracy)} detail={accuracyLeader ? `${tiedAccuracyLabel} · ${accuracyLeader.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
-        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(average('coverage'))} detail={tr('Fields returned by the model; low confidence is flagged for review', 'モデルが返した項目。低信頼度はレビュー対象として表示')} />
-        <MetricCard label={tr('Matched reports', '対応レポート')} value={completeReportCount.toLocaleString()} detail={tr('Distinct source-verified reports in the benchmark feed', 'ベンチマークフィード内の元資料検証済みレポート数')} />
-        <MetricCard label={tr('Fastest arm', '最速条件')} value={fastest?.label || '—'} detail={fastest ? `${formatDuration(fastest.totalSeconds)} ${tr('mean end-to-end pass time', '平均パス総時間')}` : tr('No timing data yet', '時間データはまだありません')} />
+        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
+        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(s3Stat?.coverage ?? average('coverage'))} detail={tr('Fields the intelligent scanning gate returned; sparse statutory filings disclose fewer rows', 'インテリジェントスキャンが返した項目。簡易な官報決算は開示行が少なくなります')} />
+        <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
+        <MetricCard label={tr('Worst-case input', '最悪ケース入力')} value={worstCaseRatio ? `${worstCaseRatio.toFixed(0)}${tr('× leaner', '倍軽量')}` : '—'} detail={worstCaseRatio && s3WorstTokens ? `${Math.round(s3WorstTokens / 1000)}k ${tr('tok max through the gate vs', 'トークン上限（ゲート経由）対')} ${Math.round(heaviestWorstTokens / 1000)}k ${tr('without it', 'ゲートなし')}` : tr('No token data yet', 'トークンデータはまだありません')} />
       </div>
 
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
@@ -82,18 +94,18 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Parsing benchmark', '解析ベンチマーク')} title={tr('Mean parse speed across three strategies', '3戦略の平均解析速度')} description={tr('Document parsing only — PyPDF dump, pdf-inspector routing with adaptive OCR, and the intelligent scanning gate — averaged across successful passes with model-call time excluded; No OCR is the 1.0× baseline.', 'ドキュメント解析のみ（PyPDF、pdf-inspector＋適応OCR、インテリジェントスキャンゲート）を成功パスで平均し、モデル呼び出し時間は除外。OCRなしを1.0倍の基準とします。')} />
+          <SectionHeading eyebrow={tr('Worst-case benchmark', '最悪ケースベンチマーク')} title={tr('Worst-case document cost per strategy', '戦略別・最悪ケースのドキュメントコスト')} description={tr('The heaviest filing each strategy ever faced: its largest model input and worst end-to-end pass. The gate keeps Strategy 3 bounded on a 252-page report where full-document strategies ship the entire text; intelligent scanning is the 1.0× baseline.', '各戦略が処理した最も重い報告書について、最大のモデル入力と最悪パス時間を示します。252ページの報告書でも全文送信の戦略と異なりゲートが入力を抑えます。インテリジェントスキャンを1.0倍の基準とします。')} />
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
           <SectionHeading eyebrow={tr('Quality composition', '品質構成')} title={tr('Accuracy versus coverage', '正確度とカバレッジ')} description={tr('Coverage says a field was returned; exact accuracy says it matched the gold value.', 'カバレッジは項目の取得率、完全一致率は正解値との一致を示します。')} />
-          {loading ? <div className="chart-skeleton" /> : <CoverageDonut runs={benchmarkRuns} />}
+          {loading ? <div className="chart-skeleton" /> : <CoverageDonut runs={s3Runs.length ? s3Runs : benchmarkRuns} />}
         </Card>
       </div>
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest along the axis, pass time rising on a logarithmic scale. The lower a curve sits, the faster the strategy; hover any point for that report\u2019s accuracy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。曲線が低いほど高速です。各点にカーソルを合わせるとそのレポートの正確度が表示されます。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('A Pareto view: every faint dot is one report, the bold labeled point is a strategy\u2019s mean, and the dashed line is the efficient frontier. Closer to the upper-left is faster and more accurate at once.', 'パレート図：淡い点は各レポート、太い点は戦略平均、破線が効率的フロンティアです。左上に近いほど高速かつ高精度です。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
@@ -103,7 +115,7 @@ export function DashboardPage({
       </div>
 
       <Card className="chart-card latency-distribution-card">
-        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('One curve per strategy: reports ordered cheapest to most expensive, model input tokens rising on a logarithmic scale. The lower a curve sits, the less the strategy feeds the model; mean tokens and P50 pass time are in the key.', '戦略ごとに1本のカーブ。レポートを入力トークンの少ない順に並べ、対数スケールで示します。曲線が低いほどモデルへの入力が少なく効率的です。凡例に平均トークンとP50パス時間を併記。')} />
+        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('A Pareto view: every faint dot is one report, the bold labeled point is a strategy\u2019s mean, and the dashed line is the efficient frontier. Upper-left wins on both token cost and correctness; mean tokens and P50 pass time are in the key.', 'パレート図：淡い点は各レポート、太い点は戦略平均、破線が効率的フロンティアです。左上ほどトークンコストと正確性の両方で優位。凡例に平均トークンとP50パス時間を併記。')} />
         {loading ? <div className="chart-skeleton" /> : <TokenAccuracyChart runs={benchmarkRuns} />}
       </Card>
 
