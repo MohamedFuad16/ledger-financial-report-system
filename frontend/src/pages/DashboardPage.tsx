@@ -24,15 +24,12 @@ export function DashboardPage({
   const s3Runs = benchmarkRuns.filter((run) => run.experiment === 'intelligent_scan')
   const s3Stat = stats.find((entry) => entry.key === 'intelligent_scan') || null
   const s3ReportCount = new Set(s3Runs.map(reportCohortKey)).size
-  const worstTokensFor = (experiment: string) => {
-    const values = benchmarkRuns.filter((run) => run.experiment === experiment)
-      .map((run) => run.input_tokens ?? run.approx_input_tokens).filter((value) => value != null)
-      .map(Number).filter((value) => Number.isFinite(value) && value > 0)
-    return values.length ? Math.max(...values) : null
-  }
-  const s3WorstTokens = worstTokensFor('intelligent_scan')
-  const heaviestWorstTokens = Math.max(...['no_ocr', 'ocr'].map((experiment) => worstTokensFor(experiment) ?? 0))
-  const worstCaseRatio = s3WorstTokens && heaviestWorstTokens > 0 ? heaviestWorstTokens / s3WorstTokens : null
+  const parseBaseline = stats.find((entry) => entry.key === 'no_ocr')
+  const fastestParser = stats.filter((entry) => entry.extractSeconds != null && entry.extractSeconds > 0)
+    .reduce<(typeof stats)[number] | null>((best, entry) => !best || Number(entry.extractSeconds) < Number(best.extractSeconds) ? entry : best, null)
+  const parseSpeedup = fastestParser?.extractSeconds && parseBaseline?.extractSeconds
+    ? Number(parseBaseline.extractSeconds) / Number(fastestParser.extractSeconds)
+    : null
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
@@ -69,7 +66,7 @@ export function DashboardPage({
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(s3Stat?.coverage ?? average('coverage'))} detail={tr('Fields the intelligent scanning gate returned; sparse statutory filings disclose fewer rows', 'インテリジェントスキャンが返した項目。簡易な官報決算は開示行が少なくなります')} />
         <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
-        <MetricCard label={tr('Worst-case input', '最悪ケース入力')} value={worstCaseRatio ? `${worstCaseRatio.toFixed(0)}${tr('× leaner', '倍軽量')}` : '—'} detail={worstCaseRatio && s3WorstTokens ? `${Math.round(s3WorstTokens / 1000)}k ${tr('tok max through the gate vs', 'トークン上限（ゲート経由）対')} ${Math.round(heaviestWorstTokens / 1000)}k ${tr('without it', 'ゲートなし')}` : tr('No token data yet', 'トークンデータはまだありません')} />
+        <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastestParser?.label || '—'} detail={fastestParser && parseSpeedup ? `${formatDuration(fastestParser.extractSeconds)} ${tr('mean parse', '平均解析')} · ${parseSpeedup.toFixed(1)}× ${tr('faster than No OCR', 'OCRなし比で高速')}` : tr('No parse timing yet', '解析時間データはまだありません')} />
       </div>
 
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />
