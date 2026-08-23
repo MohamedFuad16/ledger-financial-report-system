@@ -39,6 +39,8 @@ export interface RunSummary extends RunMetrics {
   answer_unit?: string
   source_pdf_sha256?: string
   model?: string
+  enable_reasoning?: boolean
+  reasoning_effort?: string
   fiscal_year?: string
   detected_fiscal_year?: string
   pdf_file?: string

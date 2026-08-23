@@ -83,7 +83,7 @@ class TrafficTests(unittest.TestCase):
         self.assertEqual(response.get_json()["deleted"]["filename"], "3M_annual_report_2022.pdf")
         remove.assert_called_once_with(document_id)
 
-    def test_runtime_settings_reuse_a_saved_firecrawl_key(self):
+    def test_runtime_settings_save_without_reverifying_a_saved_firecrawl_key(self):
         current = {
             "max_concurrency": 6,
             "auto_concurrency": True,
@@ -100,7 +100,9 @@ class TrafficTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()["has_firecrawl_key"])
-        firecrawl.assert_called_once_with("fc-saved-server-side", timeout=20, max_attempts=1)
+        # The corpus is frozen: saving concurrency must not spend a Firecrawl
+        # verification call, and must work with no key at all.
+        firecrawl.assert_not_called()
         save.assert_called_once_with(
             max_concurrency=7,
             auto_concurrency=True,

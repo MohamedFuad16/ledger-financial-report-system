@@ -1078,6 +1078,7 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
             "fiscal_year": fiscal_year,
             "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),
             "enable_reasoning": prediction.get("enable_reasoning", True),
+            "reasoning_effort": prediction.get("reasoning_effort", ""),
             "temperature": prediction.get("temperature"),
             "pdf_file": prediction.get("pdf_file", ""),
             "page_count": prediction.get("page_count"),

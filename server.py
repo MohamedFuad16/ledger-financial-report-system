@@ -433,12 +433,14 @@ def update_runtime_settings():
     if firecrawl_pdf_mode not in {"fast", "auto", "ocr"}:
         return jsonify({"error": "Firecrawl PDF mode must be fast, auto, or ocr."}), 400
     candidate_key = firecrawl_api_key or str(current.get("firecrawl_api_key") or "")
-    if not candidate_key:
-        return jsonify({"error": "A Firecrawl API key is required before runtime settings can be saved."}), 400
-    try:
-        credit_usage = FirecrawlClient(candidate_key, timeout=20, max_attempts=1).credit_usage()
-    except FirecrawlError as exc:
-        return jsonify({"error": f"Firecrawl connection failed: {exc}"}), 400
+    credit_usage = None
+    if firecrawl_api_key:
+        # Verify only a newly supplied key; the corpus is frozen, so runtime
+        # settings must be savable without any Firecrawl credential.
+        try:
+            credit_usage = FirecrawlClient(candidate_key, timeout=20, max_attempts=1).credit_usage()
+        except FirecrawlError as exc:
+            return jsonify({"error": f"Firecrawl connection failed: {exc}"}), 400
     save_runtime_settings(
         max_concurrency=max_concurrency,
         auto_concurrency=auto_concurrency,

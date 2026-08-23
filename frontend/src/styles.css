@@ -440,3 +440,6 @@ td { height: 56px; font-size: 12px; }
 @media (max-width: 720px) { .corpus-summary { grid-template-columns: 1fr 1fr; }.runtime-grid { grid-template-columns: 1fr; }.runtime-grid .field-wide { grid-column: auto; }.run-drawer { inset: 1vh 1vw; width: 98vw; }.drawer-header { flex-direction: column; }.sheet-actions { justify-content: flex-start; } }
 .corpus-logo-more { border-style: dashed; }
 .corpus-logo-more strong { color: var(--muted); }
+.benchmark-source-badge { min-height: 34px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); font-size: 10.5px; font-weight: 700; cursor: pointer; }
+.benchmark-source-badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.benchmark-source-control { flex-wrap: wrap; }

@@ -4,6 +4,7 @@ import { formatDuration, formatMetric, groupExperimentStats, reportCohortKey } f
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
+import { benchmarkSource, benchmarkSourceMeta, runMatchesSource } from '../lib/benchmarkSource'
 
 export function DashboardPage({
   runs,
@@ -15,7 +16,10 @@ export function DashboardPage({
   onNavigate: (key: PanelKey) => void
 }) {
   const { tr } = useLocale()
-  const benchmarkRuns = runs.filter((run) => run.experiment === 'no_ocr' || run.experiment === 'ocr' || run.experiment === 'intelligent_scan')
+  const source = benchmarkSource()
+  const benchmarkRuns = runs.filter((run) =>
+    (run.experiment === 'no_ocr' || run.experiment === 'ocr' || run.experiment === 'intelligent_scan')
+    && runMatchesSource(run, source))
   const stats = groupExperimentStats(benchmarkRuns).filter((entry) => entry.passes)
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
@@ -44,6 +48,7 @@ export function DashboardPage({
           <p>{tr('Extract, verify, and benchmark the asset side of an Annual Report across document-representation strategies.', '年次報告書の資産項目を抽出・検証し、文書表現戦略ごとにベンチマークします。')}</p>
         </div>
         <div className="dashboard-header-actions">
+          <button className="benchmark-source-badge" type="button" onClick={() => onNavigate('settings')} title={tr('Change the results source in Settings', '結果ソースは設定で変更できます')}>{tr(benchmarkSourceMeta[source].label, benchmarkSourceMeta[source].labelJa)}</button>
           <Button onClick={() => onNavigate('strategy1')}>{tr('Run an extraction', '抽出を実行')} <ArrowRight size={16} /></Button>
         </div>
       </header>

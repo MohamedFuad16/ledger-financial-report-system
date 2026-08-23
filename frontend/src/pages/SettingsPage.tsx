@@ -5,6 +5,7 @@ import type { ProviderInfo, SettingsData } from '../types'
 import { Badge, Button, Card, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 import { currencyPreference, saveCurrencyPreference, type DisplayCurrency } from '../lib/currency'
+import { benchmarkSource, benchmarkSourceMeta, saveBenchmarkSource, type BenchmarkSource } from '../lib/benchmarkSource'
 
 function ProviderLogo({ providerKey }: { providerKey: string }) {
   const logos: Record<string, { src: string; alt: string }> = {
@@ -47,7 +48,7 @@ export function SettingsPage({
   const [runtimeSaving, setRuntimeSaving] = useState(false)
   const [maxConcurrency, setMaxConcurrency] = useState(settings?.max_concurrency ?? 6)
   const [autoConcurrency, setAutoConcurrency] = useState(settings?.auto_concurrency ?? true)
-  const [firecrawlKey, setFirecrawlKey] = useState('')
+  const [resultsSource, setResultsSource] = useState<BenchmarkSource>(() => benchmarkSource())
   const [outputCurrency, setOutputCurrency] = useState<DisplayCurrency>(() => currencyPreference().currency)
   const [jpyPerUsd, setJpyPerUsd] = useState(() => currencyPreference().jpyPerUsd)
   const provider = useMemo(() => providers.find((item) => item.key === providerKey), [providers, providerKey])
@@ -94,12 +95,10 @@ export function SettingsPage({
   const saveRuntime = async () => {
     setRuntimeSaving(true)
     try {
-      const result = await api.saveRuntimeSettings({ max_concurrency: maxConcurrency, auto_concurrency: autoConcurrency, firecrawl_api_key: firecrawlKey })
+      await api.saveRuntimeSettings({ max_concurrency: maxConcurrency, auto_concurrency: autoConcurrency, firecrawl_api_key: '' })
       saveCurrencyPreference({ currency: outputCurrency, jpyPerUsd })
-      setFirecrawlKey('')
       await onSaved()
-      const remaining = result.firecrawl_credits?.remainingCredits
-      onNotify(tr(`Firecrawl verified${remaining != null ? ` · ${remaining.toLocaleString()} credits remaining` : ''}. Runtime settings saved locally.`, `Firecrawlの接続を確認${remaining != null ? ` · 残り${remaining.toLocaleString()}クレジット` : ''}。ランタイム設定を保存しました。`), 'success')
+      onNotify(tr('Runtime settings saved locally.', 'ランタイム設定を保存しました。'), 'success')
     } catch (error) { onNotify(error instanceof Error ? error.message : tr('Runtime settings could not be saved.', 'ランタイム設定を保存できませんでした。'), 'error') }
     finally { setRuntimeSaving(false) }
   }
@@ -118,7 +117,7 @@ export function SettingsPage({
 
   return (
     <div className="page settings-page">
-      <header className="page-header"><div><div className="page-kicker">{tr('Workspace configuration', 'ワークスペース設定')}</div><h1>{tr('Connections & runtime', '接続とランタイム')}</h1><p>{tr('Manage model credentials, corpus discovery, and one global adaptive request ceiling.', 'モデル認証情報、コーパス探索、グローバルな同時実行上限を管理します。')}</p></div></header>
+      <header className="page-header"><div><div className="page-kicker">{tr('Workspace configuration', 'ワークスペース設定')}</div><h1>{tr('Connections & runtime', '接続とランタイム')}</h1><p>{tr('Manage model credentials, the benchmark results source, display currency, and one global adaptive request ceiling.', 'モデル認証情報、ベンチマーク結果ソース、表示通貨、グローバルな同時実行上限を管理します。')}</p></div></header>
       <div className="settings-layout">
         <div className="settings-stack">
         <Card className="settings-main">
@@ -143,11 +142,11 @@ export function SettingsPage({
           <Button className="save-settings" onClick={save} disabled={saving || !model || !baseUrl}><Save size={15} /> {saving ? tr('Testing connection…', '接続をテスト中…') : tr('Test connection & save', '接続をテストして保存')}</Button>
         </Card>
         <Card className="settings-main runtime-settings">
-          <SectionHeading eyebrow={tr('Corpus & scheduling', 'コーパスとスケジュール')} title={tr('Firecrawl and adaptive concurrency', 'Firecrawlと適応型同時実行')} description={tr('This single ceiling applies to every strategy. The live limiter reduces it on HTTP 429, waits for Retry-After, and recovers gradually after successful calls.', 'この上限は全戦略に適用されます。HTTP 429では縮小し、Retry-Afterを待って、成功後に徐々に回復します。')} />
+          <SectionHeading eyebrow={tr('Runtime', 'ランタイム')} title={tr('Adaptive concurrency & display', '適応型同時実行と表示設定')} description={tr('This single ceiling applies to every strategy. The live limiter reduces it on HTTP 429, waits for Retry-After, and recovers gradually after successful calls.', 'この上限は全戦略に適用されます。HTTP 429では縮小し、Retry-Afterを待って、成功後に徐々に回復します。')} />
           <div className="runtime-grid">
-            <div className="field-wide"><CredentialField label={tr('Firecrawl API key', 'Firecrawl APIキー')} value={firecrawlKey} onChange={setFirecrawlKey} saved={Boolean(settings?.has_firecrawl_key)} masked={settings?.firecrawl_key_masked || ''} placeholder={settings?.has_firecrawl_key ? tr('Enter replacement Firecrawl key', '置換するFirecrawlキーを入力') : 'fc-…'} icon="fire" /></div>
             <label><span>{tr('Parallel request ceiling', '並列リクエスト上限')} <b>{maxConcurrency}</b></span><input type="range" min="1" max="20" step="1" value={maxConcurrency} onChange={(event) => setMaxConcurrency(Number(event.target.value))} /></label>
             <label className="toggle-setting"><span><strong>{tr('Automatic batch sizing', '自動バッチサイズ')}</strong><small>{tr('Use PDF count and estimated token load to choose the initial width.', 'PDF数と推定トークン量から初期並列数を選びます。')}</small></span><input type="checkbox" checked={autoConcurrency} onChange={(event) => setAutoConcurrency(event.target.checked)} /></label>
+            <div className="display-currency-setting field-wide"><span><strong>{tr('Benchmark results source', 'ベンチマーク結果ソース')}</strong><small>{tr('Which model\'s completed runs the Overview dashboard aggregates. It updates automatically as new runs of that model finish.', 'Overviewダッシュボードが集計するモデルを選択します。選択モデルの新しい実行が完了すると自動的に反映されます。')}</small></span><div className="segmented-control benchmark-source-control">{(Object.keys(benchmarkSourceMeta) as BenchmarkSource[]).map((source) => <button key={source} type="button" className={resultsSource === source ? 'is-active' : ''} onClick={() => { setResultsSource(source); saveBenchmarkSource(source) }}>{tr(benchmarkSourceMeta[source].label, benchmarkSourceMeta[source].labelJa)}</button>)}</div></div>
             <div className="display-currency-setting field-wide"><span><strong>{tr('Output display currency', '出力表示通貨')}</strong><small>{tr('Extraction and benchmark scoring remain in the filing currency; values are converted only for display so exact accuracy is not distorted.', '抽出とベンチマーク評価は提出書類の通貨のまま行い、完全一致率を歪めないよう表示時のみ換算します。')}</small></span><div className="segmented-control"><button className={outputCurrency === 'USD' ? 'is-active' : ''} type="button" onClick={() => setOutputCurrency('USD')}>USD</button><button className={outputCurrency === 'JPY' ? 'is-active' : ''} type="button" onClick={() => setOutputCurrency('JPY')}>JPY</button></div></div>
             <label className="field-wide"><span>{tr('Display FX rate (JPY per USD)', '表示用為替レート（1 USDあたりJPY）')}</span><input type="number" min="1" step="0.01" value={jpyPerUsd} onChange={(event) => setJpyPerUsd(Math.max(1, Number(event.target.value) || 1))} /><small>{tr('Applied to displayed values only. Set the assignment-approved historical rate here.', '表示値だけに適用します。課題で承認された過去レートを設定してください。')}</small></label>
             <div className="ocr-policy-contract field-wide">
@@ -160,7 +159,7 @@ export function SettingsPage({
             <span><Gauge size={16} /><strong>{finiteRate(settings?.rate_limit?.in_flight, 0)}</strong> {tr('requests in flight', '実行中リクエスト')}</span>
             <span><Flame size={16} /><strong>{finiteRate(settings?.rate_limit?.throttle_events, 0)}</strong> {tr('throttle events', 'スロットル回数')}</span>
           </div>
-          <Button className="save-settings" onClick={saveRuntime} disabled={runtimeSaving}><Save size={15} /> {runtimeSaving ? tr('Testing Firecrawl…', 'Firecrawlをテスト中…') : tr('Test Firecrawl & save runtime', 'Firecrawlをテストして保存')}</Button>
+          <Button className="save-settings" onClick={saveRuntime} disabled={runtimeSaving}><Save size={15} /> {runtimeSaving ? tr('Saving…', '保存中…') : tr('Save runtime settings', 'ランタイム設定を保存')}</Button>
         </Card>
         </div>
         <aside className="settings-aside">
