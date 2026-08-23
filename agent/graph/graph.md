@@ -22,6 +22,7 @@
 | `research/corpus/discover_statutory_filings.py` | Bakuraku registry, Firecrawl search API | statutory candidate inventory | Changes affect broad public-filing recall only; search results are never gold |
 | `research/corpus/discover_gazette_filings.py` | Bakuraku registry, public gazette index | exact-entity gazette candidate inventory | Changes affect statutory source discovery and alias matching, not runtime extraction |
 | `research/benchmark/materialize_statutory_gold.py` | gazette inventory, RapidOCR, canonical schema, corpus manifest | `bakuraku_statutory_gold.json`, statutory audit, exact-source PDFs | Changes affect the 27-company partial-gold cohort, hashes, reconciliation evidence, and scorable-row boundaries |
+| `research/benchmark/audit_forty_client_corpus.py` | Bakuraku registry, three explicit gold fixtures, canonical schema, corpus manifest and source bytes | forty-client completion audit | Changes affect whether the maintained client corpus can be claimed complete |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
@@ -40,4 +41,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-23 via `graphify update . --no-cluster` (1,117 nodes, 2,475 edges) plus the curated research-pipeline rows above.
+- 2026-08-23 via `graphify update . --no-cluster` (1,123 nodes, 2,492 edges) plus the curated research-pipeline rows above.

@@ -40,6 +40,13 @@ explicitly unscorable. Together with the 13 full-report clients, the maintained
 fixture contains 40 unique Bakuraku clients. 3M stays first as the separate
 assignment control and is not counted as a Bakuraku client.
 
+Run `python research/benchmark/audit_forty_client_corpus.py` for the completion
+gate. It fails unless all 40 unique client names occur in the Bakuraku evidence
+registry, every key declares two distinct audit passes, the scorable and
+unscorable fields partition all 27 canonical rows, and every manifest source
+exists locally with bytes matching its fixture SHA-256. The checked result is
+recorded in `research/benchmark/forty_client_corpus_audit.json`.
+
 ## Availability status
 
 Run `python research/corpus/summarize_firecrawl_job.py JOB_JSON` after saving a

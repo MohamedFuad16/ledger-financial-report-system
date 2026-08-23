@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-23T00:12:31.349099+00:00",
+  "updated_at": "2026-08-23T00:26:24.550494+00:00",
   "documents": [
     {
       "company": "3M",
@@ -710,6 +710,39 @@
       ]
     },
     {
+      "company": "株式会社iCARE",
+      "company_slug": "株式会社iCARE",
+      "fiscal_year": 2025,
+      "source_url": "https://catr.jp/companies/391f1/80670/settlements/3c99a/440214",
+      "source_title": "Public gazette statutory balance-sheet announcement",
+      "official_domain": "catr.jp",
+      "official_source_verified": false,
+      "source_provenance": "public_gazette_image_mirror",
+      "source_image_url": "https://image.catr.jp/images/20251226/0003_ec7d493cfc39cd89afdffc7fd8bc49b03825b17ef58e8a955677ccb9d86399fd3c78fbe166a0042c771a6af4a34f04fb64dfb4a9b9218ba4bb69a7b241b3fffc/0065_6c573c0d67ff6ff8405b8d3783f81218ec7bbbdd8aa932be57382af9862fe513c3f2fe4265e988f14db2b767757896ecc65b2951a2f02616624e023c1bab83c1/0065_6c573c0d67ff6ff8405b8d3783f81218ec7bbbdd8aa932be57382af9862fe513c3f2fe4265e988f14db2b767757896ecc65b2951a2f02616624e023c1bab83c1_01.png?v=1781051212",
+      "source_image_sha256": "425faf1af026976c9eff4dd98928d385972cbaebca32d581b8ac8e3dae9d0a04",
+      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
+      "downloaded_at": "2026-08-23T00:12:31.348975+00:00",
+      "local_path": "corpus_dataset/株式会社iCARE/2025/株式会社iCARE_statutory_report_2025.pdf",
+      "filename": "株式会社iCARE_statutory_report_2025.pdf",
+      "sha256": "3e1e4c484a8b27f3762789f0b6ba80c9a1439e9049b6aa2b81e2bfc108b93aad",
+      "size_bytes": 183076,
+      "golden_answers": null,
+      "screened": "ok",
+      "screen_reasons": [],
+      "pages": 1,
+      "readable_pages": 0,
+      "garbled_pages": [],
+      "balance_sheet_page": 1,
+      "currency": "JPY",
+      "fiscal_year_confirmed": true,
+      "internal_year_mentions": [
+        "2025"
+      ],
+      "warnings": [
+        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
+      ]
+    },
+    {
       "company": "株式会社Morght",
       "company_slug": "株式会社Morght",
       "fiscal_year": 2025,
@@ -737,6 +770,39 @@
       "fiscal_year_confirmed": true,
       "internal_year_mentions": [
         "2025"
+      ],
+      "warnings": [
+        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
+      ]
+    },
+    {
+      "company": "株式会社mov",
+      "company_slug": "株式会社mov",
+      "fiscal_year": 2024,
+      "source_url": "https://catr.jp/companies/b0dce/151749/settlements/b1318/407283",
+      "source_title": "Public gazette statutory balance-sheet announcement",
+      "official_domain": "catr.jp",
+      "official_source_verified": false,
+      "source_provenance": "public_gazette_image_mirror",
+      "source_image_url": "https://image.catr.jp/images/20250617/0002_33eedbc93a73619c0d3085e433e69551b77afa79e34f979fec976b36cf78e3868884bbd2a9f6f7ad07f163b5d431b7a24e39001a7806eaf0cfe645c38b3925d4/0194_4529f7f4f73ad8d067bc9e61e1fe74b6f707fe158379a3780003b03545066d90e376b530aea28b25d5af012ddf2cb65038a2c8be0475c35fe4fcb52d0617d6a9/0194_4529f7f4f73ad8d067bc9e61e1fe74b6f707fe158379a3780003b03545066d90e376b530aea28b25d5af012ddf2cb65038a2c8be0475c35fe4fcb52d0617d6a9_07.png?v=1781051212",
+      "source_image_sha256": "ac99577fc3e62348705a72c450fbe459d3bb56f427a67121a05b806cf432ef2f",
+      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
+      "downloaded_at": "2026-08-23T00:12:31.348991+00:00",
+      "local_path": "corpus_dataset/株式会社mov/2024/株式会社mov_statutory_report_2024.pdf",
+      "filename": "株式会社mov_statutory_report_2024.pdf",
+      "sha256": "277db186a181826d66505056a942768dc351bbb7a97ba2b0a5e2347438c9ab8f",
+      "size_bytes": 325538,
+      "golden_answers": null,
+      "screened": "ok",
+      "screen_reasons": [],
+      "pages": 1,
+      "readable_pages": 0,
+      "garbled_pages": [],
+      "balance_sheet_page": 1,
+      "currency": "JPY",
+      "fiscal_year_confirmed": true,
+      "internal_year_mentions": [
+        "2024"
       ],
       "warnings": [
         "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
@@ -809,72 +875,6 @@
       ]
     },
     {
-      "company": "株式会社iCARE",
-      "company_slug": "株式会社iCARE",
-      "fiscal_year": 2025,
-      "source_url": "https://catr.jp/companies/391f1/80670/settlements/3c99a/440214",
-      "source_title": "Public gazette statutory balance-sheet announcement",
-      "official_domain": "catr.jp",
-      "official_source_verified": false,
-      "source_provenance": "public_gazette_image_mirror",
-      "source_image_url": "https://image.catr.jp/images/20251226/0003_ec7d493cfc39cd89afdffc7fd8bc49b03825b17ef58e8a955677ccb9d86399fd3c78fbe166a0042c771a6af4a34f04fb64dfb4a9b9218ba4bb69a7b241b3fffc/0065_6c573c0d67ff6ff8405b8d3783f81218ec7bbbdd8aa932be57382af9862fe513c3f2fe4265e988f14db2b767757896ecc65b2951a2f02616624e023c1bab83c1/0065_6c573c0d67ff6ff8405b8d3783f81218ec7bbbdd8aa932be57382af9862fe513c3f2fe4265e988f14db2b767757896ecc65b2951a2f02616624e023c1bab83c1_01.png?v=1781051212",
-      "source_image_sha256": "425faf1af026976c9eff4dd98928d385972cbaebca32d581b8ac8e3dae9d0a04",
-      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
-      "downloaded_at": "2026-08-23T00:12:31.348975+00:00",
-      "local_path": "corpus_dataset/株式会社iCARE/2025/株式会社iCARE_statutory_report_2025.pdf",
-      "filename": "株式会社iCARE_statutory_report_2025.pdf",
-      "sha256": "3e1e4c484a8b27f3762789f0b6ba80c9a1439e9049b6aa2b81e2bfc108b93aad",
-      "size_bytes": 183076,
-      "golden_answers": null,
-      "screened": "ok",
-      "screen_reasons": [],
-      "pages": 1,
-      "readable_pages": 0,
-      "garbled_pages": [],
-      "balance_sheet_page": 1,
-      "currency": "JPY",
-      "fiscal_year_confirmed": true,
-      "internal_year_mentions": [
-        "2025"
-      ],
-      "warnings": [
-        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
-      ]
-    },
-    {
-      "company": "株式会社mov",
-      "company_slug": "株式会社mov",
-      "fiscal_year": 2024,
-      "source_url": "https://catr.jp/companies/b0dce/151749/settlements/b1318/407283",
-      "source_title": "Public gazette statutory balance-sheet announcement",
-      "official_domain": "catr.jp",
-      "official_source_verified": false,
-      "source_provenance": "public_gazette_image_mirror",
-      "source_image_url": "https://image.catr.jp/images/20250617/0002_33eedbc93a73619c0d3085e433e69551b77afa79e34f979fec976b36cf78e3868884bbd2a9f6f7ad07f163b5d431b7a24e39001a7806eaf0cfe645c38b3925d4/0194_4529f7f4f73ad8d067bc9e61e1fe74b6f707fe158379a3780003b03545066d90e376b530aea28b25d5af012ddf2cb65038a2c8be0475c35fe4fcb52d0617d6a9/0194_4529f7f4f73ad8d067bc9e61e1fe74b6f707fe158379a3780003b03545066d90e376b530aea28b25d5af012ddf2cb65038a2c8be0475c35fe4fcb52d0617d6a9_07.png?v=1781051212",
-      "source_image_sha256": "ac99577fc3e62348705a72c450fbe459d3bb56f427a67121a05b806cf432ef2f",
-      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
-      "downloaded_at": "2026-08-23T00:12:31.348991+00:00",
-      "local_path": "corpus_dataset/株式会社mov/2024/株式会社mov_statutory_report_2024.pdf",
-      "filename": "株式会社mov_statutory_report_2024.pdf",
-      "sha256": "277db186a181826d66505056a942768dc351bbb7a97ba2b0a5e2347438c9ab8f",
-      "size_bytes": 325538,
-      "golden_answers": null,
-      "screened": "ok",
-      "screen_reasons": [],
-      "pages": 1,
-      "readable_pages": 0,
-      "garbled_pages": [],
-      "balance_sheet_page": 1,
-      "currency": "JPY",
-      "fiscal_year_confirmed": true,
-      "internal_year_mentions": [
-        "2024"
-      ],
-      "warnings": [
-        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
-      ]
-    },
-    {
       "company": "株式会社with",
       "company_slug": "株式会社with",
       "fiscal_year": 2025,
@@ -906,6 +906,48 @@
       "warnings": [
         "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
       ]
+    },
+    {
+      "approved_at": null,
+      "balance_sheet_page": 52,
+      "candidate_count": 27,
+      "candidate_extracted": true,
+      "candidate_method": null,
+      "company": "株式会社アップガレージグループ",
+      "company_slug": "株式会社アップガレージグループ",
+      "consensus_summary": null,
+      "currency": "JPY",
+      "discovery": "Firecrawl discovery followed by exact official-archive pin",
+      "downloaded_at": "2026-08-22T14:04:09.275235+00:00",
+      "filename": "株式会社アップガレージグループ_annual_report_2022.pdf",
+      "fiscal_year": 2022,
+      "fiscal_year_confirmed": true,
+      "garbled_pages": [],
+      "golden_answers": null,
+      "internal_year_mentions": [
+        "2013",
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2025"
+      ],
+      "local_path": "corpus_dataset/株式会社アップガレージグループ/2022/株式会社アップガレージグループ_annual_report_2022.pdf",
+      "official_domain": "pdf.irpocket.com",
+      "official_source_verified": true,
+      "output_count": 0,
+      "output_directory": "runs/株式会社アップガレージグループ/FY2022",
+      "pages": 93,
+      "readable_pages": 93,
+      "screen_reasons": [],
+      "screened": "ok",
+      "sha256": "dc12bdf4b79485a558b6b04573f1cea34d0c11c062c06d6369523e3ed621e5d5",
+      "size_bytes": 683584,
+      "source_title": "FY2022 annual/securities report",
+      "source_url": "https://pdf.irpocket.com/C7134/efCi/qQTp/AG5m.pdf",
+      "verification": null,
+      "verification_status": "independently_verified",
+      "warnings": []
     },
     {
       "company": "株式会社キズキ",
@@ -1039,6 +1081,46 @@
         "2022",
         "2023"
       ],
+      "warnings": []
+    },
+    {
+      "approved_at": null,
+      "balance_sheet_page": 53,
+      "candidate_count": 22,
+      "candidate_extracted": true,
+      "candidate_method": null,
+      "company": "株式会社トーエネック",
+      "company_slug": "株式会社トーエネック",
+      "consensus_summary": null,
+      "currency": "JPY",
+      "discovery": "Firecrawl discovery followed by exact official-archive pin",
+      "downloaded_at": "2026-08-22T14:04:17.652095+00:00",
+      "filename": "株式会社トーエネック_annual_report_2022.pdf",
+      "fiscal_year": 2022,
+      "fiscal_year_confirmed": true,
+      "garbled_pages": [],
+      "golden_answers": null,
+      "internal_year_mentions": [
+        "2020",
+        "2021",
+        "2022",
+        "2023"
+      ],
+      "local_path": "corpus_dataset/株式会社トーエネック/2022/株式会社トーエネック_annual_report_2022.pdf",
+      "official_domain": "toenec.co.jp",
+      "official_source_verified": true,
+      "output_count": 0,
+      "output_directory": "runs/株式会社トーエネック/FY2022",
+      "pages": 121,
+      "readable_pages": 121,
+      "screen_reasons": [],
+      "screened": "ok",
+      "sha256": "0a90950a2a311e44f18c570c9a1ab749a14a4ce5aa9763113d5268de80309b57",
+      "size_bytes": 2166932,
+      "source_title": "FY2022 annual/securities report",
+      "source_url": "https://www.toenec.co.jp/ir/docs/yuka/104_yuuka.pdf",
+      "verification": null,
+      "verification_status": "independently_verified",
       "warnings": []
     },
     {
@@ -1311,6 +1393,47 @@
         "2032",
         "2037"
       ],
+      "warnings": []
+    },
+    {
+      "approved_at": null,
+      "balance_sheet_page": 49,
+      "candidate_count": 21,
+      "candidate_extracted": true,
+      "candidate_method": null,
+      "company": "西尾レントオール株式会社",
+      "company_slug": "西尾レントオール株式会社",
+      "consensus_summary": null,
+      "currency": "JPY",
+      "discovery": "Firecrawl discovery followed by exact official-archive pin",
+      "downloaded_at": "2026-08-22T14:04:21.684962+00:00",
+      "filename": "西尾レントオール株式会社_annual_report_2022.pdf",
+      "fiscal_year": 2022,
+      "fiscal_year_confirmed": true,
+      "garbled_pages": [],
+      "golden_answers": null,
+      "internal_year_mentions": [
+        "2019",
+        "2020",
+        "2021",
+        "2022",
+        "2023"
+      ],
+      "local_path": "corpus_dataset/西尾レントオール株式会社/2022/西尾レントオール株式会社_annual_report_2022.pdf",
+      "official_domain": "nishio-rent.co.jp",
+      "official_source_verified": true,
+      "output_count": 0,
+      "output_directory": "runs/西尾レントオール株式会社/FY2022",
+      "pages": 120,
+      "readable_pages": 120,
+      "screen_reasons": [],
+      "screened": "ok",
+      "sha256": "fdf47701b4bb1704792dc3b320d7fe5bb0bf6e88ba89675dc820ea61e6fdff60",
+      "size_bytes": 993739,
+      "source_title": "FY2022 annual/securities report",
+      "source_url": "https://www.nishio-rent.co.jp/wordpress/wp-content/uploads/2022/12/20221221-1.pdf",
+      "verification": null,
+      "verification_status": "independently_verified",
       "warnings": []
     }
   ]
