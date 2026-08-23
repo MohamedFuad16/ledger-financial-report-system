@@ -74,13 +74,12 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
 
   return (
     <div className="accuracy-quadrant">
-      {!!scaled.length && <div className="quadrant-key-row curve-legend">{scaled.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
             <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, span]} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest (each arm scaled to a common axis)', 'レポート（速い順・共通軸にスケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('End-to-end pass time (seconds, log scale)', 'パス総時間（秒・対数スケール）'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('Pass time (s, log)', 'パス時間（秒・対数）'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             {scaled.map((entry) => (
               <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
@@ -99,20 +98,22 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
   // One bar per strategy: mean model input per report on a logarithmic axis,
   // with the strategy's mean exact accuracy printed above its bar — the
   // shortest bar with the highest printed accuracy wins on both counts.
-  const data = groupExperimentStats(runs)
+  const arms = groupExperimentStats(runs)
     .filter((arm) => arm.passes && arm.accuracy != null && arm.inputTokens != null && arm.inputTokens > 0)
-    .map((arm) => ({
+  const costliest = Math.max(...arms.map((arm) => Number(arm.inputTokens)), 1)
+  const data = arms.map((arm) => {
+    const tokens = Math.round(arm.inputTokens as number)
+    const saving = 100 * (1 - tokens / costliest)
+    return {
       name: arm.label,
-      tokens: Math.round(arm.inputTokens as number),
+      tokens,
       accuracy: arm.accuracy as number,
-      accuracyLabel: `${formatMetric(arm.accuracy)} ${tr('exact', '完全一致')}`,
-      tokenLabel: (arm.inputTokens as number) >= 1000 ? `${Math.round((arm.inputTokens as number) / 1000)}k ${tr('tok', 'トークン')}` : `${Math.round(arm.inputTokens as number)} ${tr('tok', 'トークン')}`,
+      savingLabel: saving < 0.5 ? tr('baseline', '基準') : `${saving >= 90 ? saving.toFixed(0) : saving.toFixed(0)}% ${tr('fewer tokens', 'トークン削減')}`,
       color: arm.color,
-      p50: arm.p50Seconds,
-    }))
+    }
+  })
   return (
     <div className="accuracy-quadrant">
-      {!!data.length && <div className="quadrant-key-row curve-legend">{data.map((arm) => <span className="curve-legend-item" key={arm.name}><i style={{ background: arm.color }} />{arm.name} · {arm.tokens.toLocaleString()} {tr('tok', 'トークン')}{arm.p50 != null ? ` · P50 ${formatDuration(arm.p50)}` : ''}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 30, right: 24, bottom: 12, left: 12 }} barCategoryGap="28%">
@@ -122,12 +123,13 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
             <Bar dataKey="tokens" radius={[6, 6, 0, 0]} isAnimationActive={false}>
               {data.map((arm) => <Cell key={arm.name} fill={arm.color} />)}
-              <LabelList dataKey="accuracyLabel" position="top" fill="var(--text)" fontSize={12} fontWeight={700} />
+              <LabelList dataKey="savingLabel" position="top" fill="var(--text)" fontSize={12} fontWeight={700} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
         {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
       </div>
+      {!!data.length && <div className="quadrant-key-row curve-legend curve-legend-below">{data.map((arm) => <span className="curve-legend-item" key={arm.name}><i style={{ background: arm.color }} />{arm.name} · {arm.tokens.toLocaleString()} {tr('tok', 'トークン')}</span>)}</div>}
     </div>
   )
 }

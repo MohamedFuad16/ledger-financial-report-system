@@ -67,6 +67,12 @@ MAPPING GUIDANCE (general, not company-specific)
   requested belong in the schema's catch-all Other Equipment row. Do not add
   them to Buildings merely because the underlying leases include facilities.
 - Goodwill and other non-physical long-lived assets both belong to Intangible Assets.
+- Securities follow the balance-sheet section they are printed in, never the
+  other way around: 有価証券 presented under current assets (流動資産) is
+  Marketable Securities; 投資有価証券 and any securities line presented under
+  investments and other assets (投資その他の資産) is Investments. Never place a
+  value whose evidence comes from a fixed-asset section line into a quick-asset
+  row, and never split one printed securities line across both rows.
 - A single "other assets" line often has to be split across Financial Assets and
   Other Fixed Assets using the corresponding note.
 - Classify long-lived financial claims by economic substance: pension or

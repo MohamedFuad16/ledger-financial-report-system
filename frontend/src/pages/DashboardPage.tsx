@@ -57,7 +57,6 @@ export function DashboardPage({
           <p>{tr('Extract, verify, and benchmark the asset side of an Annual Report across document-representation strategies.', '年次報告書の資産項目を抽出・検証し、文書表現戦略ごとにベンチマークします。')}</p>
         </div>
         <div className="dashboard-header-actions">
-          <button className="benchmark-source-badge" type="button" onClick={() => onNavigate('settings')} title={tr('Change the results source in Settings', '結果ソースは設定で変更できます')}>{tr(benchmarkSourceMeta[source].label, benchmarkSourceMeta[source].labelJa)}</button>
           <Button onClick={() => onNavigate('strategy1')}>{tr('Run an extraction', '抽出を実行')} <ArrowRight size={16} /></Button>
         </div>
       </header>
@@ -102,7 +101,7 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest, pass time rising on a logarithmic scale. Each arm is scaled onto a common axis so different report counts stay comparable; the lower a curve sits, the faster the strategy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。各戦略を共通軸にスケールして比較可能にしています。曲線が低いほど高速です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Speed × accuracy curves', '速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest, pass time rising on a logarithmic scale. Each arm is scaled onto a common axis so different report counts stay comparable; the lower a curve sits, the faster the strategy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。各戦略を共通軸にスケールして比較可能にしています。曲線が低いほど高速です。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
