@@ -2,7 +2,6 @@ import { ArrowRight, Gauge, Layers3, SearchCheck } from 'lucide-react'
 import type { PanelKey, RunSummary } from '../types'
 import { formatDuration, formatMetric, groupExperimentStats, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart } from '../components/Charts'
-import { RunTable } from '../components/RunTable'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 
@@ -89,7 +88,7 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy', '3戦略：速度 × 正確度')} description={tr('Each point is one strategy mean across successful passes. Upper-left is faster and more accurate.', '各点は成功パスに基づく戦略別平均です。左上ほど高速かつ高精度です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: each point is one report, ordered fastest to slowest on a logarithmic time axis. Upper-left is faster and more accurate.', '戦略ごとに1本のカーブを描画します。各点は1レポートで、対数時間軸に沿って高速側から並びます。左上ほど高速かつ高精度です。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
@@ -119,10 +118,6 @@ export function DashboardPage({
         </Card>
       </div>
 
-      <Card className="recent-card">
-        <SectionHeading eyebrow={tr('Library', 'ライブラリ')} title={tr('Recent experiment runs', '最近の実験実行')} description={tr('The most recent completed predictions across every parser.', '全パーサーの最新完了結果です。')} action={<Button variant="secondary" onClick={() => onNavigate('history')}>{tr('View all', 'すべて表示')} <ArrowRight size={15} /></Button>} />
-        <RunTable runs={runs.slice(0, 6)} compact />
-      </Card>
     </div>
   )
 }

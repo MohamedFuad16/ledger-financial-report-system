@@ -4,8 +4,6 @@ import {
   CartesianGrid,
   Cell,
   LabelList,
-  ReferenceLine,
-  ReferenceArea,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -14,7 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { RunSummary } from '../types'
-import { formatDuration, formatMetric, groupExperimentStats } from '../lib/format'
+import { comparisonExperimentMeta, formatDuration, formatMetric, groupExperimentStats, reportCohortKey } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Record<string, unknown> }> }) {
@@ -24,6 +22,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   return (
     <div className="chart-tooltip">
       <strong>{String(point.name || point.label || '')}</strong>
+      {point.strategyLabel != null && <span>{String(point.strategyLabel)}</span>}
       {point.accuracy != null && <span>{tr('Accuracy', '正確度')} {formatMetric(Number(point.accuracy))}</span>}
       {point.x != null && <span>{tr('Mean pass', '平均パス')} {formatDuration(Number(point.x))}</span>}
       {point.coverage != null && <span>{tr('Coverage', 'カバレッジ')} {formatMetric(Number(point.coverage))}</span>}
@@ -33,29 +32,51 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
 
 export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  const data = groupExperimentStats(runs)
-    .filter((arm) => arm.accuracy != null && arm.totalSeconds != null && arm.totalSeconds > 0)
-    .map((arm) => ({ x: arm.totalSeconds as number, y: arm.accuracy as number, accuracy: arm.accuracy, coverage: arm.coverage, name: arm.label, color: arm.color }))
-  const sortedTimes = data.map((item) => item.x).sort((a, b) => a - b)
-  const splitTime = sortedTimes.length ? sortedTimes[Math.floor(sortedTimes.length / 2)] : 1
-  const minTime = sortedTimes[0] || .1
+  // One curve per strategy: every point is one report's pass mean, ordered from
+  // the fastest report to the slowest, on a logarithmic time axis.
+  const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
+  const series = experiments.map((experiment) => {
+    const meta = comparisonExperimentMeta[experiment]
+    const eligible = runs.filter((run) => run.experiment === experiment && run.accuracy != null && reportCohortKey(run))
+    const groups: Record<string, RunSummary[]> = {}
+    for (const run of eligible) (groups[`${reportCohortKey(run)}::${run.strategy}`] ||= []).push(run)
+    const points = Object.values(groups).map((passRuns) => {
+      const mean = (field: keyof RunSummary, fallback?: keyof RunSummary) => {
+        const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      }
+      const seconds = mean('total_seconds', 'extract_seconds')
+      const accuracy = mean('accuracy')
+      if (seconds == null || seconds <= 0 || accuracy == null) return null
+      const first = passRuns[0]
+      return {
+        x: seconds,
+        y: accuracy,
+        accuracy,
+        name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
+        strategyLabel: meta.label,
+      }
+    }).filter((point): point is NonNullable<typeof point> => point != null)
+      .sort((left, right) => left.x - right.x)
+    return { experiment, label: meta.label, color: meta.color, points }
+  }).filter((entry) => entry.points.length)
+
   return (
     <div className="accuracy-quadrant">
-      {!!data.length && <div className="quadrant-key-row"><span className="quadrant-label quadrant-best">{tr('Best zone · fast + accurate', '最適ゾーン・高速＋高精度')}</span><span className="quadrant-label quadrant-slow">{tr('Accurate, slower', '高精度・低速')}</span></div>}
+      {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <ReferenceArea x1={minTime} x2={splitTime} y1={50} y2={100} fill="#2563eb" fillOpacity={.08} strokeOpacity={0} />
-            <XAxis type="number" dataKey="x" name={tr('Mean pass time', '平均パス時間')} unit="s" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Mean end-to-end pass time (seconds)', '平均パス総時間（秒）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" name={tr('Pass time', 'パス時間')} unit="s" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('End-to-end pass time per report (seconds, log scale)', 'レポート別パス総時間（秒・対数スケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
-            <ReferenceLine x={splitTime} stroke="var(--line-strong)" strokeDasharray="5 5" />
-            <ReferenceLine y={50} stroke="var(--line-strong)" strokeDasharray="5 5" />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-            <Scatter data={data} line={{ stroke: '#64748b', strokeWidth: 2, strokeOpacity: .55 }} stroke="var(--surface)" strokeWidth={3}>{data.map((point) => <Cell key={point.name} fill={point.color} />)}</Scatter>
+            {series.map((entry) => (
+              <Scatter key={entry.experiment} name={entry.label} data={entry.points} fill={entry.color} line={{ stroke: entry.color, strokeWidth: 2, strokeOpacity: .75 }} stroke="var(--surface)" strokeWidth={2} />
+            ))}
           </ScatterChart>
         </ResponsiveContainer>
-        {!data.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
+        {!series.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
       </div>
     </div>
   )
