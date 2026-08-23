@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-23 · deployment pending
+> Last updated: 2026-08-23 · production code deployed: 3d144c1
 
 ## Current state summary
 
