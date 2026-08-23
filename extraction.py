@@ -640,10 +640,73 @@ def _local_ocr_markdown(
 
     if not result or not getattr(result, "txts", None):
         raise RuntimeError(f"Local RapidOCR returned no text for page {page_no}.")
-    markdown = result.to_markdown()
+    markdown = _assemble_ocr_rows(result)
+    if not markdown.strip():
+        markdown = result.to_markdown()
     if not isinstance(markdown, str) or not markdown.strip():
         markdown = "\n".join(str(value) for value in result.txts if str(value).strip())
     return normalize_text(markdown)
+
+
+def _ocr_render_matrix(page):
+    """200 DPI baseline, raised for physically small pages.
+
+    Gazette announcement strips are ~500pt wide; at 200 DPI their digits are
+    only a few pixels tall and recognition degrades. Scale small pages up to
+    roughly 2,200px of width, capped at 400 DPI.
+    """
+    import pymupdf
+
+    zoom = 200.0 / 72.0
+    try:
+        width_pt = max(1.0, float(page.rect.width))
+    except AttributeError:
+        return pymupdf.Matrix(zoom, zoom)
+    if width_pt * zoom < 2200.0:
+        zoom = min(400.0 / 72.0, 2200.0 / width_pt)
+    return pymupdf.Matrix(zoom, zoom)
+
+
+def _assemble_ocr_rows(result) -> str:
+    """Rebuild reading order from OCR box geometry.
+
+    RapidOCR's own markdown assembly can interleave the columns of small
+    tabular pages (statutory gazette strips), detaching every amount from its
+    label. Clustering detected boxes into visual rows by vertical overlap and
+    sorting each row left-to-right keeps label and amount adjacent.
+    """
+    boxes = getattr(result, "boxes", None)
+    txts = getattr(result, "txts", None)
+    if boxes is None or txts is None or len(boxes) != len(txts):
+        return ""
+    cells = []
+    for box, text in zip(boxes, txts):
+        if not str(text).strip():
+            continue
+        ys = [float(point[1]) for point in box]
+        xs = [float(point[0]) for point in box]
+        cells.append({"x": min(xs), "top": min(ys), "bottom": max(ys),
+                      "middle": (min(ys) + max(ys)) / 2, "text": str(text).strip()})
+    if not cells:
+        return ""
+    cells.sort(key=lambda cell: (cell["middle"], cell["x"]))
+    rows: list[list[dict]] = []
+    for cell in cells:
+        current = rows[-1] if rows else None
+        if current is not None:
+            row_top = min(item["top"] for item in current)
+            row_bottom = max(item["bottom"] for item in current)
+            overlap = min(row_bottom, cell["bottom"]) - max(row_top, cell["top"])
+            height = min(row_bottom - row_top, cell["bottom"] - cell["top"]) or 1.0
+            if overlap / height >= 0.5:
+                current.append(cell)
+                continue
+        rows.append([cell])
+    lines = []
+    for row in rows:
+        row.sort(key=lambda cell: cell["x"])
+        lines.append(" | ".join(cell["text"] for cell in row))
+    return "\n".join(lines)
 
 
 def extract_with_pdf_inspector_ocr(
@@ -709,7 +772,7 @@ def extract_with_pdf_inspector_ocr(
             use_ocr = policy == "force" or classifier_decision
             if use_ocr:
                 pixmap = document[page_no - 1].get_pixmap(
-                    matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
+                    matrix=_ocr_render_matrix(document[page_no - 1]),
                     alpha=False,
                 )
                 markdown = _local_ocr_markdown(
@@ -828,7 +891,7 @@ def extract_with_intelligent_scanning_gate(
             )
             if needs_ocr:
                 pixmap = document[page_no - 1].get_pixmap(
-                    matrix=pymupdf.Matrix(200.0 / 72.0, 200.0 / 72.0),
+                    matrix=_ocr_render_matrix(document[page_no - 1]),
                     alpha=False,
                 )
                 markdown = _local_ocr_markdown(
