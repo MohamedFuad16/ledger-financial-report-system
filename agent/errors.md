@@ -158,3 +158,9 @@ identity or job-budget boundary.
 - Cause: The Striders audit left a 組合等への出資 of 9,239千円 (financial-instruments note ※4, p62) in the Other Fixed residual although the documented convention (Dainichi precedent, encoded in the mapping rules) classifies note-disclosed equity contributions as Investments. The Toenec audit read 15百万円 from the collateral note as the long-term loan total, but that note discloses only the pledged portion; the standalone statement shows 42百万円 of third-party loans, so the consolidated total nested in その他 is unprovable.
 - Resolution: Corrected the Striders fixture per the verified note (Investments 336.796, Other Fixed 67.767, Financial Assets 336.606; the 投資その他の資産 identity still closes at 404,373千円) and marked Toenec Long-term Loan unscorable, both with dated correction notes in the citations. Found by the full-corpus evaluation, verified against the raw PDF pages before any change.
 - First seen: 2026-08-23
+
+## Belc allowance split was scored despite an unprovable target (resolved)
+- Symptom: Fresh Strategy 2 and Strategy 3 runs both scored 88.9% on ベルク with identical, well-reasoned answers netting the long-term 貸倒引当金 against Other Financial Assets per the documented default, while the audited gold netted it against the Other Fixed residual with its own reasoning (a lease deposit carries no bad-debt allowance).
+- Cause: The allowance's target is genuinely undisclosed; two defensible readings reconcile identically. The audited fixture predated the derivation-engine policy that marks allowance ambiguity unscorable.
+- Resolution: Financial Assets, Other Financial Assets, and Other Fixed Assets are now unscorable for the Belc FY2022 key (24 scorable rows), with a dated correction note. Striders remains scored because no counter-evidence contradicts the documented default there.
+- First seen: 2026-08-24

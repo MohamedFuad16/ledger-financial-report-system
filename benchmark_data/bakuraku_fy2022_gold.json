@@ -1444,8 +1444,12 @@
       "value_scale": "millions",
       "source_value_quantum": 1.0,
       "status": "independently_verified",
-      "scorable_rows": 27,
-      "unscorable_rows": [],
+      "scorable_rows": 24,
+      "unscorable_rows": [
+        "Financial Assets",
+        "Other Financial Assets",
+        "Other Fixed Assets"
+      ],
       "candidate_navigation_run": "S3_20260822T104214Z_009",
       "audit_passes": [
         "Poppler pdftotext -layout inspection of cited PDF pages",
@@ -1472,11 +1476,8 @@
         "Other Equipment": 12212.0,
         "Accumulated Depreciation": -48158.0,
         "Intangible Assets": 1655.0,
-        "Financial Assets": 9626.0,
         "Investments": 80.0,
         "Long-term Loan": 0.0,
-        "Other Financial Assets": 9546.0,
-        "Other Fixed Assets": 5723.0,
         "Deferred Charges": 0.0,
         "Total Assets": 153214.0
       },
@@ -1583,8 +1584,8 @@
         },
         "Financial Assets": {
           "page": 41,
-          "source_label": "投資有価証券 + 差入保証金",
-          "evidence": "Computed: Investments 80 (投資有価証券) + Long-term Loan 0 + Other Financial Assets 9,546 (差入保証金) = 9,626 百万円."
+          "source_label": null,
+          "evidence": "[2026-08-24 correction] The long-term 貸倒引当金 (55百万円) has no disclosed target: the audit reasoned it offsets a receivable inside the undisclosed その他 residual (a 差入保証金 carries no bad-debt allowance), while the documented default nets long-term allowances against Other Financial Assets. Both readings reconcile, so the financial/other split is unscorable — matching the derivation-engine policy for allowance ambiguity."
         },
         "Investments": {
           "page": 41,
@@ -1598,13 +1599,13 @@
         },
         "Other Financial Assets": {
           "page": 41,
-          "source_label": "差入保証金",
-          "evidence": "差入保証金 (deposits paid/guarantee deposits) 9,546 百万円 classified as a financial asset per mapping guidance."
+          "source_label": null,
+          "evidence": "[2026-08-24 correction] The long-term 貸倒引当金 (55百万円) has no disclosed target: the audit reasoned it offsets a receivable inside the undisclosed その他 residual (a 差入保証金 carries no bad-debt allowance), while the documented default nets long-term allowances against Other Financial Assets. Both readings reconcile, so the financial/other split is unscorable — matching the derivation-engine policy for allowance ambiguity."
         },
         "Other Fixed Assets": {
           "page": 41,
-          "source_label": "繰延税金資産 + その他 + 貸倒引当金",
-          "evidence": "Residual of 投資その他の資産合計 15,349: 繰延税金資産 2,553 + その他 3,225 + 貸倒引当金 △55 = 5,723 百円→百万円 (deferred tax and non-financial residual; bad-debt allowance netted)."
+          "source_label": null,
+          "evidence": "[2026-08-24 correction] The long-term 貸倒引当金 (55百万円) has no disclosed target: the audit reasoned it offsets a receivable inside the undisclosed その他 residual (a 差入保証金 carries no bad-debt allowance), while the documented default nets long-term allowances against Other Financial Assets. Both readings reconcile, so the financial/other split is unscorable — matching the derivation-engine policy for allowance ambiguity."
         },
         "Deferred Charges": {
           "page": 41,
