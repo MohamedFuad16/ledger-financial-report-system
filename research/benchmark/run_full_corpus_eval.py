@@ -152,6 +152,10 @@ def _existing(settings: dict[str, Any], documents: list[dict[str, Any]]):
             continue
         if str(prediction.get("currency") or "") != by_sha[sha]["currency"]:
             continue
+        if str(prediction.get("reasoning_effort") or "") != str(
+            settings.get("reasoning_effort") or "medium"
+        ):
+            continue
         key = (sha, strategy_key)
         modified = (run_dir / "prediction.json").stat().st_mtime
         if key not in found or modified > found[key][0]:
@@ -239,6 +243,7 @@ def main() -> int:
     parser.add_argument("--api-key-env", default="", help="read the API key from this environment variable instead of saved settings")
     parser.add_argument("--reasoning-effort", default="", help="override the reasoning effort (e.g. low)")
     parser.add_argument("--output-suffix", default="", help="write results to full_corpus_eval_results<suffix>.{json,md}")
+    parser.add_argument("--arms", default="", help="comma-separated strategy keys to run (default: all three)")
     args = parser.parse_args()
     settings = dict(current_settings())
     if args.provider:
@@ -264,6 +269,12 @@ def main() -> int:
     if not settings.get("api_key"):
         raise SystemExit("No configured LLM API key.")
 
+    global ARMS
+    if args.arms:
+        wanted = {key.strip() for key in args.arms.split(",") if key.strip()}
+        ARMS = [(name, key) for name, key in ARMS if key in wanted]
+        if not ARMS:
+            raise SystemExit(f"--arms matched no strategy keys: {args.arms}")
     documents = _gold_backed_documents(one_per_company=args.one_per_company)
     total = len(documents) * len(ARMS)
     print(f"{len(documents)} gold-backed corpus documents · {total} arms")
