@@ -152,3 +152,9 @@ identity or job-budget boundary.
 - Cause: EDINET statements sometimes print note markers (※３，※４) on their own line between the label and the amounts. Treating that line as a value shifted the two-column [prior, current] alignment so the "current" slot held the prior-year figure. A related half-width form (※1 348,663) merged the marker digit into the amount.
 - Resolution: Marker-only lines are skipped outright, full-width-digit markers are stripped before NFKC folding, and half-width marker digits separated by a space are removed. The engine is cross-validated against all 13 human-audited FY2022 documents with zero mismatches, and every admitted printed value must be re-located by an independent pypdf pass.
 - First seen: 2026-08-23
+
+## Two audited FY2022 gold rows contradicted their own conventions (resolved)
+- Symptom: Fresh Strategy 2 and Strategy 3 runs missed the same rows on ストライダーズ (Investments/Other Fixed/Financial Assets) and トーエネック (Long-term Loan) with well-cited evidence, while every other arm scored 100%.
+- Cause: The Striders audit left a 組合等への出資 of 9,239千円 (financial-instruments note ※4, p62) in the Other Fixed residual although the documented convention (Dainichi precedent, encoded in the mapping rules) classifies note-disclosed equity contributions as Investments. The Toenec audit read 15百万円 from the collateral note as the long-term loan total, but that note discloses only the pledged portion; the standalone statement shows 42百万円 of third-party loans, so the consolidated total nested in その他 is unprovable.
+- Resolution: Corrected the Striders fixture per the verified note (Investments 336.796, Other Fixed 67.767, Financial Assets 336.606; the 投資その他の資産 identity still closes at 404,373千円) and marked Toenec Long-term Loan unscorable, both with dated correction notes in the citations. Found by the full-corpus evaluation, verified against the raw PDF pages before any change.
+- First seen: 2026-08-23

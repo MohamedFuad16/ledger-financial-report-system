@@ -1110,11 +1110,11 @@
         "Other Equipment": 224.963,
         "Accumulated Depreciation": -728.126,
         "Intangible Assets": 115.542,
-        "Financial Assets": 327.367,
-        "Investments": 327.557,
+        "Financial Assets": 336.606,
+        "Investments": 336.796,
         "Long-term Loan": 0.0,
         "Other Financial Assets": -0.19,
-        "Other Fixed Assets": 77.006,
+        "Other Fixed Assets": 67.767,
         "Deferred Charges": 0.0,
         "Total Assets": 4789.677
       },
@@ -1221,13 +1221,13 @@
         },
         "Financial Assets": {
           "page": 42,
-          "source_label": "投資有価証券 + 関係会社株式 + 貸倒引当金",
-          "evidence": "256,941 + 70,616 − 190 = 327,367千円"
+          "source_label": "Investments + Long-term Loan + Other Financial Assets",
+          "evidence": "336,796 + 0 − 190 = 336,606千円; 336,606 + 67,767 = 投資その他の資産合計404,373千円と一致。 [2026-08-23 correction, see Investments.]"
         },
         "Investments": {
-          "page": 42,
-          "source_label": "投資有価証券 + 関係会社株式",
-          "evidence": "256,941 + 70,616 = 327,557千円"
+          "page": 62,
+          "source_label": "投資有価証券 + 関係会社株式 + 組合等への出資(注※4)",
+          "evidence": "256,941 + 70,616 + 組合出資9,239 = 336,796千円。P62金融商品注記※4: 組合等への出資は記載省略、連結貸借対照表計上額9,239千円 — 面表その他に内包。 [2026-08-23 correction: the original audit left the partnership investment in the Other Fixed residual, contradicting the documented 出資金→Investments convention (Dainichi precedent); re-verified against p62 and moved.]"
         },
         "Long-term Loan": {
           "page": 42,
@@ -1241,8 +1241,8 @@
         },
         "Other Fixed Assets": {
           "page": 42,
-          "source_label": "繰延税金資産 + その他",
-          "evidence": "8,182 + 68,824 = 77,006千円"
+          "source_label": "繰延税金資産 + その他残余(出資移管後)",
+          "evidence": "8,182 + (68,824 − 9,239) = 67,767千円。 [2026-08-23 correction, see Investments.]"
         },
         "Deferred Charges": {
           "page": 42,

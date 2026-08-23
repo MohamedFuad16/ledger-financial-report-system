@@ -191,9 +191,10 @@
       "value_scale": "millions",
       "source_value_quantum": 1.0,
       "status": "independently_verified_partial",
-      "scorable_rows": 22,
+      "scorable_rows": 21,
       "unscorable_rows": [
         "Financial Assets",
+        "Long-term Loan",
         "Other Equipment",
         "Other Financial Assets",
         "Other Fixed Assets",
@@ -224,7 +225,6 @@
         "Accumulated Depreciation": -67373.0,
         "Intangible Assets": 4047.0,
         "Investments": 28877.0,
-        "Long-term Loan": 15.0,
         "Deferred Charges": 0.0,
         "Total Assets": 301599.0
       },
@@ -325,9 +325,9 @@
           "evidence": "Twice checked against the cited consolidated filing page."
         },
         "Long-term Loan": {
-          "page": 53,
-          "source_label": "Long-term Loan",
-          "evidence": "Twice checked against the cited consolidated filing page."
+          "page": 65,
+          "source_label": null,
+          "evidence": "[2026-08-23 correction] The original audit read 15百万円 from the collateral note (p65 その他（長期貸付金）15), but that is only the pledged portion; the standalone statement (p91) shows 長期貸付金42 and the consolidated total nested in その他 cannot be established from the report. Unscorable."
         },
         "Deferred Charges": {
           "page": 53,
