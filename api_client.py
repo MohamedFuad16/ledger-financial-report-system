@@ -17,6 +17,10 @@ class RateLimitedError(GLMError):
     """HTTP 429 from the provider, after retries were exhausted."""
 
 
+class RequestTimedOut(GLMError):
+    """The provider produced no response within the client timeout."""
+
+
 class QuotaExhaustedError(GLMError):
     """
     The account's usage allowance is spent, not merely throttled.
@@ -71,7 +75,7 @@ def _send_once(
             timeout=timeout,
         )
     except requests.Timeout as exc:
-        raise GLMError(f"Request timed out after {timeout} seconds.") from exc
+        raise RequestTimedOut(f"Request timed out after {timeout} seconds.") from exc
     except requests.RequestException as exc:
         raise GLMError(f"Network error: {exc}") from exc
 
@@ -103,6 +107,7 @@ def _post_json(
     jitter), and try again. Only when the retries run out does it surface.
     """
     attempt = 0
+    timeout_attempts = 0
     total_elapsed = 0.0
 
     while True:
@@ -112,6 +117,18 @@ def _post_json(
                 api_key=api_key, base_url=base_url, payload=payload,
                 timeout=timeout, extra_headers=extra_headers,
             )
+        except RequestTimedOut:
+            # Congested reasoning endpoints occasionally sit on one request
+            # far beyond their normal latency; one fresh attempt usually
+            # succeeds. A second timeout is surfaced — each one already cost
+            # the full client timeout, so looping would multiply the stall.
+            timeout_attempts += 1
+            total_elapsed += float(timeout)
+            if timeout_attempts > 1:
+                raise
+            if on_retry:
+                on_retry(timeout_attempts, 1.0)
+            continue
         finally:
             LIMITER.release()
 
