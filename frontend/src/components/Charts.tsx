@@ -24,7 +24,8 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
       <strong>{String(point.name || point.label || '')}</strong>
       {point.strategyLabel != null && <span>{String(point.strategyLabel)}</span>}
       {point.accuracy != null && <span>{tr('Accuracy', '正確度')} {formatMetric(Number(point.accuracy))}</span>}
-      {point.x != null && <span>{tr('Mean pass', '平均パス')} {formatDuration(Number(point.x))}</span>}
+      {point.tokens != null && <span>{tr('Mean input tokens', '平均入力トークン')} {Math.round(Number(point.tokens)).toLocaleString()}</span>}
+      {point.tokens == null && point.x != null && <span>{tr('Mean pass', '平均パス')} {formatDuration(Number(point.x))}</span>}
       {point.coverage != null && <span>{tr('Coverage', 'カバレッジ')} {formatMetric(Number(point.coverage))}</span>}
     </div>
   )
@@ -91,6 +92,7 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
     .filter((arm) => arm.passes && arm.accuracy != null && arm.inputTokens != null && arm.inputTokens > 0)
     .map((arm) => ({
       x: arm.inputTokens as number,
+      tokens: arm.inputTokens as number,
       y: arm.accuracy as number,
       accuracy: arm.accuracy,
       name: arm.label,
