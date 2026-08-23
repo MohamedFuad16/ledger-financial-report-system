@@ -109,12 +109,11 @@ describe('CorpusPage answer review', () => {
     expect(extract).toHaveBeenCalledWith(document.sha256)
     expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M USD')
 
-    const pdfFrame = () => screen.getByTitle('Source annual report PDF') as HTMLIFrameElement
-    expect(pdfFrame().src).toContain('#page=42')
+    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(pdfFrame().src).toContain('#page=43')
+    expect(screen.getByAltText('Report page 43')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Balance sheet p.42' }))
-    expect(pdfFrame().src).toContain('#page=42')
+    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
     expect(screen.getAllByText(document.filename).length).toBeGreaterThanOrEqual(2)
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')

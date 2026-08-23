@@ -651,8 +651,8 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .review-pdf-title strong { overflow: hidden; color: var(--text); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 .review-pdf-title small { color: var(--faint); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .pdf-search-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
-.review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; align-self: stretch; justify-self: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
-.review-pdf-frame iframe { width: 100%; height: 100%; display: block; border: 0; background: var(--surface-raised); }
+.review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; align-self: stretch; justify-self: stretch; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+.review-pdf-frame > img { width: 100%; height: auto; display: block; background: #fff; }
 .review-pdf-pane > .review-page-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .review-page-nav > button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); cursor: pointer; }
 .review-page-nav > button:disabled { opacity: .4; cursor: default; }
