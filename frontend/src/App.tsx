@@ -38,7 +38,10 @@ export default function App() {
   }, [])
 
   const refreshRuns = useCallback(async () => {
-    try { setRuns(await api.runs()) }
+    try {
+      setRuns(await api.runs())
+      setBenchmarkRuns(await api.benchmarkRuns())
+    }
     catch (error) { notify(error instanceof Error ? error.message : tr('Could not load run history.', '実行履歴を読み込めませんでした。'), 'error') }
   }, [notify])
 
@@ -59,6 +62,13 @@ export default function App() {
     ]).catch((error) => notify(error instanceof Error ? error.message : tr('The workspace could not be loaded.', 'ワークスペースを読み込めませんでした。'), 'error')).finally(() => setLoading(false))
     return () => window.removeEventListener('hashchange', onHash)
   }, [notify])
+
+  // The benchmark feed is server-global (other workers append runs), so an
+  // open tab must refetch it when the Overview becomes active, not only on mount.
+  useEffect(() => {
+    if (panel !== 'dashboard') return
+    api.benchmarkRuns().then(setBenchmarkRuns).catch(() => { /* keep the last loaded feed */ })
+  }, [panel])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
