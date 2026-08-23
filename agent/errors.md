@@ -164,3 +164,9 @@ identity or job-budget boundary.
 - Cause: The allowance's target is genuinely undisclosed; two defensible readings reconcile identically. The audited fixture predated the derivation-engine policy that marks allowance ambiguity unscorable.
 - Resolution: Financial Assets, Other Financial Assets, and Other Fixed Assets are now unscorable for the Belc FY2022 key (24 scorable rows), with a dated correction note. Striders remains scored because no counter-evidence contradicts the documented default there.
 - First seen: 2026-08-24
+
+## A superseded confidence ADR stayed live in the result sheet (resolved)
+- Symptom: The run drawer rendered an em dash and the CSV export dropped the value for any row below 0.80 confidence, while agent/state.md and the backend both claimed values are never hidden.
+- Cause: ADR-0031 moved confidence to review-priority metadata (display and export every returned value) and the backend was migrated, but RunDrawer's display and export conditionals predate the ADR and were never revisited — UI drift across roughly ten commits.
+- Resolution: Both conditionals removed; every returned value renders and exports, with the dimmed is-rejected style and the accepted-count badge preserved as the review signal. A regression test pins the sub-0.80 display path. Also made summary input tokens the sum of the main, repair, and evidence-retry calls (with output tokens surfaced), and a failed evidence retry now contributes its real wall-clock to the run timing.
+- First seen: 2026-08-24

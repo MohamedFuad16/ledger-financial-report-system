@@ -8,10 +8,6 @@ from providers import DEFAULT_PROVIDER, REASONING_EFFORTS, get_provider, provide
 
 ENV_PATH = Path(".env")
 
-# Kept for the legacy Streamlit app, which offers these two by name.
-GENERAL_BASE_URL = "https://api.z.ai/api/paas/v4"
-CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
-
 
 def load_local_env() -> None:
     load_dotenv(ENV_PATH, override=True)

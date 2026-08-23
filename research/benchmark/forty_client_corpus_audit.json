@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-08-23T14:54:43.593845+00:00",
+  "generated_at": "2026-08-23T15:13:33.194454+00:00",
   "status": "passed",
   "target_client_count": 40,
   "verified_client_count": 40,
@@ -603,8 +603,8 @@
         "Poppler pdftotext -layout inspection of cited PDF pages",
         "PyMuPDF embedded-text inspection plus deterministic schema reconciliation"
       ],
-      "scorable_rows": 27,
-      "unscorable_rows": 0,
+      "scorable_rows": 24,
+      "unscorable_rows": 3,
       "all_27_rows_accounted_for": true,
       "exact_source_bytes_verified": true
     },

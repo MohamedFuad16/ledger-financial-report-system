@@ -749,6 +749,7 @@ def _run_pipeline_inner(
                     extracted.text if (failed_identity_items or not retry_pages) else ""
                 ),
             )
+            retry_started = time.perf_counter()
             try:
                 retry_response, retry_elapsed = run_extraction(
                     api_key=settings["api_key"],
@@ -809,6 +810,11 @@ def _run_pipeline_inner(
                     f"of {len(retry_items)} targeted rows",
                 )
             except Exception as exc:  # noqa: BLE001 - the retry must never fail the run
+                # A failed attempt still burned real wall-clock (including any
+                # backoff sleeps inside the client); it must not vanish from
+                # the run's timing.
+                retry_wasted = round(time.perf_counter() - retry_started, 2)
+                elapsed += retry_wasted
                 evidence_retry = {
                     "attempted": True,
                     "missing_rows": missing_items,
@@ -816,6 +822,7 @@ def _run_pipeline_inner(
                     "pages_added": retry_diagnostics.get("retry_pages"),
                     "recovered_rows": [],
                     "replaced_rows": [],
+                    "elapsed_seconds": retry_wasted,
                     "error": f"{type(exc).__name__}: {exc}",
                 }
                 progress("validate", "Evidence retry failed — keeping first-pass values")
@@ -899,6 +906,26 @@ def _run_pipeline_inner(
         fiscal_year=fiscal_year,
     )
     return prediction
+
+
+def _usage_pots(prediction: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        prediction.get("usage") or {},
+        prediction.get("contract_repair_usage") or {},
+        ((prediction.get("evidence_retry") or {}).get("usage")) or {},
+    ]
+
+
+def _total_prompt_tokens(prediction: dict[str, Any]) -> Optional[int]:
+    values = [pot.get("prompt_tokens") for pot in _usage_pots(prediction)]
+    present = [int(value) for value in values if value is not None]
+    return sum(present) if present else None
+
+
+def _total_completion_tokens(prediction: dict[str, Any]) -> Optional[int]:
+    values = [pot.get("completion_tokens") for pot in _usage_pots(prediction)]
+    present = [int(value) for value in values if value is not None]
+    return sum(present) if present else None
 
 
 def load_prediction(run_id: str) -> Optional[dict[str, Any]]:
@@ -1002,7 +1029,15 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
             "pdf_file": prediction.get("pdf_file", ""),
             "page_count": prediction.get("page_count"),
             "approx_input_tokens": prediction.get("approx_input_tokens"),
-            "input_tokens": (prediction.get("usage") or {}).get("prompt_tokens"),
+            # Total model input across every call the run made: main pass,
+            # bounded contract repair, and Strategy 3's evidence retry. None
+            # only when no call reported usage, so legacy runs still read as
+            # "estimated" rather than a false zero.
+            "input_tokens": _total_prompt_tokens(prediction),
+            "output_tokens": _total_completion_tokens(prediction),
+            "contract_repair_attempts": prediction.get("contract_repair_attempts", 0),
+            "evidence_retry_attempted": bool((prediction.get("evidence_retry") or {}).get("attempted")),
+            "evidence_retry_recovered": len((prediction.get("evidence_retry") or {}).get("recovered_rows") or []),
             "input_characters": prediction.get("input_characters"),
             "strategy_label": prediction.get("strategy_label", ""),
             "row_count": len(rows),
