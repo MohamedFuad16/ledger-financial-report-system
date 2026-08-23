@@ -24,9 +24,10 @@ cd frontend && npm test -- --run && npm run build
 
 ## Current baseline
 
-The full extraction contract, every backend `test_*.py` suite, 19 Vitest checks, production
-TypeScript/Vite build, Python compile checks, and in-app browser visual/DOM sweep
-passed on 2026-08-22. The newest browser pass covers the active Strategy 3
+The full extraction contract, 86 backend `unittest` checks, 25 Vitest checks, and the production
+TypeScript/Vite build passed on 2026-08-23. The batch regression proves two different-company
+PDFs stay visible together as separate running/queued cards, and the arithmetic regression proves
+one null identity term is derived without mutating the model response or consulting gold. The newest browser pass covers the active Strategy 3
 desktop execution page plus the Japanese dark-theme
 extracted-answer review at desktop and 390×844 plus the two-strategy-only dashboard:
 embedded pinned PDF, 27 prefilled rows, responsive scrolling, immutable assignment

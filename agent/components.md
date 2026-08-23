@@ -15,7 +15,7 @@
 - `schema.py` — canonical taxonomy, subtotal identities, and golden answers.
 - `normalize.py` — explicit, reported representation repair.
 - `models.py` — strict Pydantic output contract.
-- `reconcile.py` — non-mutating subtotal checks.
+- `reconcile.py` — auditable single-missing-term identity completion plus non-overwriting subtotal checks.
 
 ## Delivery surfaces
 
@@ -25,7 +25,7 @@
 - `frontend/src/lib/i18n.tsx` — browser-locale detection, persisted English/Japanese selection, shared interface translation, and canonical schema/result-value localization.
 - `frontend/src/lib/currency.ts` — persisted USD/JPY display preference and reversible display-only conversion; native filing values remain unchanged.
 - `frontend/src/pages/` — dashboard, three live extraction strategies, history, corpus (including confirmed deletion and exact-page A4/searchable-PDF answer review), schema, and settings.
-- `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, BeautifulUI-derived neutral execution capsules, and shared UI primitives.
+- `frontend/src/components/` — bilingual collapsible sidebar, connected distinct-color quadrant/relative-speed/coverage charts, RareUI-derived folder uploader, searchable single/batch `CorpusPicker`, selectable row-local run tables/result sheets, one persistent live execution card per selected PDF, and shared UI primitives.
 - `frontend/src/editor-theme.css` — final visual mapping from the user's Resume/editor application; loaded after the legacy stylesheet.
 - `frontend/public/favicon.png`, `frontend/public/ledger-icon.png` — transparent favicon and high-resolution app-icon assets generated for Ledger.
 - `frontend/public/providers/` — locally served official OpenRouter, Z.AI and OpenAI marks used by the model-gateway selector.

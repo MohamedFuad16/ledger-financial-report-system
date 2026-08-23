@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-23 · HEAD: d48dc4e
+> Last updated: 2026-08-23 · deployment pending
 
 ## Current state summary
 
@@ -11,6 +11,8 @@ The corpus keeps one atomic company/year PDF, uses cross-process manifest lockin
 Anonymous browser workspace IDs isolate staged files, jobs, run history and run deletion between ordinary public visitors without pretending to be authentication. The public dashboard uses a separate exact-source benchmark feed and reports three equal-weight experiment means—no OCR, OCR enabled and intelligent scanning—without exposing private visitor history. The localized corpus library groups fiscal years below one company row and exposes PDF name/year, screening, answers and source across exactly 100 evidence-backed targets; pending targets are never counted as verified. Values default to a USD display conversion while extraction, gold and exact scoring remain in the filing currency. Vercel serves the bilingual responsive client; Tokyo EC2/Caddy/Gunicorn serves the API and persistent encrypted-EBS artifacts. Provider, Firecrawl, Upstash and SES credentials remain backend-only.
 
 ## Recent changes (latest first — keep ~15)
+
+- 2026-08-23 — Kept every selected PDF visible as its own live execution card throughout a batch and added source-independent single-missing-term identity completion before scoring; the latest exact 3M FY2022 Strategy 3 result now derives Deferred Charges as the auditable zero residual in `Total Assets = Current Assets + Fixed Assets + Deferred Charges` instead of leaving it null — why: stop cross-company batches from appearing one report at a time and restore 27/27 coverage without leaking assignment gold — by: leader — session: two-report batch + FY2022 accuracy repair
 
 - 2026-08-23 — Removed seven invalid PDFs from the accidental all-client discovery run, added content-level annual-document/company identity enforcement, replaced Safari-dependent PDF fitting with an exact A4 page renderer plus searchable mode, localized English corpus names/evidence, simplified library columns, preserved live timers across navigation, exposed actual input tokens and reconciliation alerts, restored all three dashboard benchmark arms, and added USD-default display conversion without changing native-currency scoring — why: close the accidental-crawl integrity hole and align corpus, review and benchmark UI with the verified three-strategy contract — by: leader — session: production corpus/UI clean sweep
 

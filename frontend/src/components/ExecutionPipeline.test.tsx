@@ -76,25 +76,24 @@ describe('ExecutionPipeline', () => {
     expect(screen.queryByText('10ms')).not.toBeInTheDocument()
   })
 
-  it('folds a six-year company batch into one active card and six report capsules', () => {
-    const reports: ExecutionFile[] = Array.from({ length: 6 }, (_, index) => ({
+  it('keeps every selected report visible while a batch advances', () => {
+    const reports: ExecutionFile[] = Array.from({ length: 2 }, (_, index) => ({
       ...comparisonFile,
-      name: `3M_annual_report_${2020 + index}.pdf`,
-      state: index < 2 ? 'complete' : index === 2 ? 'running' : 'queued',
+      name: index === 0 ? '3M_annual_report_2022.pdf' : 'Dainichi_annual_report_2022.pdf',
+      state: index === 0 ? 'running' : 'queued',
       passes: [{
-        strategy: 's1',
-        strategyLabel: 'PyPDF',
-        state: index < 2 ? 'complete' : index === 2 ? 'running' : 'queued',
-        step: index < 2 ? 'output' : index === 2 ? 'extract' : undefined,
+        strategy: 's3',
+        strategyLabel: 'Inspector Gate',
+        state: index === 0 ? 'running' : 'queued',
+        step: index === 0 ? 'api' : undefined,
       }],
     }))
 
     render(<LocaleProvider><ExecutionPipeline files={reports} running /></LocaleProvider>)
 
-    expect(screen.getAllByTestId('execution-file-card')).toHaveLength(1)
-    expect(screen.getByText('FY2020')).toBeInTheDocument()
-    expect(screen.getByText('FY2025')).toBeInTheDocument()
-    expect(screen.getByText('2 of 6 reports complete')).toBeInTheDocument()
+    expect(screen.getAllByTestId('execution-file-card')).toHaveLength(2)
     expect(screen.getByText('3M_annual_report_2022.pdf')).toBeInTheDocument()
+    expect(screen.getByText('Dainichi_annual_report_2022.pdf')).toBeInTheDocument()
+    expect(screen.getByText('0 complete · 1 running · 1 queued')).toBeInTheDocument()
   })
 })

@@ -23,7 +23,7 @@ from api_client import GLMError, parse_assistant_json, response_usage, run_extra
 from extraction import STRATEGIES, get_strategy
 from models import EXPECTED_ROW_COUNT, SchemaValidationError, rows_as_dicts, validate_extraction
 from normalize import normalize_payload
-from reconcile import reconcile, reconciliation_summary
+from reconcile import derive_identity_values, reconcile, reconciliation_summary
 from prompts import build_user_prompt
 from schema import (
     ASSET_SCHEMA,
@@ -620,9 +620,12 @@ def _run_pipeline_inner(
         elapsed += repair_elapsed
         contract_repair_usage = response_usage(repaired_response)
         result, repairs = parse_and_validate(repaired_response)
+    # Complete only algebraically unique nulls before applying the confidence
+    # gate. This uses the public schema identities, never benchmark gold.
+    rows, deterministic_derivations = derive_identity_values(rows_as_dicts(result))
     # Apply the confidence gate once, here, so scoring and reconciliation below
     # agree on what counts as an answer.
-    rows = apply_confidence_gate(rows_as_dicts(result))
+    rows = apply_confidence_gate(rows)
     progress("validate", f"{len(rows)} rows conform to the contract")
 
     # Deterministic arithmetic check, separate from the type contract above and
@@ -681,6 +684,7 @@ def _run_pipeline_inner(
         "warnings": extracted.warnings,
         "contract_repairs": repairs,
         "contract_repair_attempts": contract_repair_attempts,
+        "deterministic_derivations": deterministic_derivations,
         "reconciliation": reconciliation,
         "schema_rows": EXPECTED_ROW_COUNT,
         "metrics": metrics,
@@ -738,7 +742,8 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
         if workspace_id is not None and str(prediction.get("workspace_id") or "legacy-public") != workspace_id:
             continue
 
-        rows = apply_confidence_gate(prediction.get("rows", []))
+        rows, _ = derive_identity_values(prediction.get("rows", []))
+        rows = apply_confidence_gate(rows)
         fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
         # Always recompute rather than trusting the stored block: the stored
         # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
@@ -829,6 +834,7 @@ __all__ = [
     "UPLOAD_DIR",
     "apply_confidence_gate",
     "compute_metrics",
+    "derive_identity_values",
     "create_run_dir",
     "ensure_dirs",
     "evidence_table",

@@ -5,8 +5,7 @@ import type { ExecutionFile, ExecutionPass } from '../types'
 import { formatDuration, formatNumber, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 
-/* One compact card follows each report through every parser and stage.
-   The underlying passes remain independent; only their live presentation is folded. */
+/* One compact, persistent card follows each report through every parser and stage. */
 
 const stepOrder = ['upload', 'extract', 'prompt', 'api', 'validate', 'output'] as const
 type Step = typeof stepOrder[number]
@@ -18,14 +17,6 @@ function activePassFor(file: ExecutionFile) {
   if (file.state === 'failed') return file.passes.find((pass) => pass.state === 'failed') || file.passes.at(-1)
   if (file.state === 'complete') return file.passes.at(-1)
   return file.passes.find((pass) => pass.state === 'queued') || file.passes.at(-1)
-}
-
-function reportIdentity(file: ExecutionFile) {
-  const match = file.name.match(/^(.*?)_annual_report_(\d{4})\.pdf$/i)
-  return {
-    company: match?.[1]?.replaceAll('_', ' ') || file.name.replace(/\.pdf$/i, ''),
-    year: match?.[2] || '',
-  }
 }
 
 function stateForStep(pass: ExecutionPass, step: Step): StepState {
@@ -68,19 +59,6 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
     )
   }
 
-  const grouped = Array.from(files.reduce<Map<string, ExecutionFile[]>>((groups, file) => {
-    const key = reportIdentity(file).company
-    groups.set(key, [...(groups.get(key) || []), file])
-    return groups
-  }, new Map()).entries()).map(([company, reports]) => ({ company, reports }))
-  const currentGroup = grouped.find((group) => group.reports.some((file) => file.state === 'running'))
-    || grouped.find((group) => group.reports.some((file) => file.state === 'queued'))
-    || grouped.at(-1)!
-  const activeFile = currentGroup.reports.find((file) => file.state === 'running')
-    || currentGroup.reports.find((file) => file.state === 'queued')
-    || [...currentGroup.reports].reverse().find((file) => file.state === 'failed')
-    || currentGroup.reports.at(-1)!
-
   const timeLabel = (key: string, pass: ExecutionPass, step: Step, state: StepState) => {
     if (pass.state === 'complete' && pass.totalSeconds != null) return formatDuration(pass.totalSeconds)
     const stored = pass.steps?.[step]?.durationSeconds
@@ -96,19 +74,12 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
 
   return (
     <div className="execution-file-list">
-      {currentGroup.reports.length > 1 && <motion.div className="execution-report-rail" layout aria-label={tr('Company report progress', '会社レポートの進捗')}>
-        <strong>{currentGroup.company}</strong>
-        <div>{currentGroup.reports.slice(0, 6).map((report) => {
-          const identity = reportIdentity(report)
-          return <span className={`execution-report-chip is-${report.state}${report === activeFile ? ' is-active' : ''}`} key={report.name}>
-            {report.state === 'complete' ? <Check size={12} strokeWidth={2.8} /> : report.state === 'failed' ? <X size={12} strokeWidth={2.8} /> : report.state === 'running' ? <LoaderCircle className="spin" size={12} /> : <FileText size={12} />}
-            <b>{identity.year ? `FY${identity.year}` : report.name}</b>
-          </span>
-        })}</div>
-        <small>{tr(`${currentGroup.reports.filter((file) => file.state === 'complete').length} of ${currentGroup.reports.length} reports complete`, `${currentGroup.reports.length}件中${currentGroup.reports.filter((file) => file.state === 'complete').length}件のレポートが完了`)}</small>
-      </motion.div>}
+      {files.length > 1 && <div className="execution-batch-summary" role="status">
+        <strong>{tr(`${files.length} reports in this batch`, `この一括処理には${files.length}件のレポートがあります`)}</strong>
+        <span>{tr(`${files.filter((file) => file.state === 'complete').length} complete · ${files.filter((file) => file.state === 'running').length} running · ${files.filter((file) => file.state === 'queued').length} queued`, `完了${files.filter((file) => file.state === 'complete').length}件・実行中${files.filter((file) => file.state === 'running').length}件・待機中${files.filter((file) => file.state === 'queued').length}件`)}</span>
+      </div>}
       <AnimatePresence initial={false}>
-        {[activeFile].map((file) => {
+        {files.map((file) => {
           const activePass = activePassFor(file)
           if (!activePass) return null
           const passIndex = Math.max(0, file.passes.indexOf(activePass))

@@ -1,5 +1,5 @@
 """
-Deterministic arithmetic verification of a prediction.
+Deterministic arithmetic completion and verification of a prediction.
 
 This runs *after* the Pydantic contract and is completely separate from it:
 
@@ -14,10 +14,10 @@ Two properties make this worth having:
 1. **No answer key required.** It works on any company's report, which is the
    only quality signal available once the corpus grows past the handful of
    filers we have golden data for.
-2. **It never changes a value.** Repairing a mismatch means guessing which side
-   is wrong; guessing here would corrupt the very measurement the benchmark
-   exists to produce. This module reports, and nothing else. Re-asking the model
-   about failed identities is outside this project's two-strategy scope.
+2. **It never overwrites a reported value.** A null may be completed only when
+   one and only one term in a schema identity is missing and every other term is
+   available. That is algebra, not an answer-key lookup. Conflicting non-null
+   values remain untouched and are reported as failed identities.
 """
 
 from __future__ import annotations
@@ -31,6 +31,76 @@ from schema import SUBTOTAL_IDENTITIES
 TOLERANCE = 0.5
 
 _PARTS_BY_TOTAL = {total: parts for total, parts in SUBTOTAL_IDENTITIES}
+
+
+def derive_identity_values(rows: list[dict]) -> tuple[list[dict], list[dict[str, Any]]]:
+    """Complete uniquely solvable nulls without consulting benchmark gold.
+
+    Each schema identity has the form ``total = part + part ...``.  If exactly
+    one value in that equation is null, the remaining values establish a unique
+    residual.  Preserve every non-null model value, stamp the derivation into
+    the row evidence, and repeat because resolving an inner subtotal can make an
+    outer identity solvable.
+    """
+    completed = [dict(row) for row in rows]
+    by_item = {
+        str(row.get("item")): row
+        for row in completed
+        if isinstance(row, dict) and row.get("item")
+    }
+    derivations: list[dict[str, Any]] = []
+
+    changed = True
+    while changed:
+        changed = False
+        for total_item, parts in SUBTOTAL_IDENTITIES:
+            equation_items = [total_item, *parts]
+            missing = [item for item in equation_items if by_item.get(item, {}).get("answer_m_usd") is None]
+            if len(missing) != 1:
+                continue
+            missing_item = missing[0]
+            try:
+                total_value = by_item[total_item].get("answer_m_usd")
+                part_values = [by_item[part].get("answer_m_usd") for part in parts]
+                if missing_item == total_item:
+                    derived = sum(float(value) for value in part_values)
+                    operands = parts
+                else:
+                    if total_value is None:
+                        continue
+                    derived = float(total_value) - sum(
+                        float(value)
+                        for part, value in zip(parts, part_values)
+                        if part != missing_item
+                    )
+                    operands = [total_item, *[part for part in parts if part != missing_item]]
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            target = by_item[missing_item]
+            confidences = [
+                float(by_item[item].get("confidence"))
+                for item in operands
+                if isinstance(by_item[item].get("confidence"), (int, float))
+            ]
+            identity = f"{total_item} = {' + '.join(parts)}"
+            prior_evidence = str(target.get("evidence") or "").strip()
+            derivation_evidence = f"Deterministically derived from schema identity: {identity}."
+            target.update({
+                "answer_m_usd": round(derived, 9),
+                "confidence": min(confidences) if confidences else 0.8,
+                "accepted": False,
+                "source_label": target.get("source_label") or f"Calculated: {identity}",
+                "evidence": f"{prior_evidence} {derivation_evidence}".strip(),
+            })
+            derivations.append({
+                "item": missing_item,
+                "value": round(derived, 9),
+                "identity": identity,
+            })
+            changed = True
+
+    return completed, derivations
 
 
 def _leaf_count(item: str) -> int:

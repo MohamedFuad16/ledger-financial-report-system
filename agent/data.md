@@ -4,7 +4,7 @@
 
 - `AssetRow` — canonical item, value in millions of the run's declared source currency, confidence, provenance, and schema-derived descriptive fields. The legacy JSON field name remains `answer_m_usd` for stored-artifact compatibility.
 - `ExtractionResult` — detected fiscal year plus exactly 27 ordered rows.
-- Prediction artifact — run metadata, strategy/parser identity, accepted rows, repairs, reconciliation, metrics, usage, and timing.
+- Prediction artifact — run metadata, strategy/parser identity, accepted rows, contract repairs, source-independent deterministic identity derivations, reconciliation, metrics, usage, and timing.
 
 ## Storage
 

@@ -1,5 +1,17 @@
 # Errors, gotchas & known issues
 
+## A multi-report extraction displayed only one active report (resolved)
+- Symptom: Selecting two corpus PDFs showed only the currently active PDF in the live pipeline, then showed the second only after the first disappeared; an interim result therefore read `1 of 2 reports` with no visible queued report.
+- Cause: `ExecutionPipeline` grouped files by company and rendered only one `activeFile` from one `currentGroup`, despite the durable `batch_start` event already containing every selected PDF.
+- Resolution: Render one persistent card for every `batch_start` file and keep a sticky batch summary with complete/running/queued counts. The regression uses two different companies so cross-company hiding cannot return.
+- First seen: 2026-08-23
+
+## Exact 3M FY2022 Strategy 3 stopped at 26/27 on a null residual (resolved)
+- Symptom: Strategy 3 reported 96.3% exact accuracy and coverage even though the model extracted every disclosed amount correctly.
+- Cause: The model stated that no Deferred Charges category existed and showed Total Assets equalled Current plus Fixed Assets, but returned null instead of the uniquely established residual zero.
+- Resolution: Before confidence gating, complete a null only when exactly one term in a public schema identity is missing and all other terms are available. The derivation is copied into evidence, never overwrites a non-null value, never consults gold, and is reapplied when historical runs are read.
+- First seen: 2026-08-23
+
 ## Human review opened a blank manual-entry table (resolved)
 - Symptom: A pinned report with no candidate artifact still rendered 27 empty number inputs, while the small “Review answers” text link implied that extraction had already happened.
 - Cause: `verification_payload` always synthesized the schema rows, and `/api/corpus` counted those placeholders as candidates even when no PDF extraction artifact existed. The UI had no extraction-on-review state.

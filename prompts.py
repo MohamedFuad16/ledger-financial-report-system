@@ -102,6 +102,8 @@ MAPPING GUIDANCE (general, not company-specific)
   category (for example Japanese 繰延資産). Prepaid expenses and long-term prepaid
   expenses (長期前払費用) remain in Other Current Assets or Other Fixed Assets;
   they are not Deferred Charges merely because their cost is recognized over time.
+  When no deferred-charges category is presented and Total Assets equals Current
+  Assets plus Fixed Assets, Deferred Charges is the established residual 0, not null.
 - Before returning, check each subtotal against the sum of its components and
   check Total Assets against the total printed in the report. Allow only the
   small arithmetic difference mathematically possible when the report prints

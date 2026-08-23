@@ -34,6 +34,7 @@ from pipeline import (
     RUNS_DIR,
     apply_confidence_gate,
     compute_metrics,
+    derive_identity_values,
     find_run_dir,
     iter_run_dirs,
     ensure_dirs,
@@ -165,10 +166,17 @@ def prediction_response(prediction: dict) -> dict:
     block: both depend on CONFIDENCE_THRESHOLD, and a history scored under two
     different rules is not comparable.
     """
-    rows = apply_confidence_gate(prediction.get("rows", []))
+    rows, deterministic_derivations = derive_identity_values(prediction.get("rows", []))
+    rows = apply_confidence_gate(rows)
     fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
-    metrics = compute_metrics(rows, fiscal_year, prediction.get("company"), prediction.get("source_pdf_sha256"))
-    report = reconcile(rows)
+    metrics = compute_metrics(
+        rows,
+        fiscal_year,
+        prediction.get("company"),
+        prediction.get("source_pdf_sha256"),
+        prediction.get("currency", "USD"),
+    )
+    report = reconcile(rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0))
     metrics["consistency"] = report["consistency"]
     return {
         **prediction,
@@ -176,6 +184,7 @@ def prediction_response(prediction: dict) -> dict:
         "rows": rows,
         "metrics": metrics,
         "reconciliation": report,
+        "deterministic_derivations": deterministic_derivations,
         "result_table": result_table(rows),
         "evidence_table": evidence_table(rows),
     }
@@ -1556,7 +1565,13 @@ def evaluate_run(run_id):
     return jsonify({
         "run_id": prediction.get("run_id", run_id),
         "fiscal_year": fiscal_year,
-        "metrics": compute_metrics(prediction.get("rows", []), fiscal_year, prediction.get("company"), prediction.get("source_pdf_sha256")),
+        "metrics": compute_metrics(
+            apply_confidence_gate(derive_identity_values(prediction.get("rows", []))[0]),
+            fiscal_year,
+            prediction.get("company"),
+            prediction.get("source_pdf_sha256"),
+            prediction.get("currency", "USD"),
+        ),
     })
 
 

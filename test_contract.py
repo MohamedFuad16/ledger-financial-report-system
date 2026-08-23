@@ -389,7 +389,7 @@ check("routine plans do not surface an unpublished-limit advisory", not any("RPM
 
 # --- Deterministic reconciliation (reconcile.py) ------------------------------
 print("\nArithmetic reconciliation")
-from reconcile import TOLERANCE, reconcile, reconciliation_summary
+from reconcile import TOLERANCE, derive_identity_values, reconcile, reconciliation_summary
 from schema import SUBTOTAL_IDENTITIES
 
 check("every identity references only schema items",
@@ -420,6 +420,33 @@ _null = [{"item": i, "answer_m_usd": (None if i == "Land" else GOLDEN_ANSWERS_ST
          for i in CANONICAL_ITEMS]
 _rn = reconcile(_null)
 check("a null makes its identity unevaluable, not failed", _rn["skipped"] == 1 and _rn["failed"] == 0)
+
+_deferred_null = [
+    {
+        "item": item,
+        "answer_m_usd": None if item == "Deferred Charges" else GOLDEN_ANSWERS_STORE["2022"][item],
+        "confidence": 0.0 if item == "Deferred Charges" else 0.95,
+        "evidence": "No separate deferred-charges category." if item == "Deferred Charges" else "source",
+    }
+    for item in CANONICAL_ITEMS
+]
+_completed, _derivations = derive_identity_values(_deferred_null)
+_completed_deferred = next(row for row in _completed if row["item"] == "Deferred Charges")
+check(
+    "one null identity component is derived without gold lookup",
+    _completed_deferred["answer_m_usd"] == 0
+    and _completed_deferred["confidence"] == 0.95
+    and _derivations == [{
+        "item": "Deferred Charges",
+        "value": 0.0,
+        "identity": "Total Assets = Current Assets + Fixed Assets + Deferred Charges",
+    }],
+    str((_completed_deferred, _derivations)),
+)
+check(
+    "identity completion preserves the model's original rows",
+    next(row for row in _deferred_null if row["item"] == "Deferred Charges")["answer_m_usd"] is None,
+)
 
 _allnull = [{"item": i, "answer_m_usd": None} for i in CANONICAL_ITEMS]
 check("an all-null answer does not score 100% consistency",
