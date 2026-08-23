@@ -94,7 +94,7 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Worst-case benchmark', '最悪ケースベンチマーク')} title={tr('Worst-case document cost per strategy', '戦略別・最悪ケースのドキュメントコスト')} description={tr('The heaviest filing each strategy ever faced: its largest model input and worst end-to-end pass. The gate keeps Strategy 3 bounded on a 252-page report where full-document strategies ship the entire text; intelligent scanning is the 1.0× baseline.', '各戦略が処理した最も重い報告書について、最大のモデル入力と最悪パス時間を示します。252ページの報告書でも全文送信の戦略と異なりゲートが入力を抑えます。インテリジェントスキャンを1.0倍の基準とします。')} />
+          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Document-processing speed per strategy', '戦略別ドキュメント処理速度')} description={tr('The parsing, OCR and gating step each strategy runs before the model call — the stage the strategies actually change. Intelligent scanning is the fastest and sets the 1.0× baseline; model-call time is excluded.', 'モデル呼び出し前の解析・OCR・ゲート処理の速度比較です。戦略が実際に変えている工程で、インテリジェントスキャンが最速（1.0倍基準）。モデル呼び出し時間は含みません。')} />
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
@@ -105,7 +105,7 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('A Pareto view: every faint dot is one report, the bold labeled point is a strategy\u2019s mean, and the dashed line is the efficient frontier. Closer to the upper-left is faster and more accurate at once.', 'パレート図：淡い点は各レポート、太い点は戦略平均、破線が効率的フロンティアです。左上に近いほど高速かつ高精度です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest, pass time rising on a logarithmic scale. The lower a curve sits, the faster the strategy; hover any point for that report\u2019s accuracy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。曲線が低いほど高速。各点でレポートの正確度を確認できます。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
@@ -115,7 +115,7 @@ export function DashboardPage({
       </div>
 
       <Card className="chart-card latency-distribution-card">
-        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('A Pareto view: every faint dot is one report, the bold labeled point is a strategy\u2019s mean, and the dashed line is the efficient frontier. Upper-left wins on both token cost and correctness; mean tokens and P50 pass time are in the key.', 'パレート図：淡い点は各レポート、太い点は戦略平均、破線が効率的フロンティアです。左上ほどトークンコストと正確性の両方で優位。凡例に平均トークンとP50パス時間を併記。')} />
+        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('One bar per strategy: mean model input tokens per report on a logarithmic axis, with the strategy\u2019s mean exact accuracy printed above its bar. The shortest bar with the highest accuracy wins on both counts.', '戦略ごとに1本のバー。レポート別平均入力トークンを対数軸で示し、バーの上に平均完全一致率を表示します。最も短いバーで最も高い正確度が両面での勝者です。')} />
         {loading ? <div className="chart-skeleton" /> : <TokenAccuracyChart runs={benchmarkRuns} />}
       </Card>
 

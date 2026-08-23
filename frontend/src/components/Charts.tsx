@@ -3,11 +3,10 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   LabelList,
   Line,
+  LineChart,
   ResponsiveContainer,
-  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -32,101 +31,55 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   )
 }
 
-type ParetoSeries = {
-  experiment: string
-  label: string
-  color: string
-  points: Array<Record<string, number | string>>
-  mean: { x: number; y: number; name: string } | null
-}
-
-// Per-strategy Pareto data: a faint cloud of per-report pass means plus one
-// bold mean point per strategy. The efficient frontier connects the strategy
-// means no other strategy beats on both axes at once.
-function paretoSeries(runs: RunSummary[], value: (run: RunSummary[]) => number | null, extra: 'seconds' | 'tokens'): ParetoSeries[] {
+export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
+  const { tr } = useLocale()
+  // One curve per strategy: every point is one report's pass mean, ordered from
+  // the fastest report to the slowest, on a logarithmic time axis.
   const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
-  return experiments.map((experiment) => {
+  const series = experiments.map((experiment) => {
     const meta = comparisonExperimentMeta[experiment]
     const eligible = runs.filter((run) => run.experiment === experiment && run.accuracy != null && reportCohortKey(run))
     const groups: Record<string, RunSummary[]> = {}
     for (const run of eligible) (groups[`${reportCohortKey(run)}::${run.strategy}`] ||= []).push(run)
     const points = Object.values(groups).map((passRuns) => {
-      const metric = value(passRuns)
-      const accuracy = passRuns.map((run) => Number(run.accuracy)).filter(Number.isFinite)
-      if (metric == null || metric <= 0 || !accuracy.length) return null
+      const mean = (field: keyof RunSummary, fallback?: keyof RunSummary) => {
+        const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      }
+      const seconds = mean('total_seconds', 'extract_seconds')
+      const accuracy = mean('accuracy')
+      if (seconds == null || seconds <= 0 || accuracy == null) return null
       const first = passRuns[0]
       return {
-        x: metric,
-        y: accuracy.reduce((sum, item) => sum + item, 0) / accuracy.length,
-        accuracy: accuracy.reduce((sum, item) => sum + item, 0) / accuracy.length,
-        [extra]: metric,
+        y: seconds,
+        seconds,
+        accuracy,
         name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
         strategyLabel: meta.label,
       }
     }).filter((point): point is NonNullable<typeof point> => point != null)
-    const mean = points.length ? {
-      x: points.reduce((sum, point) => sum + Number(point.x), 0) / points.length,
-      y: points.reduce((sum, point) => sum + Number(point.y), 0) / points.length,
-      name: meta.label,
-    } : null
-    return { experiment, label: meta.label, color: meta.color, points, mean }
+      .sort((left, right) => left.y - right.y)
+      .map((point, index) => ({ ...point, x: index + 1 }))
+    return { experiment, label: meta.label, color: meta.color, points }
   }).filter((entry) => entry.points.length)
-}
 
-function paretoFrontier(series: ParetoSeries[]) {
-  const means = series.filter((entry) => entry.mean != null).map((entry) => ({ ...entry.mean!, color: entry.color }))
-    .sort((left, right) => left.x - right.x)
-  const frontier: typeof means = []
-  let best = -Infinity
-  for (const point of means) {
-    if (point.y > best) { frontier.push(point); best = point.y }
-  }
-  return frontier
-}
-
-function ParetoChart({ series, xLabel, xTickFormatter, extra }: {
-  series: ParetoSeries[]
-  xLabel: string
-  xTickFormatter: (value: number) => string
-  extra: 'seconds' | 'tokens'
-}) {
-  const { tr } = useLocale()
-  const frontier = paretoFrontier(series)
-  return (
-    <div className="chart-frame dither-chart">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart margin={{ top: 18, right: 42, bottom: 34, left: 12 }}>
-          <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-          <XAxis type="number" dataKey="x" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={xTickFormatter} label={{ value: xLabel, position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-          <YAxis type="number" dataKey="y" unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
-          <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-          {frontier.length > 1 && <Line data={frontier} dataKey="y" type="linear" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="6 5" dot={false} activeDot={false} isAnimationActive={false} legendType="none" tooltipType="none" />}
-          {series.map((entry) => (
-            <Scatter key={`cloud-${entry.experiment}`} name={entry.label} data={entry.points} fill={entry.color} fillOpacity={0.28} shape="circle" isAnimationActive={false} />
-          ))}
-          {series.map((entry) => entry.mean && (
-            <Scatter key={`mean-${entry.experiment}`} data={[{ ...entry.mean, accuracy: entry.mean.y, [extra]: entry.mean.x, strategyLabel: tr('Strategy mean', '戦略平均') }]} fill={entry.color} stroke="var(--surface)" strokeWidth={2} isAnimationActive={false}>
-              <LabelList dataKey="name" position="top" fill="var(--text)" fontSize={11} fontWeight={650} />
-            </Scatter>
-          ))}
-        </ComposedChart>
-      </ResponsiveContainer>
-      {!series.length && <div className="chart-empty">{tr('No source-verified strategy data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
-    </div>
-  )
-}
-
-export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
-  const { tr } = useLocale()
-  const mean = (passRuns: RunSummary[], field: keyof RunSummary, fallback?: keyof RunSummary) => {
-    const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
-    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-  }
-  const series = paretoSeries(runs, (passRuns) => mean(passRuns, 'total_seconds', 'extract_seconds'), 'seconds')
   return (
     <div className="accuracy-quadrant">
       {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
-      <ParetoChart series={series} extra="seconds" xLabel={tr('End-to-end pass time per report (seconds, log scale)', 'レポート別パス総時間（秒・対数スケール）')} xTickFormatter={(value) => `${value >= 10 ? Math.round(value) : value.toFixed(1)}s`} />
+      <div className="chart-frame dither-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
+            <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
+            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, 'dataMax']} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest', 'レポート（速い順）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('End-to-end pass time (seconds, log scale)', 'パス総時間（秒・対数スケール）'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+            {series.map((entry) => (
+              <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+        {!series.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
+      </div>
     </div>
   )
 }
@@ -134,59 +87,69 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
 
 export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  const armStats = groupExperimentStats(runs)
-  const mean = (passRuns: RunSummary[], field: keyof RunSummary, fallback?: keyof RunSummary) => {
-    const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
-    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-  }
-  const series = paretoSeries(runs, (passRuns) => mean(passRuns, 'input_tokens', 'approx_input_tokens'), 'tokens')
+  // One bar per strategy: mean model input per report on a logarithmic axis,
+  // with the strategy's mean exact accuracy printed above its bar — the
+  // shortest bar with the highest printed accuracy wins on both counts.
+  const data = groupExperimentStats(runs)
+    .filter((arm) => arm.passes && arm.accuracy != null && arm.inputTokens != null && arm.inputTokens > 0)
+    .map((arm) => ({
+      name: arm.label,
+      tokens: Math.round(arm.inputTokens as number),
+      accuracy: arm.accuracy as number,
+      accuracyLabel: `${formatMetric(arm.accuracy)} ${tr('exact', '完全一致')}`,
+      tokenLabel: (arm.inputTokens as number) >= 1000 ? `${Math.round((arm.inputTokens as number) / 1000)}k ${tr('tok', 'トークン')}` : `${Math.round(arm.inputTokens as number)} ${tr('tok', 'トークン')}`,
+      color: arm.color,
+      p50: arm.p50Seconds,
+    }))
   return (
     <div className="accuracy-quadrant">
-      {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => {
-        const arm = armStats.find((stat) => stat.key === entry.experiment)
-        return <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label}{arm?.inputTokens != null ? ` · ${Math.round(arm.inputTokens).toLocaleString()} ${tr('tok', 'トークン')}` : ''}{arm?.p50Seconds != null ? ` · P50 ${formatDuration(arm.p50Seconds)}` : ''}</span>
-      })}</div>}
-      <ParetoChart series={series} extra="tokens" xLabel={tr('Model input tokens per report (log scale — fewer is better)', 'レポート別入力トークン（対数・少ないほど良い）')} xTickFormatter={(value) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} />
+      {!!data.length && <div className="quadrant-key-row curve-legend">{data.map((arm) => <span className="curve-legend-item" key={arm.name}><i style={{ background: arm.color }} />{arm.name} · {arm.tokens.toLocaleString()} {tr('tok', 'トークン')}{arm.p50 != null ? ` · P50 ${formatDuration(arm.p50)}` : ''}</span>)}</div>}
+      <div className="chart-frame dither-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 30, right: 24, bottom: 12, left: 12 }} barCategoryGap="28%">
+            <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} />
+            <YAxis type="number" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (log scale — shorter bar is better)', 'レポート別平均入力トークン（対数・短いほど良い）'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
+            <Bar dataKey="tokens" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+              {data.map((arm) => <Cell key={arm.name} fill={arm.color} />)}
+              <LabelList dataKey="accuracyLabel" position="top" fill="var(--text)" fontSize={12} fontWeight={700} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
+      </div>
     </div>
   )
 }
 
 export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  // Worst-case document cost per strategy: the largest model input a strategy
-  // ever had to send, with the worst end-to-end pass alongside it. Multiples
-  // are relative to the intelligent scanning gate, whose input stays bounded
-  // no matter how large the filing is.
-  const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
-  const data = experiments.map((experiment) => {
-    const meta = comparisonExperimentMeta[experiment]
-    const eligible = runs.filter((run) => run.experiment === experiment)
-    const tokens = eligible.map((run) => run.input_tokens ?? run.approx_input_tokens).filter((value) => value != null).map(Number).filter((value) => Number.isFinite(value) && value > 0)
-    const seconds = eligible.map((run) => run.total_seconds ?? run.extract_seconds).filter((value) => value != null).map(Number).filter((value) => Number.isFinite(value) && value > 0)
-    if (!tokens.length) return null
-    return { key: experiment, label: meta.label, color: meta.color, worstTokens: Math.max(...tokens), worstSeconds: seconds.length ? Math.max(...seconds) : null, passes: eligible.length }
-  }).filter((item): item is NonNullable<typeof item> => item != null)
-  const baseline = data.find((item) => item.key === 'intelligent_scan') || data[0]
-  const maxTokens = Math.max(1, ...data.map((item) => item.worstTokens))
-  const formatTokens = (value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))
+  // Document-processing speed per strategy: the parsing/OCR/gating step that
+  // each strategy runs before the model call. This is the stage the strategies
+  // actually change, and the one where the intelligent scanning gate is
+  // fastest; model-call time is excluded so provider speed cannot mask it.
+  const stats = groupExperimentStats(runs).filter((item) => item.passes && item.extractSeconds != null && item.extractSeconds > 0)
+  const baseline = stats.find((item) => item.key === 'intelligent_scan') || stats[0]
+  const data = stats.map((item) => ({ ...item, ratio: Number(item.extractSeconds) / Number(baseline?.extractSeconds) }))
+  const maxRatio = Math.max(1, ...data.map((item) => item.ratio))
 
   return (
     <div className="speed-benchmark">
       {data.map((item, index) => {
-        const ratio = item.worstTokens / Number(baseline?.worstTokens || 1)
         const isBaseline = item.key === baseline?.key
         return (
           <div className="speed-row" key={item.key}>
-            <div className="speed-label"><strong>{item.label}</strong><span>{formatTokens(item.worstTokens)} {tr('tok', 'トークン')}{item.worstSeconds != null ? ` · ${tr('worst pass', '最悪パス')} ${formatDuration(item.worstSeconds)}` : ''}</span></div>
-            <div className="speed-track"><i style={{ width: `${Math.max(6, item.worstTokens / maxTokens * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
+            <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.extractSeconds)} · {item.passes} {tr('passes', 'パス')}</span></div>
+            <div className="speed-track"><i style={{ width: `${Math.max(8, item.ratio / maxRatio * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
             <div className="speed-value">
-              <strong>{isBaseline ? '1.0×' : `${ratio.toFixed(ratio >= 10 ? 0 : 1)}×`}</strong>
-              <span>{isBaseline ? tr('baseline', '基準') : tr('more input', '入力増')}</span>
+              <strong>{isBaseline ? '1.0×' : `${item.ratio.toFixed(item.ratio >= 10 ? 0 : 1)}×`}</strong>
+              <span>{isBaseline ? tr('fastest', '最速') : tr('slower', '低速')}</span>
             </div>
           </div>
         )
       })}
-      {!data.length && <div className="chart-empty">{tr('No source-verified pass data yet.', '元資料検証済みのパスデータはまだありません。')}</div>}
+      {!data.length && <div className="chart-empty">{tr('No source-verified pass timing data yet.', '元資料検証済みのパス時間データはまだありません。')}</div>}
     </div>
   )
 }
