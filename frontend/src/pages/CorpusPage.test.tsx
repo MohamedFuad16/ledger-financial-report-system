@@ -109,6 +109,12 @@ describe('CorpusPage answer review', () => {
     expect(extract).toHaveBeenCalledWith(document.sha256)
     expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M USD')
 
+    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByAltText('Report page 43')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Balance sheet p.42' }))
+    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
+
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
     expect(cash).toHaveValue(125 / 150)
     fireEvent.change(cash, { target: { value: '130' } })
@@ -132,7 +138,7 @@ describe('CorpusPage answer review', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('PDF extraction did not complete')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry PDF extraction' })).toBeInTheDocument()
-    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton', { name: /answer/i })).not.toBeInTheDocument()
   })
 
   it('shows independently audited answers as immutable read-only values', async () => {
