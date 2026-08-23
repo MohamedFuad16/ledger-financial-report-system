@@ -174,7 +174,12 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
     } finally { setSavingReview(false) }
   }
 
-  const latestEvents = [...(job?.events || [])].sort((left, right) => Date.parse(String(right.at || '')) - Date.parse(String(left.at || ''))).slice(0, 8)
+  const latestEvents = [...(job?.events || [])]
+    .sort((left, right) => Date.parse(String(right.at || '')) - Date.parse(String(left.at || '')))
+    .slice(0, 8)
+    .map((event) => event.type === 'downloaded' && event.company && event.year && !manifest?.documents.some(
+      (document) => document.company === event.company && Number(document.fiscal_year) === Number(event.year),
+    ) ? { ...event, type: 'invalidated', message: tr('Not retained after source audit', 'ソース監査後に不採用') } : event)
   const companyGroups = useMemo(() => {
     const needle = tableQuery.trim().toLocaleLowerCase()
     const groups: Record<string, { company: string; target?: CorpusTarget; documents: CorpusDocument[] }> = {}
@@ -209,6 +214,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
       discovering: tr('Finding reports', 'レポートを探索'),
       discovered: tr('Reports found', 'レポートを発見'),
       downloaded: tr('Downloaded', 'ダウンロード済み'),
+      invalidated: tr('Rejected after audit', '監査後に不採用'),
       failed: tr('Needs attention', '要確認'),
       retry: tr('Retrying', '再試行中'),
     }
@@ -253,7 +259,7 @@ export function CorpusPage({ settings, onNotify }: { settings: SettingsData | nu
           <SectionHeading eyebrow={tr('Background worker', 'バックグラウンドワーカー')} title={tr('Discovery activity', '探索アクティビティ')} description={tr('Firecrawl finds links; the AWS worker downloads and screens each PDF before replacing its canonical company/year file.', 'Firecrawlでリンクを発見し、AWSワーカーがPDFをダウンロード・検査して会社・年度ごとの標準ファイルを置き換えます。')} action={<Button variant="ghost" onClick={() => void refreshAll()}><RefreshCw size={15} /> {tr('Refresh', '更新')}</Button>} />
           {!job ? <EmptyState icon={<FolderSearch2 size={21} />} title={tr('No active discovery', '実行中の探索はありません')} description={tr('Start with one company, verify the result, then scale the company list.', 'まず1社で結果を確認してから会社リストを拡大してください。')} /> : <>
             <div className={`job-status status-${job.status}`}><span>{job.status === 'complete' ? <CheckCircle2 size={18} /> : job.status === 'failed' || job.status === 'interrupted' ? <TriangleAlert size={18} /> : <LoaderCircle className="spin" size={18} />}</span><div><strong>{job.status === 'complete' ? tr('Discovery complete', '探索完了') : job.status === 'failed' || job.status === 'interrupted' ? tr('Discovery stopped', '探索停止') : tr('Working through official sources', '公式ソースを処理中')}</strong><small>{tr('Job', 'ジョブ')} {job.id}{job.updated_at ? ` · ${tr('updated', '更新')} ${new Date(job.updated_at).toLocaleString()}` : ''}</small></div></div>
-            <div className="job-events">{latestEvents.map((event, index) => <div key={`${String(event.at)}-${index}`}><span>{eventLabel(event.type)}</span><strong>{[event.company, event.year && `FY${event.year}`, event.message || event.screened].filter(Boolean).join(' · ')}</strong></div>)}</div>
+            <div className="job-events">{latestEvents.map((event, index) => <div key={`${String(event.at)}-${index}`}><span>{eventLabel(event.type)}</span><strong>{[event.company && companyLabel(String(event.company)), event.year && `FY${event.year}`, event.message || event.screened].filter(Boolean).join(' · ')}</strong></div>)}</div>
           </>}
         </Card>
       </div>
