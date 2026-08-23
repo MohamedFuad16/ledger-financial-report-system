@@ -192,6 +192,7 @@ export function groupExperimentStats(runs: RunSummary[]) {
       }
       return {
         totalSeconds: mean('total_seconds', 'extract_seconds'),
+        extractSeconds: mean('extract_seconds'),
         accuracy: mean('accuracy'),
         coverage: mean('coverage'),
         inputTokens: mean('input_tokens', 'approx_input_tokens'),
@@ -208,6 +209,7 @@ export function groupExperimentStats(runs: RunSummary[]) {
       passes: passGroups.length,
       reports: new Set(eligible.map(reportCohortKey)).size,
       totalSeconds: average('totalSeconds'),
+      extractSeconds: average('extractSeconds'),
       p50Seconds: percentile(secondsSample, 0.5),
       accuracy: average('accuracy'),
       coverage: average('coverage'),

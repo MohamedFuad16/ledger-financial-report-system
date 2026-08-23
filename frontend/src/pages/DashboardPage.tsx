@@ -82,7 +82,7 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Mean pass speed across three strategies', '3戦略の平均パス速度')} description={tr('No OCR, OCR enabled, and intelligent scanning are averaged independently across successful end-to-end passes; No OCR is the 1.0× baseline.', 'OCRなし、OCRあり、インテリジェントスキャンを成功した総パス時間で個別集計し、OCRなしを1.0倍の基準とします。')} />
+          <SectionHeading eyebrow={tr('Parsing benchmark', '解析ベンチマーク')} title={tr('Mean parse speed across three strategies', '3戦略の平均解析速度')} description={tr('Document parsing only — PyPDF dump, pdf-inspector routing with adaptive OCR, and the intelligent scanning gate — averaged across successful passes with model-call time excluded; No OCR is the 1.0× baseline.', 'ドキュメント解析のみ（PyPDF、pdf-inspector＋適応OCR、インテリジェントスキャンゲート）を成功パスで平均し、モデル呼び出し時間は除外。OCRなしを1.0倍の基準とします。')} />
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">

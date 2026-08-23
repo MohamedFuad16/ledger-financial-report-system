@@ -4,9 +4,9 @@ import {
   CartesianGrid,
   Cell,
   LabelList,
+  Line,
+  LineChart,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -67,15 +67,15 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
       {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
+          <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
             <XAxis type="number" dataKey="x" name={tr('Pass time', 'パス時間')} unit="s" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('End-to-end pass time per report (seconds, log scale)', 'レポート別パス総時間（秒・対数スケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             {series.map((entry) => (
-              <Scatter key={entry.experiment} name={entry.label} data={entry.points} fill={entry.color} line={{ stroke: entry.color, strokeWidth: 2, strokeOpacity: .75 }} stroke="var(--surface)" strokeWidth={2} />
+              <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
             ))}
-          </ScatterChart>
+          </LineChart>
         </ResponsiveContainer>
         {!series.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
       </div>
@@ -86,36 +86,55 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
 
 export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  // One labeled point per strategy: fewer input tokens is left, higher exact
-  // accuracy is up — upper-left wins on both axes at once.
-  const data = groupExperimentStats(runs)
-    .filter((arm) => arm.passes && arm.accuracy != null && arm.inputTokens != null && arm.inputTokens > 0)
-    .map((arm) => ({
-      x: arm.inputTokens as number,
-      tokens: arm.inputTokens as number,
-      y: arm.accuracy as number,
-      accuracy: arm.accuracy,
-      name: arm.label,
-      color: arm.color,
-      p50: arm.p50Seconds,
-    }))
+  // One curve per strategy: every point is one report's pass mean, ordered from
+  // the cheapest report to the most expensive on a logarithmic token axis —
+  // a curve sitting higher and further left wins on both cost and correctness.
+  const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
+  const armStats = groupExperimentStats(runs)
+  const series = experiments.map((experiment) => {
+    const meta = comparisonExperimentMeta[experiment]
+    const arm = armStats.find((entry) => entry.key === experiment)
+    const eligible = runs.filter((run) => run.experiment === experiment && run.accuracy != null && reportCohortKey(run))
+    const groups: Record<string, RunSummary[]> = {}
+    for (const run of eligible) (groups[`${reportCohortKey(run)}::${run.strategy}`] ||= []).push(run)
+    const points = Object.values(groups).map((passRuns) => {
+      const mean = (field: keyof RunSummary, fallback?: keyof RunSummary) => {
+        const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      }
+      const tokens = mean('input_tokens', 'approx_input_tokens')
+      const accuracy = mean('accuracy')
+      if (tokens == null || tokens <= 0 || accuracy == null) return null
+      const first = passRuns[0]
+      return {
+        x: tokens,
+        tokens,
+        y: accuracy,
+        accuracy,
+        name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
+        strategyLabel: meta.label,
+      }
+    }).filter((point): point is NonNullable<typeof point> => point != null)
+      .sort((left, right) => left.x - right.x)
+    return { experiment, label: meta.label, color: meta.color, points, meanTokens: arm?.inputTokens, p50: arm?.p50Seconds }
+  }).filter((entry) => entry.points.length)
+
   return (
     <div className="accuracy-quadrant">
-      {!!data.length && <div className="quadrant-key-row curve-legend">{data.map((point) => <span className="curve-legend-item" key={point.name}><i style={{ background: point.color }} />{point.name} · {Math.round(point.x).toLocaleString()} {tr('tok', 'トークン')}{point.p50 != null ? ` · P50 ${formatDuration(point.p50)}` : ''}</span>)}</div>}
+      {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label}{entry.meanTokens != null ? ` · ${Math.round(entry.meanTokens).toLocaleString()} ${tr('tok', 'トークン')}` : ''}{entry.p50 != null ? ` · P50 ${formatDuration(entry.p50)}` : ''}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 16, right: 40, bottom: 34, left: 12 }}>
+          <LineChart margin={{ top: 16, right: 40, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" name={tr('Mean input tokens', '平均入力トークン')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (log scale — fewer is better)', 'レポート別平均入力トークン（対数・少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Mean exact accuracy', '平均完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" name={tr('Mean input tokens', '平均入力トークン')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Model input tokens per report (log scale — fewer is better)', 'レポート別入力トークン（対数・少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-            <Scatter data={data} stroke="var(--surface)" strokeWidth={2}>
-              {data.map((point) => <Cell key={point.name} fill={point.color} />)}
-              <LabelList dataKey="name" position="top" fill="var(--text)" fontSize={11} fontWeight={650} />
-            </Scatter>
-          </ScatterChart>
+            {series.map((entry) => (
+              <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
+            ))}
+          </LineChart>
         </ResponsiveContainer>
-        {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
+        {!series.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
       </div>
     </div>
   )
@@ -123,9 +142,12 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
 
 export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  const stats = groupExperimentStats(runs).filter((item) => item.passes && item.totalSeconds != null && item.totalSeconds > 0)
+  // Parsing step only (PyPDF dump vs pdf-inspector routing + OCR vs the gate):
+  // model-call time is excluded so reasoning effort cannot masquerade as
+  // parser cost.
+  const stats = groupExperimentStats(runs).filter((item) => item.passes && item.extractSeconds != null && item.extractSeconds > 0)
   const baseline = stats.find((item) => item.key === 'no_ocr') || stats[0]
-  const data = stats.map((item) => ({ ...item, speedup: Number(baseline?.totalSeconds) / Number(item.totalSeconds) }))
+  const data = stats.map((item) => ({ ...item, speedup: Number(baseline?.extractSeconds) / Number(item.extractSeconds) }))
   const maxSpeedup = Math.max(1, ...data.map((item) => item.speedup))
 
   const comparison = (speedup: number, isBaseline: boolean) => {
@@ -141,7 +163,7 @@ export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
         const relative = comparison(item.speedup, item.key === baseline?.key)
         return (
           <div className="speed-row" key={item.key}>
-            <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.totalSeconds)} · {item.passes} {tr('passes', 'パス')}</span></div>
+            <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.extractSeconds)} · {item.passes} {tr('passes', 'パス')}</span></div>
             <div className="speed-track"><i style={{ width: `${Math.max(8, item.speedup / maxSpeedup * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
             <div className="speed-value">
               <strong>{relative.value}</strong>
