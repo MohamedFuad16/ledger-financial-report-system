@@ -93,7 +93,7 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: each point is one report, ordered fastest to slowest on a logarithmic time axis. Upper-left is faster and more accurate.', '戦略ごとに1本のカーブを描画します。各点は1レポートで、対数時間軸に沿って高速側から並びます。左上ほど高速かつ高精度です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy curves', '3戦略：速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest along the axis, pass time rising on a logarithmic scale. The lower a curve sits, the faster the strategy; hover any point for that report\u2019s accuracy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。曲線が低いほど高速です。各点にカーソルを合わせるとそのレポートの正確度が表示されます。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
@@ -103,7 +103,7 @@ export function DashboardPage({
       </div>
 
       <Card className="chart-card latency-distribution-card">
-        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('One point per strategy: mean model input per report on a logarithmic axis against mean exact accuracy, with each strategy\u2019s P50 pass time in the key. Upper-left wins on both cost and correctness.', '戦略ごとに1点、レポート別平均入力トークン（対数軸）と平均完全一致率を示します。凡例に各戦略のP50パス時間を併記。左上ほどコストと正確性の両方で優れています。')} />
+        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('One curve per strategy: reports ordered cheapest to most expensive, model input tokens rising on a logarithmic scale. The lower a curve sits, the less the strategy feeds the model; mean tokens and P50 pass time are in the key.', '戦略ごとに1本のカーブ。レポートを入力トークンの少ない順に並べ、対数スケールで示します。曲線が低いほどモデルへの入力が少なく効率的です。凡例に平均トークンとP50パス時間を併記。')} />
         {loading ? <div className="chart-skeleton" /> : <TokenAccuracyChart runs={benchmarkRuns} />}
       </Card>
 

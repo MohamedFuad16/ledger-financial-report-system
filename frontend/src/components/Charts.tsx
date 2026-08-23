@@ -25,7 +25,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
       {point.strategyLabel != null && <span>{String(point.strategyLabel)}</span>}
       {point.accuracy != null && <span>{tr('Accuracy', '正確度')} {formatMetric(Number(point.accuracy))}</span>}
       {point.tokens != null && <span>{tr('Mean input tokens', '平均入力トークン')} {Math.round(Number(point.tokens)).toLocaleString()}</span>}
-      {point.tokens == null && point.x != null && <span>{tr('Mean pass', '平均パス')} {formatDuration(Number(point.x))}</span>}
+      {point.seconds != null && <span>{tr('Mean pass', '平均パス')} {formatDuration(Number(point.seconds))}</span>}
       {point.coverage != null && <span>{tr('Coverage', 'カバレッジ')} {formatMetric(Number(point.coverage))}</span>}
     </div>
   )
@@ -51,14 +51,15 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
       if (seconds == null || seconds <= 0 || accuracy == null) return null
       const first = passRuns[0]
       return {
-        x: seconds,
-        y: accuracy,
+        y: seconds,
+        seconds,
         accuracy,
         name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
         strategyLabel: meta.label,
       }
     }).filter((point): point is NonNullable<typeof point> => point != null)
-      .sort((left, right) => left.x - right.x)
+      .sort((left, right) => left.y - right.y)
+      .map((point, index) => ({ ...point, x: index + 1 }))
     return { experiment, label: meta.label, color: meta.color, points }
   }).filter((entry) => entry.points.length)
 
@@ -69,8 +70,8 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" name={tr('Pass time', 'パス時間')} unit="s" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('End-to-end pass time per report (seconds, log scale)', 'レポート別パス総時間（秒・対数スケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, 'dataMax']} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest', 'レポート（速い順）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('End-to-end pass time (seconds, log scale)', 'パス総時間（秒・対数スケール）'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             {series.map((entry) => (
               <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
@@ -107,15 +108,15 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
       if (tokens == null || tokens <= 0 || accuracy == null) return null
       const first = passRuns[0]
       return {
-        x: tokens,
+        y: tokens,
         tokens,
-        y: accuracy,
         accuracy,
         name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
         strategyLabel: meta.label,
       }
     }).filter((point): point is NonNullable<typeof point> => point != null)
-      .sort((left, right) => left.x - right.x)
+      .sort((left, right) => left.y - right.y)
+      .map((point, index) => ({ ...point, x: index + 1 }))
     return { experiment, label: meta.label, color: meta.color, points, meanTokens: arm?.inputTokens, p50: arm?.p50Seconds }
   }).filter((entry) => entry.points.length)
 
@@ -126,8 +127,8 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={{ top: 16, right: 40, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" name={tr('Mean input tokens', '平均入力トークン')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Model input tokens per report (log scale — fewer is better)', 'レポート別入力トークン（対数・少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, 'dataMax']} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered cheapest to most expensive', 'レポート（入力トークンの少ない順）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Input tokens', '入力トークン')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Model input tokens (log scale — lower curve is better)', '入力トークン（対数・低い曲線ほど良い）'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             {series.map((entry) => (
               <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
