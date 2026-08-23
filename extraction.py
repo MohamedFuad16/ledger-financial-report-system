@@ -514,6 +514,40 @@ def extract_with_docling(pdf_path: Path, *, ocr_policy: str = "off") -> Extracte
     return _finalize(pages, page_count, "Docling conversion", diagnostics)
 
 
+
+def _canonical_inspector_pages(raw_pages, document):
+    """Map inspector page objects onto the real ``1..page_count`` inventory.
+
+    pdf-inspector's page list is treated as metadata, never as the document:
+    a page it omitted still exists and must be recovered, a duplicate or
+    out-of-range page number is metadata corruption to quarantine, and the
+    reported page count must be the PDF's own. Returns ``(inventory,
+    anomalies)`` where inventory covers every real page exactly once (the
+    inspector object or ``None``) and anomalies records what was repaired.
+    """
+    total = int(document.page_count)
+    by_page: dict[int, Any] = {}
+    anomalies: dict[str, list[int]] = {"duplicate_pages": [], "out_of_range_pages": [], "missing_pages": []}
+    for fallback, page in enumerate(raw_pages, start=1):
+        zero_based = getattr(page, "page", None)
+        one_based = getattr(page, "page_number", None)
+        if isinstance(one_based, int) and one_based > 0:
+            page_no = one_based
+        elif isinstance(zero_based, int) and zero_based >= 0:
+            page_no = zero_based + 1
+        else:
+            page_no = fallback
+        if page_no < 1 or page_no > total:
+            anomalies["out_of_range_pages"].append(page_no)
+            continue
+        if page_no in by_page:
+            anomalies["duplicate_pages"].append(page_no)
+            continue
+        by_page[page_no] = page
+    anomalies["missing_pages"] = [number for number in range(1, total + 1) if number not in by_page]
+    return [(number, by_page.get(number)) for number in range(1, total + 1)], anomalies
+
+
 def extract_with_pdf_inspector(pdf_path: Path) -> ExtractedText:
     """
     Firecrawl's pdf-inspector: Rust, position-aware, no OCR, no network.
@@ -740,21 +774,15 @@ def extract_with_pdf_inspector_ocr(
     fallback_pages: list[int] = []
     document_type = str(getattr(classification, "pdf_type", "") or "")
     with pymupdf.open(str(pdf_path)) as document:
-        for index, page in enumerate(raw_pages, start=1):
-            zero_based = getattr(page, "page", None)
-            one_based = getattr(page, "page_number", None)
-            if isinstance(one_based, int) and one_based > 0:
-                page_no = one_based
-            elif isinstance(zero_based, int) and zero_based >= 0:
-                page_no = zero_based + 1
-            else:
-                page_no = index
+        document_page_count = int(document.page_count)
+        inventory, page_anomalies = _canonical_inspector_pages(raw_pages, document)
+        for page_no, page in inventory:
             native_markdown = normalize_text(
                 str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
             )
             inspector_decision = bool(getattr(page, "needs_ocr", False))
             fallback_accepted = False
-            if not native_markdown.strip() and "text_based" in document_type:
+            if not native_markdown.strip() and ("text_based" in document_type or page is None):
                 recovered = _native_text_fallback(document, page_no)
                 if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
                     not bool(getattr(classification, "has_encoding_issues", False))
@@ -807,9 +835,10 @@ def extract_with_pdf_inspector_ocr(
         "ocr_page_count": len(ocr_pages),
         "native_text_fallback_pages": _compress_pages(fallback_pages),
         "native_text_fallback_page_count": len(fallback_pages),
+        "inspector_page_anomalies": page_anomalies,
         "page_provenance": page_provenance,
     }
-    return _finalize(pages, len(raw_pages), "pdf-inspector with adaptive local OCR", diagnostics)
+    return _finalize(pages, document_page_count, "pdf-inspector with adaptive local OCR", diagnostics)
 
 
 def extract_with_intelligent_scanning_gate(
@@ -858,15 +887,9 @@ def extract_with_intelligent_scanning_gate(
     fallback_pages: list[int] = []
     document_type = str(getattr(classification, "pdf_type", "") or "")
     with pymupdf.open(str(pdf_path)) as document:
-        for fallback, page in enumerate(raw_pages, start=1):
-            zero_based = getattr(page, "page", None)
-            one_based = getattr(page, "page_number", None)
-            if isinstance(one_based, int) and one_based > 0:
-                page_no = one_based
-            elif isinstance(zero_based, int) and zero_based >= 0:
-                page_no = zero_based + 1
-            else:
-                page_no = fallback
+        document_page_count = int(document.page_count)
+        inventory, page_anomalies = _canonical_inspector_pages(raw_pages, document)
+        for page_no, page in inventory:
             native_markdown = normalize_text(
                 str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
             )
@@ -874,7 +897,7 @@ def extract_with_intelligent_scanning_gate(
                 getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages
             )
             fallback_accepted = False
-            if not native_markdown.strip() and "text_based" in document_type:
+            if not native_markdown.strip() and ("text_based" in document_type or page is None):
                 recovered = _native_text_fallback(document, page_no)
                 if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
                     not bool(getattr(classification, "has_encoding_issues", False))
@@ -913,6 +936,7 @@ def extract_with_intelligent_scanning_gate(
                 "needs_ocr": needs_ocr,
                 "ocr_reasons": ocr_reasons.get(page_no, []),
                 "source": source,
+                "inspector_omitted": page is None,
                 "render_dpi": 200 if needs_ocr else None,
             })
 
@@ -942,6 +966,7 @@ def extract_with_intelligent_scanning_gate(
         "pages_with_tables": _compress_pages(table_pages),
         "pages_with_multiple_columns": _compress_pages(column_pages),
         "complex_layout": bool(getattr(result, "is_complex", False)),
+        "inspector_page_anomalies": page_anomalies,
         "page_provenance": page_provenance,
         **gate,
     }
@@ -953,7 +978,7 @@ def extract_with_intelligent_scanning_gate(
     )
     extracted = _finalize(
         selected_pages,
-        len(raw_pages),
+        document_page_count,
         "Strategy 3 intelligent scanning",
         diagnostics,
     )
@@ -963,7 +988,7 @@ def extract_with_intelligent_scanning_gate(
         if str(markdown or "").strip() and not page_is_unreadable(markdown)
     ]
     extracted.warnings.append(
-        f"The intelligent scanning gate retained {len(selected_pages)} of {len(raw_pages)} complete pages "
+        f"The intelligent scanning gate retained {len(selected_pages)} of {document_page_count} complete pages "
         f"for semantic mapping ({gate.get('character_reduction_percent', 0):.1f}% fewer Markdown characters)."
     )
     return extracted

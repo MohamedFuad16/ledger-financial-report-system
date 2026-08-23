@@ -403,3 +403,11 @@
 - Context: The Gemini 3.7 Flash medium-effort sweep completed all 102 Strategy 3 arms and 53 Strategy 2 arms before OpenRouter credits ran out, leaving Strategy 1 mostly covered only by the earlier low-effort run. Matching the dashboard source on "any gemini run" would pool low- and medium-effort passes of the same arm, double-counting documents and mixing effort tiers within one strategy series.
 - Decision: `runMatchesSource` for the Gemini source selects medium-effort runs for Strategy 2/3 and low-effort runs for the Strategy 1 control only (`experiment === 'no_ocr'`), so exactly one effort tier represents each strategy. The S1 control is a no-reasoning-sensitive PyPDF baseline, so the low-effort pass is representative; remaining medium S2 arms replace nothing until they exist and match the same rule.
 - Consequences: The published Gemini view is internally consistent today and self-heals as the medium sweep completes (medium S2 runs appear as they land; S1 stays pinned to low until a deliberate rule change). GLM sources remain split by thinking mode, unaffected.
+
+
+## ADR-0054 — Public deployment is a read-only control plane
+- Date: 2026-08-24
+- Status: Accepted
+- Context: Caddy forwards the whole public domain to Flask with no authentication; CORS never blocked direct HTTP. Any caller could replace the prompt, change credentials, start paid jobs, delete runs, or overwrite golden answers.
+- Decision: A server-side before_request gate, enabled by LEDGER_PUBLIC_READONLY=1 in the production environment file, rejects every mutating request except the demo surfaces (/api/extract*, /api/extraction/jobs, /api/uploads, /api/traffic) with HTTP 403. Operator changes ship through the git deploy channel. Full authentication (per-user claims-derived workspaces) remains the follow-up.
+- Consequences: The public dashboard and demo keep working; the control plane is writable only from the operator's channel. The production Settings UI cannot save changes — by design.

@@ -112,6 +112,7 @@ def _post_json(
 
     while True:
         LIMITER.acquire()
+        attempt_started = time.perf_counter()
         try:
             body, elapsed, status, headers = _send_once(
                 api_key=api_key, base_url=base_url, payload=payload,
@@ -123,7 +124,7 @@ def _post_json(
             # succeeds. A second timeout is surfaced — each one already cost
             # the full client timeout, so looping would multiply the stall.
             timeout_attempts += 1
-            total_elapsed += float(timeout)
+            total_elapsed += time.perf_counter() - attempt_started
             if timeout_attempts > 1:
                 raise
             if on_retry:
@@ -149,6 +150,7 @@ def _post_json(
             if on_retry:
                 on_retry(attempt, delay)
             time.sleep(delay)
+            total_elapsed += delay
             continue
 
         if status >= 500 and attempt < max_retries:
@@ -157,6 +159,7 @@ def _post_json(
             if on_retry:
                 on_retry(attempt, delay)
             time.sleep(delay)
+            total_elapsed += delay
             continue
 
         if status < 200 or status >= 300:

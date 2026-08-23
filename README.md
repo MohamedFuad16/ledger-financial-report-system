@@ -127,13 +127,6 @@ corpus_dataset/
 
 `corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. Discovery and answer verification are deliberately separate: Firecrawl finds a public candidate, while opening **Review answers** runs one configured-LLM semantic-mapping pass over the pinned PDF and displays its 27 provisional rows beside the searchable source. A failed mapping shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically. Public gazette mirrors are labelled as mirrors rather than official company domains, and their condensed sheets score only source-supported fields. Firecrawl may reuse caller-authorized headers, cookies or browser state, but it does not grant access to private documents or bypass source authorization.
 
-The standalone worker accepts a CSV or JSON company list:
-
-```bash
-.venv/bin/python corpus_worker.py research/bakuraku/customers.csv \
-  --years 2020 2021 2022 2023 2024 2025
-```
-
 ## Tech stack
 
 | Layer | Technology |

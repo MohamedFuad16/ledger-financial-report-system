@@ -30,8 +30,9 @@ class _RenderedPage:
 
 
 class _Document:
-    def __init__(self, matrices: list[tuple[float, float]]) -> None:
+    def __init__(self, matrices: list[tuple[float, float]], page_count: int = 0) -> None:
         self.matrices = matrices
+        self.page_count = page_count
 
     def __enter__(self):
         return self
@@ -62,7 +63,7 @@ class PdfInspectorAdaptiveOcrTests(unittest.TestCase):
 
         pymupdf = types.SimpleNamespace(
             Matrix=Matrix,
-            open=lambda _path: _Document(matrices),
+            open=lambda _path: _Document(matrices, page_count=len(pages)),
         )
         return inspector, pymupdf, matrices
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import fcntl
 import threading
 from contextlib import contextmanager
@@ -334,6 +335,8 @@ def approve_document_answers(document_id: str, rows: list[dict[str, Any]], *, re
                 normalized_answer = float(answer)
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{schema_row['item']} must be numeric or blank.") from exc
+            if not math.isfinite(normalized_answer):
+                raise ValueError(f"{schema_row['item']} must be a finite number; NaN and infinities are rejected.")
         normalized_rows.append({
             **schema_row,
             "answer_m_usd": normalized_answer,

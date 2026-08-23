@@ -125,8 +125,9 @@ class _Page:
 
 
 class _Document:
-    def __init__(self, rendered: list[int]) -> None:
+    def __init__(self, rendered: list[int], page_count: int = 0) -> None:
         self.rendered = rendered
+        self.page_count = page_count
 
     def __enter__(self):
         return self
@@ -151,7 +152,7 @@ class _TextPage(_Page):
 
 class _TextDocument(_Document):
     def __init__(self, rendered: list[int], texts: list[str]) -> None:
-        super().__init__(rendered)
+        super().__init__(rendered, page_count=len(texts))
         self.texts = texts
 
     def __getitem__(self, index: int):
@@ -231,7 +232,7 @@ class StrategyThreeExtractionTests(unittest.TestCase):
             def __init__(self, x: float, y: float) -> None:
                 self.x, self.y = x, y
 
-        pymupdf = types.SimpleNamespace(Matrix=Matrix, open=lambda _path: _Document(rendered))
+        pymupdf = types.SimpleNamespace(Matrix=Matrix, open=lambda _path: _Document(rendered, page_count=len(pages)))
         with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
             extraction,
             "_local_ocr_markdown",

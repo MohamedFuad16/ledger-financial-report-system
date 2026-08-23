@@ -39,6 +39,7 @@ from pipeline import (
     iter_run_dirs,
     ensure_dirs,
     evidence_table,
+    invalidate_run_summaries,
     list_runs,
     load_prediction,
     result_table,
@@ -115,6 +116,33 @@ def parse_float(value, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+# Production ships behind LEDGER_PUBLIC_READONLY=1: the public site may browse
+# everything and run demo extractions, but the control plane — credentials,
+# prompts, corpus records, gold, and stored run history — accepts writes only
+# from the operator's own deployment channel. CORS never blocked direct HTTP,
+# so this is enforced server-side per request.
+PUBLIC_READONLY = os.environ.get("LEDGER_PUBLIC_READONLY", "").strip().lower() in {"1", "true", "yes"}
+_PUBLIC_WRITE_ALLOWED_PREFIXES = (
+    "/api/extract",          # demo extraction runs (rate-limited)
+    "/api/extraction/jobs",  # batch demo runs
+    "/api/uploads",          # staging a PDF for a demo run
+    "/api/traffic",          # anonymous visit telemetry
+)
+
+
+@app.before_request
+def _enforce_public_readonly():
+    if not PUBLIC_READONLY or request.method in ("GET", "HEAD", "OPTIONS"):
+        return None
+    path = request.path or ""
+    if any(path.startswith(prefix) for prefix in _PUBLIC_WRITE_ALLOWED_PREFIXES):
+        return None
+    return jsonify({
+        "error": "This deployment is read-only: settings, prompts, corpus records, "
+                 "golden answers, and stored runs can only be changed by the operator.",
+    }), 403
 
 
 def request_workspace_id() -> str:
@@ -1494,6 +1522,7 @@ def delete_all_runs():
     count = len(owned)
     for directory in owned:
         shutil.rmtree(directory)
+        invalidate_run_summaries(directory)
     return jsonify({"ok": True, "deleted": count})
 
 
@@ -1513,6 +1542,7 @@ def delete_run(run_id):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     try:
         shutil.rmtree(target_dir)
+        invalidate_run_summaries(target_dir)
     except OSError as exc:
         return jsonify({"error": f"Failed to delete run: {exc}"}), 500
     return jsonify({"ok": True, "message": f"Run '{run_id}' deleted successfully."})

@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
+import math
+
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from schema import ASSET_SCHEMA
@@ -70,6 +72,8 @@ class AssetRow(BaseModel):
     @classmethod
     def _answer_must_be_number_or_null(cls, value: Any) -> Any:
         if value is None or isinstance(value, (int, float)) and not isinstance(value, bool):
+            if value is not None and not math.isfinite(float(value)):
+                raise ValueError("must be a finite JSON number or null; NaN and infinities are rejected.")
             return value
         raise ValueError(
             f"must be a JSON number or null, got {type(value).__name__} ({value!r}). "

@@ -132,8 +132,12 @@ def file_run(
     target = target_parent / run_dir.name
     if target.resolve() == run_dir.resolve():
         return run_dir
-    if target.exists():
-        shutil.rmtree(target)
+    suffix = 1
+    while target.exists():
+        # A collision means another process produced the same stamped id;
+        # deleting its artifacts would destroy a finished run.
+        target = target_parent / f"{run_dir.name}_dup{suffix}"
+        suffix += 1
     shutil.move(str(run_dir), str(target))
 
     # Leave no empty _pending folder behind once it has been drained.
@@ -530,6 +534,7 @@ def _run_pipeline_inner(
     workspace_id: str,
     on_progress,
 ) -> dict[str, Any]:
+    pipeline_started = time.perf_counter()
     step_started: dict[str, float] = {}
 
     def progress(step: str, message: str, **extra: Any) -> None:
@@ -797,6 +802,7 @@ def _run_pipeline_inner(
                 ),
             )
             retry_started = time.perf_counter()
+            retry_time_accounted = 0.0
             try:
                 retry_response, retry_elapsed = run_extraction(
                     api_key=settings["api_key"],
@@ -818,6 +824,7 @@ def _run_pipeline_inner(
                     ),
                 )
                 elapsed += retry_elapsed
+                retry_time_accounted = retry_elapsed
                 retry_result, _ = parse_and_validate(retry_response)
                 replaceable_items = (
                     ["Total Assets"] if verification_mode else failed_identity_items
@@ -866,7 +873,10 @@ def _run_pipeline_inner(
                 # A failed attempt still burned real wall-clock (including any
                 # backoff sleeps inside the client); it must not vanish from
                 # the run's timing.
-                retry_wasted = round(time.perf_counter() - retry_started, 2)
+                # Add only wall-clock not already booked by a successful API
+                # call earlier in this try-block, so a post-API parsing
+                # failure cannot double-count the provider time.
+                retry_wasted = round(max(0.0, time.perf_counter() - retry_started - retry_time_accounted), 2)
                 elapsed += retry_wasted
                 evidence_retry = {
                     "attempted": True,
@@ -886,7 +896,16 @@ def _run_pipeline_inner(
     reconciliation = reconcile(rows, value_quantum=source_value_quantum)
     progress("validate", reconciliation_summary(reconciliation), done=True)
 
-    fiscal_year = result.detected_fiscal_year or (fiscal_year_hint or "").strip()
+    pinned_year = (fiscal_year_hint or "").strip()
+    fiscal_year = pinned_year or result.detected_fiscal_year
+    if pinned_year and result.detected_fiscal_year and result.detected_fiscal_year != pinned_year:
+        # The corpus year was screened against the filing's own cover; a model
+        # that answers the comparative year must not re-file the run or detach
+        # it from its source-bound gold.
+        extracted.warnings.append(
+            f"Model reported fiscal year {result.detected_fiscal_year}; "
+            f"kept the screened corpus year {pinned_year} as authoritative."
+        )
     company, _, _ = report_identity(company_hint or display_name or Path(pdf_path).name, fiscal_year)
     currency = str(output_currency or "USD").strip().upper() or "USD"
     answer_unit = f"M {currency}"
@@ -928,7 +947,7 @@ def _run_pipeline_inner(
         "usage": usage,
         "contract_repair_usage": contract_repair_usage,
         "extract_seconds": extract_seconds,
-        "total_seconds": round(extract_seconds + elapsed, 2),
+        "total_seconds": round(time.perf_counter() - pipeline_started, 2),
         "garbled_pages": extracted.garbled_pages,
         "readable_pages": extracted.readable_pages,
         "parser_diagnostics": extracted.diagnostics,
@@ -1119,13 +1138,28 @@ def _summarize_run_dir(directory: Path) -> tuple[str, dict[str, Any]] | None:
     return workspace, summary
 
 
+def invalidate_run_summaries(run_dir: Path | None = None) -> None:
+    """Drop cached summaries for one deleted run directory, or all of them."""
+    if run_dir is None:
+        _SUMMARY_CACHE.clear()
+        return
+    prefix = str(run_dir)
+    for key in [key for key in _SUMMARY_CACHE if key.startswith(prefix)]:
+        _SUMMARY_CACHE.pop(key, None)
+
+
 def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
     """Summarize every stored run, newest first."""
     summaries: list[dict[str, Any]] = []
     if not RUNS_DIR.exists():
         return summaries
     for directory in iter_run_dirs():
-        entry = _summarize_run_dir(directory)
+        try:
+            entry = _summarize_run_dir(directory)
+        except Exception:
+            # One malformed historical artifact must not take down the whole
+            # feed; the run is skipped and every valid run still returns.
+            continue
         if entry is None:
             continue
         workspace, summary = entry
@@ -1148,6 +1182,7 @@ __all__ = [
     "create_run_dir",
     "ensure_dirs",
     "evidence_table",
+    "invalidate_run_summaries",
     "list_runs",
     "load_prediction",
     "merge_retry_rows",

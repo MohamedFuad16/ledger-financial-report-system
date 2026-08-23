@@ -124,7 +124,7 @@ export function DashboardPage({
       </div>
 
       <Card className="chart-card latency-distribution-card">
-        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('One bar per strategy: mean model input tokens per report on a logarithmic axis, with the strategy\u2019s mean exact accuracy printed above its bar. The shortest bar with the highest accuracy wins on both counts.', '戦略ごとに1本のバー。レポート別平均入力トークンを対数軸で示し、バーの上に平均完全一致率を表示します。最も短いバーで最も高い正確度が両面での勝者です。')} />
+        <SectionHeading eyebrow={tr('Token efficiency', 'トークン効率')} title={tr('Input tokens × exact accuracy', '入力トークン×完全一致率')} description={tr('Each strategy\u2019s bar stands at its mean token cost (x) with its exact accuracy as the bar height (y) — the intelligent scanning gate comes first, matching the others\u2019 accuracy at a fraction of the input.', '各戦略のバーは平均トークンコスト（横軸）の位置に立ち、高さが完全一致率（縦軸）です。インテリジェントスキャンが最初に現れ、わずかな入力で同等の正確度を達成しています。')} />
         {loading ? <div className="chart-skeleton" /> : <TokenAccuracyChart runs={benchmarkRuns} />}
       </Card>
 
