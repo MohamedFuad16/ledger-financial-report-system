@@ -1001,109 +1001,138 @@ def run_timestamp(run_id: str) -> str:
     return match.group(1) if match else ""
 
 
+# Computed run summaries keyed by prediction path; an entry is reused while
+# the file's (mtime, size) is unchanged, so a feed request re-parses and
+# re-scores only runs that actually changed since the previous request.
+_SUMMARY_CACHE: dict[str, tuple[float, int, str, dict[str, Any]]] = {}
+
+
+def _summarize_run_dir(directory: Path) -> tuple[str, dict[str, Any]] | None:
+    """(workspace_id, summary) for one run directory, cached by file identity."""
+    pred_file = directory / "prediction.json"
+    try:
+        stat = pred_file.stat()
+    except OSError:
+        return None
+    cache_key = str(pred_file)
+    cached = _SUMMARY_CACHE.get(cache_key)
+    if cached and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
+        return cached[2], cached[3]
+    try:
+        prediction = json.loads(pred_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(prediction, dict):
+        return None
+
+    rows, _ = derive_identity_values(prediction.get("rows", []))
+    rows = apply_confidence_gate(rows)
+    fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
+    # Always recompute rather than trusting the stored block: the stored
+    # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
+    # force at the time, and a history scored under two different rules is
+    # not comparable.
+    company = prediction.get("company") or report_identity(
+        prediction.get("pdf_file", ""), fiscal_year
+    )[0]
+    currency = str(prediction.get("currency") or "USD").strip().upper()
+    metrics = compute_metrics(
+        rows, fiscal_year, company, prediction.get("source_pdf_sha256"), currency
+    )
+    report = reconcile(
+        rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0)
+    )
+    metrics["consistency"] = report["consistency"]
+    # Accept any registered strategy key. The old whitelist collapsed
+    # s2-docling / s2-inspector into plain "s2", which made the parser used
+    # by a run unrecoverable from its record.
+    strategy = prediction.get("strategy")
+    if strategy not in STRATEGIES:
+        prefix = directory.name.split("_", 1)[0]
+        strategy = next(
+            (k for k, v in STRATEGIES.items() if v.run_prefix == prefix),
+            "s2" if directory.name.startswith("S2") else "s1",
+        )
+
+    registered = STRATEGIES.get(strategy)
+    if prediction.get("experiment"):
+        experiment = prediction["experiment"]
+        parser = prediction.get("parser") or (registered.parser if registered else strategy)
+        ocr_enabled = bool(prediction.get("ocr_enabled"))
+        ocr_policy = prediction.get("ocr_policy", "off")
+    else:
+        # The former Strategy 2 keys were all text-only.  Do not silently
+        # relabel historical observations as OCR runs now that those keys
+        # are used by the revised matched experiment.
+        experiment = "legacy_no_ocr"
+        parser = {
+            "s1": "pypdf", "s2": "pymupdf",
+            "s2-docling": "docling", "s2-inspector": "inspector",
+        }.get(strategy, registered.parser if registered else strategy)
+        ocr_enabled = False
+        ocr_policy = "off"
+
+    summary = {
+        "run_id": prediction.get("run_id", directory.name),
+        "timestamp": run_timestamp(directory.name),
+        "strategy": strategy,
+        "parser": parser,
+        "experiment": experiment,
+        "ocr_enabled": ocr_enabled,
+        "ocr_policy": ocr_policy,
+        "company": company,
+        "currency": currency,
+        "value_scale": prediction.get("value_scale", "millions"),
+        "answer_unit": prediction.get("answer_unit") or f"M {currency}",
+        "source_pdf_sha256": prediction.get("source_pdf_sha256"),
+        "model": prediction.get("model", ""),
+        "fiscal_year": fiscal_year,
+        "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),
+        "enable_reasoning": prediction.get("enable_reasoning", True),
+        "reasoning_effort": prediction.get("reasoning_effort", ""),
+        "temperature": prediction.get("temperature"),
+        "pdf_file": prediction.get("pdf_file", ""),
+        "page_count": prediction.get("page_count"),
+        "approx_input_tokens": prediction.get("approx_input_tokens"),
+        # Total model input across every call the run made: main pass,
+        # bounded contract repair, and Strategy 3's evidence retry. None
+        # only when no call reported usage, so legacy runs still read as
+        # "estimated" rather than a false zero.
+        "input_tokens": _total_prompt_tokens(prediction),
+        "output_tokens": _total_completion_tokens(prediction),
+        "contract_repair_attempts": prediction.get("contract_repair_attempts", 0),
+        "evidence_retry_attempted": bool((prediction.get("evidence_retry") or {}).get("attempted")),
+        "evidence_retry_recovered": len((prediction.get("evidence_retry") or {}).get("recovered_rows") or []),
+        "input_characters": prediction.get("input_characters"),
+        "strategy_label": prediction.get("strategy_label", ""),
+        "row_count": len(rows),
+        "api_elapsed": prediction.get("api_elapsed_seconds", 0),
+        "extract_seconds": prediction.get("extract_seconds"),
+        "total_seconds": prediction.get("total_seconds"),
+        "warnings": prediction.get("warnings", []),
+        "contract_repairs": prediction.get("contract_repairs", []),
+        "failed_identities": report["failed_identities"],
+        **metrics,
+    }
+    workspace = str(prediction.get("workspace_id") or "legacy-public")
+    _SUMMARY_CACHE[cache_key] = (stat.st_mtime, stat.st_size, workspace, summary)
+    return workspace, summary
+
+
 def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
     """Summarize every stored run, newest first."""
     summaries: list[dict[str, Any]] = []
     if not RUNS_DIR.exists():
         return summaries
-
     for directory in iter_run_dirs():
-        prediction = load_prediction(directory.name)
-        if prediction is None:
+        entry = _summarize_run_dir(directory)
+        if entry is None:
             continue
-        if workspace_id is not None and str(prediction.get("workspace_id") or "legacy-public") != workspace_id:
+        workspace, summary = entry
+        if workspace_id is not None and workspace != workspace_id:
             continue
-
-        rows, _ = derive_identity_values(prediction.get("rows", []))
-        rows = apply_confidence_gate(rows)
-        fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
-        # Always recompute rather than trusting the stored block: the stored
-        # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
-        # force at the time, and a history scored under two different rules is
-        # not comparable.
-        company = prediction.get("company") or report_identity(
-            prediction.get("pdf_file", ""), fiscal_year
-        )[0]
-        currency = str(prediction.get("currency") or "USD").strip().upper()
-        metrics = compute_metrics(
-            rows, fiscal_year, company, prediction.get("source_pdf_sha256"), currency
-        )
-        report = reconcile(
-            rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0)
-        )
-        metrics["consistency"] = report["consistency"]
-        # Accept any registered strategy key. The old whitelist collapsed
-        # s2-docling / s2-inspector into plain "s2", which made the parser used
-        # by a run unrecoverable from its record.
-        strategy = prediction.get("strategy")
-        if strategy not in STRATEGIES:
-            prefix = directory.name.split("_", 1)[0]
-            strategy = next(
-                (k for k, v in STRATEGIES.items() if v.run_prefix == prefix),
-                "s2" if directory.name.startswith("S2") else "s1",
-            )
-
-        registered = STRATEGIES.get(strategy)
-        if prediction.get("experiment"):
-            experiment = prediction["experiment"]
-            parser = prediction.get("parser") or (registered.parser if registered else strategy)
-            ocr_enabled = bool(prediction.get("ocr_enabled"))
-            ocr_policy = prediction.get("ocr_policy", "off")
-        else:
-            # The former Strategy 2 keys were all text-only.  Do not silently
-            # relabel historical observations as OCR runs now that those keys
-            # are used by the revised matched experiment.
-            experiment = "legacy_no_ocr"
-            parser = {
-                "s1": "pypdf", "s2": "pymupdf",
-                "s2-docling": "docling", "s2-inspector": "inspector",
-            }.get(strategy, registered.parser if registered else strategy)
-            ocr_enabled = False
-            ocr_policy = "off"
-
-        summaries.append({
-            "run_id": prediction.get("run_id", directory.name),
-            "timestamp": run_timestamp(directory.name),
-            "strategy": strategy,
-            "parser": parser,
-            "experiment": experiment,
-            "ocr_enabled": ocr_enabled,
-            "ocr_policy": ocr_policy,
-            "company": company,
-            "currency": currency,
-            "value_scale": prediction.get("value_scale", "millions"),
-            "answer_unit": prediction.get("answer_unit") or f"M {currency}",
-            "source_pdf_sha256": prediction.get("source_pdf_sha256"),
-            "model": prediction.get("model", ""),
-            "fiscal_year": fiscal_year,
-            "detected_fiscal_year": prediction.get("detected_fiscal_year", ""),
-            "enable_reasoning": prediction.get("enable_reasoning", True),
-            "reasoning_effort": prediction.get("reasoning_effort", ""),
-            "temperature": prediction.get("temperature"),
-            "pdf_file": prediction.get("pdf_file", ""),
-            "page_count": prediction.get("page_count"),
-            "approx_input_tokens": prediction.get("approx_input_tokens"),
-            # Total model input across every call the run made: main pass,
-            # bounded contract repair, and Strategy 3's evidence retry. None
-            # only when no call reported usage, so legacy runs still read as
-            # "estimated" rather than a false zero.
-            "input_tokens": _total_prompt_tokens(prediction),
-            "output_tokens": _total_completion_tokens(prediction),
-            "contract_repair_attempts": prediction.get("contract_repair_attempts", 0),
-            "evidence_retry_attempted": bool((prediction.get("evidence_retry") or {}).get("attempted")),
-            "evidence_retry_recovered": len((prediction.get("evidence_retry") or {}).get("recovered_rows") or []),
-            "input_characters": prediction.get("input_characters"),
-            "strategy_label": prediction.get("strategy_label", ""),
-            "row_count": len(rows),
-            "api_elapsed": prediction.get("api_elapsed_seconds", 0),
-            "extract_seconds": prediction.get("extract_seconds"),
-            "total_seconds": prediction.get("total_seconds"),
-            "warnings": prediction.get("warnings", []),
-            "contract_repairs": prediction.get("contract_repairs", []),
-            "failed_identities": report["failed_identities"],
-            **metrics,
-        })
-
+        # Shallow copy so a caller cannot mutate the cached record.
+        summaries.append(dict(summary))
     summaries.sort(key=lambda r: (r["timestamp"], r["run_id"]), reverse=True)
     return summaries
 
