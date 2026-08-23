@@ -713,10 +713,29 @@ def _run_pipeline_inner(
     # zeros on its own — nulls there are answers, not evidence gaps, so only a
     # failed deterministic identity (a misread) justifies the second call.
     complete_packet = bool(extracted.diagnostics.get("complete_document_packet"))
-    retry_items = (
-        failed_identity_items if complete_packet else missing_items + failed_identity_items
+    # Exception: a condensed statutory summary yields essentially one number
+    # (Total Assets) and nothing for the identities to check, so a misread —
+    # e.g. a capital reserve mistaken for the total — is invisible to
+    # arithmetic. Those runs get one verification call that must re-derive the
+    # total from BOTH sides of the printed balance sheet.
+    answered_row_count = sum(1 for row in rows if row.get("answer_m_usd") is not None)
+    total_assets_answered = any(
+        str(row.get("item")) == "Total Assets" and row.get("answer_m_usd") is not None
+        for row in rows
     )
-    if complete_packet and missing_items and not failed_identity_items:
+    verification_mode = (
+        complete_packet
+        and not failed_identity_items
+        and total_assets_answered
+        and answered_row_count <= 3
+    )
+    if verification_mode:
+        retry_items = ["Total Assets"]
+    elif complete_packet:
+        retry_items = failed_identity_items
+    else:
+        retry_items = missing_items + failed_identity_items
+    if complete_packet and missing_items and not failed_identity_items and not verification_mode:
         evidence_retry = {
             "attempted": False,
             "reason": "packet covers the complete readable document; remaining nulls are decided absences",
@@ -758,7 +777,23 @@ def _run_pipeline_inner(
                 # the complete readable report — so the second look re-reads it
                 # alongside any additional pages.
                 original_packet_text=(
-                    extracted.text if (failed_identity_items or not retry_pages) else ""
+                    extracted.text
+                    if (failed_identity_items or verification_mode or not retry_pages)
+                    else ""
+                ),
+                verification_note=(
+                    (
+                        "VERIFICATION: the first pass committed a Total Assets figure from a "
+                        "condensed balance-sheet summary where no other row can cross-check it. "
+                        "Re-derive Total Assets independently from BOTH sides of the printed "
+                        "statement: it must equal the sum of the printed asset components AND "
+                        "equal liabilities plus net assets computed from the printed equity "
+                        "components (capital, reserves, retained earnings/deficit, share "
+                        "warrants). The largest printed figure is often a capital reserve, not "
+                        "the total. Return the figure that reconciles on both sides."
+                    )
+                    if verification_mode
+                    else ""
                 ),
             )
             retry_started = time.perf_counter()
@@ -784,12 +819,17 @@ def _run_pipeline_inner(
                 )
                 elapsed += retry_elapsed
                 retry_result, _ = parse_and_validate(retry_response)
-                merged_rows, recovered, replaced = merge_retry_rows(
-                    rows, rows_as_dicts(retry_result), missing_items, failed_identity_items
+                replaceable_items = (
+                    ["Total Assets"] if verification_mode else failed_identity_items
                 )
-                if replaced:
+                merged_rows, recovered, replaced = merge_retry_rows(
+                    rows, rows_as_dicts(retry_result), missing_items, replaceable_items
+                )
+                if replaced and not verification_mode:
                     # Replacements are accepted only as a block and only when
-                    # they deterministically improve reconciliation.
+                    # they deterministically improve reconciliation. In
+                    # verification mode nothing reconciles either way, so the
+                    # both-sides re-derivation is accepted as the answer.
                     trial = reconcile(merged_rows, value_quantum=source_value_quantum)
                     improves = (
                         int(trial.get("failed") or 0) < int(pre_reconciliation.get("failed") or 0)
@@ -804,6 +844,7 @@ def _run_pipeline_inner(
                 rows = apply_confidence_gate(merged_rows)
                 evidence_retry = {
                     "attempted": True,
+                    "verification_mode": verification_mode,
                     "missing_rows": missing_items,
                     "failed_identity_rows": failed_identity_items,
                     "pages_added": retry_diagnostics.get("retry_pages"),

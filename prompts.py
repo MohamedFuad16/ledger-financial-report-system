@@ -254,6 +254,7 @@ def build_evidence_retry_prompt(
     detected_fiscal_year: str = "",
     output_currency: str = "USD",
     original_packet_text: str = "",
+    verification_note: str = "",
 ) -> str:
     """
     Second bounded Strategy 3 pass: the first semantic mapping left specific
@@ -308,6 +309,8 @@ from the same report follow. Re-derive ONLY these rows from the additional
 evidence:
 
 {items_list}
+
+{verification_note}
 
 {packet_section}{additional_section}
 

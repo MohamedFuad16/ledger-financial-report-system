@@ -294,6 +294,35 @@ class PipelineSemanticsTests(unittest.TestCase):
         self.assertFalse(result["evidence_retry"]["attempted"])
         self.assertIn("complete readable document", result["evidence_retry"]["reason"])
 
+    def test_sparse_total_only_run_gets_one_both_sides_verification_retry(self):
+        # A condensed gazette yields essentially just Total Assets; nothing can
+        # cross-check it, so one verification call must re-derive it.
+        only_total = {row["item"] for row in ASSET_SCHEMA} - {"Total Assets"}
+        first = {"choices": [{"message": {"content": json.dumps(_payload_with_nulls(only_total))}}], "usage": {}}
+        retry_payload = _payload_with_nulls(only_total)
+        for row in retry_payload["rows"]:
+            if row["item"] == "Total Assets":
+                row["answer_m_usd"] = 9219
+        retry = {"choices": [{"message": {"content": json.dumps(retry_payload)}}], "usage": {}}
+        passing = {
+            "checks": [], "total_identities": 1, "evaluated": 0, "passed": 0,
+            "failed": 0, "skipped": 1, "consistency": None, "failed_identities": [],
+        }
+
+        result, model_call, _ = self._run(
+            [(first, 0.1), (retry, 0.2)],
+            strategy=_FakeCompletePacketS3Strategy(),
+            arithmetic_side_effect=[passing, passing, passing],
+        )
+
+        self.assertEqual(model_call.call_count, 2)
+        self.assertTrue(result["evidence_retry"]["verification_mode"])
+        self.assertEqual(result["evidence_retry"]["replaced_rows"], ["Total Assets"])
+        by_item = {row["item"]: row for row in result["rows"]}
+        self.assertEqual(by_item["Total Assets"]["answer_m_usd"], 9219)
+        retry_prompt = model_call.call_args_list[1].kwargs["user_prompt"]
+        self.assertIn("BOTH sides", retry_prompt)
+
     def test_complete_packet_failed_identity_still_gets_the_misread_retry(self):
         first = {"choices": [{"message": {"content": json.dumps(_payload())}}], "usage": {}}
         retry_payload = _payload_with_nulls({row["item"] for row in ASSET_SCHEMA})
