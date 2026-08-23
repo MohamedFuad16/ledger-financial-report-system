@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -49,12 +50,21 @@ def main() -> int:
             skipped += 1
             continue
         if not old_path.is_file():
-            if new_path.is_file() and sha256(new_path) == document["sha256"]:
+            # A host that pulled the migrated manifest still holds its file
+            # under the legacy Unicode slug; reconstruct that location.
+            legacy_slug = re.sub(r"[^\w-]+", "_", str(document["company"]), flags=re.UNICODE).strip("_")
+            legacy_path = (
+                PROJECT_ROOT / "corpus_dataset" / legacy_slug / str(document["fiscal_year"])
+                / f"{legacy_slug}_{kind}_{document['fiscal_year']}.pdf"
+            )
+            if legacy_path.is_file():
+                old_path = legacy_path
+            elif new_path.is_file() and sha256(new_path) == document["sha256"]:
                 # File was moved in an earlier run; only the manifest lagged.
-                pass
+                old_path = new_path
             else:
                 raise SystemExit(f"Missing source file for {document['company']} FY{document['fiscal_year']}: {old_path}")
-        else:
+        if old_path != new_path:
             new_path.parent.mkdir(parents=True, exist_ok=True)
             old_path.replace(new_path)
         if sha256(new_path) != document["sha256"]:
