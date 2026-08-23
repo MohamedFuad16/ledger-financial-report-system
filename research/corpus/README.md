@@ -1,4 +1,4 @@
-# Fifty-company annual-report rebuild
+# Forty-client golden corpus
 
 The acquisition cohort must be selected exclusively from the evidence-backed
 112-company Bakuraku customer-story registry. A target is admitted only when
@@ -17,12 +17,28 @@ official entry point. A candidate is downloaded locally, screened as an annual
 report, checked for company/year identity, and pinned by SHA-256. Firecrawl
 output never becomes benchmark gold.
 
+Firecrawl can parse public PDFs, follow JavaScript-driven pages and reuse
+caller-authorized headers, cookies or persistent browser state. Those features
+do not make a private document public and do not authorize bypassing an access
+control. If the caller does not have permission and credentials, the source is
+out of scope.
+
 Gold requires two independent passes over the exact pinned PDF. Each pass must
 record the statement page, reporting currency, scale, fiscal-year column,
 directly disclosed rows, derived arithmetic and rows that the filing does not
 separately disclose. Only exact agreement between both passes may be marked
 `independently_verified`; unsupported schema splits stay explicitly
 unscorable.
+
+`discover_statutory_filings.py` checkpoints a broad Firecrawl PDF search for
+all 112 clients. `discover_gazette_filings.py` resolves exact-entity public
+gazette announcement images as a fallback for clients without a full report.
+`materialize_statutory_gold.py` accepts a condensed announcement only when its
+structured index total agrees with a local RapidOCR read of both balancing
+totals. Those records score only `Total Assets`; all other 26 rows remain
+explicitly unscorable. Together with the 13 full-report clients, the maintained
+fixture contains 40 unique Bakuraku clients. 3M stays first as the separate
+assignment control and is not counted as a Bakuraku client.
 
 ## Availability status
 

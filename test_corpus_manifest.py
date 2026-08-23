@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +15,27 @@ from schema import ASSET_SCHEMA, ASSIGNMENT_GOLDEN_SOURCE_SHA256
 
 
 class CorpusManifestTests(unittest.TestCase):
+    def test_statutory_expansion_has_27_twice_verified_partial_keys(self):
+        fixture_path = Path(__file__).resolve().parent / "benchmark_data" / "bakuraku_statutory_gold.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        canonical = {str(row["item"]) for row in ASSET_SCHEMA}
+        registry_path = Path(__file__).resolve().parent / "research" / "bakuraku" / "customers.csv"
+        with registry_path.open(encoding="utf-8", newline="") as handle:
+            bakuraku_clients = {row["company_name"] for row in csv.DictReader(handle)}
+
+        self.assertEqual(27, len(fixture["documents"]))
+        self.assertEqual(27, len({item["company"] for item in fixture["documents"].values()}))
+        for source_hash, audited in fixture["documents"].items():
+            self.assertEqual(64, len(source_hash))
+            self.assertIn(audited["company"], bakuraku_clients)
+            self.assertEqual("independently_verified_partial", audited["status"])
+            self.assertEqual({"Total Assets"}, set(audited["answers"]))
+            self.assertEqual(
+                canonical,
+                set(audited["answers"]).union(audited["unscorable_rows"]),
+            )
+            self.assertEqual(2, len(audited["audit_passes"]))
+
     def test_assignment_gold_is_bound_to_the_exact_supplied_pdf(self):
         document = {
             "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,

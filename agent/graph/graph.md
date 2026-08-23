@@ -19,6 +19,9 @@
 | `benchmark_data/*_gold.json` (explicit allowlist in `schema.py`) | twice-audited exact PDF sources | schema, corpus review, pipeline scoring | Changes affect native-JPY gold, citations, immutable review tables, and exact-source accuracy; duplicate hashes are rejected |
 | `research/benchmark/run_five_company_bakeoff.py` | pipeline, source-bound gold, five pinned FY2022 PDFs | benchmark Markdown/CSV/JSON | Changes affect the reproducibility and completeness of the 45-arm cross-parser comparison |
 | `research/benchmark/acquire_fy2022_expansion_sources.py` | reviewed exact-source registry, corpus fetch/screen/manifest | five-report FY2022 expansion corpus | Changes affect exact-source acquisition and replacement safety |
+| `research/corpus/discover_statutory_filings.py` | Bakuraku registry, Firecrawl search API | statutory candidate inventory | Changes affect broad public-filing recall only; search results are never gold |
+| `research/corpus/discover_gazette_filings.py` | Bakuraku registry, public gazette index | exact-entity gazette candidate inventory | Changes affect statutory source discovery and alias matching, not runtime extraction |
+| `research/benchmark/materialize_statutory_gold.py` | gazette inventory, RapidOCR, canonical schema, corpus manifest | `bakuraku_statutory_gold.json`, statutory audit, exact-source PDFs | Changes affect the 27-company partial-gold cohort, hashes, reconciliation evidence, and scorable-row boundaries |
 | browser client | Flask API, locale provider | users | Changes affect all visible product behavior |
 | `frontend/src/pages/StrategyPage.tsx` | extraction job API, parser metadata, corpus picker | three strategy routes | Changes affect all active extraction controls, including Strategy 3 execution and rehydration |
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
@@ -37,4 +40,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-23 via tree-sitter/heuristic fallback.
+- 2026-08-23 via `graphify update . --no-cluster` (1,117 nodes, 2,475 edges) plus the curated research-pipeline rows above.
