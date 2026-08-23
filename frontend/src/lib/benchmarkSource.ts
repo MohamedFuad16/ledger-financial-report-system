@@ -33,7 +33,14 @@ export function saveBenchmarkSource(source: BenchmarkSource) {
 
 export function runMatchesSource(run: RunSummary, source: BenchmarkSource): boolean {
   const model = String(run.model || '').toLowerCase()
-  if (source === 'gemini') return model.includes('gemini')
+  if (source === 'gemini') {
+    if (!model.includes('gemini')) return false
+    // The published Gemini benchmark: medium-effort Strategy 2/3 plus the
+    // low-effort Strategy 1 control (the control is reasoning-insensitive and
+    // the low run covers it), never both efforts of one arm at once.
+    const effort = String(run.reasoning_effort || '')
+    return run.experiment === 'no_ocr' ? effort === 'low' : effort === 'medium'
+  }
   if (!model.includes('glm')) return false
   const thinking = run.enable_reasoning !== false
   return source === 'glm-thinking' ? thinking : !thinking
