@@ -118,7 +118,17 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 30, right: 24, bottom: 12, left: 12 }} barCategoryGap="28%">
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" vertical={false} />
-            <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} />
+            <XAxis dataKey="name" interval={0} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tick={(props: { x?: number | string; y?: number | string; payload?: { value?: string | number } }) => {
+              const x = Number(props.x); const y = Number(props.y)
+              const payload = { value: String(props.payload?.value ?? '') }
+              const arm = data.find((entry) => entry.name === payload.value)
+              return (
+                <g transform={`translate(${x},${y})`}>
+                  <text dy={14} textAnchor="middle" fill="var(--text)" fontSize={11.5} fontWeight={650}>{payload.value}</text>
+                  <text dy={30} textAnchor="middle" fill="var(--muted)" fontSize={10.5}>{arm ? `${arm.tokens.toLocaleString()} tok` : ''}</text>
+                </g>
+              )
+            }} height={44} />
             <YAxis type="number" domain={[0, 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (shorter bar is better)', 'レポート別平均入力トークン（短いほど良い）'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
             <Bar dataKey="tokens" radius={[6, 6, 0, 0]} isAnimationActive={false}>
@@ -129,7 +139,6 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
         </ResponsiveContainer>
         {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
       </div>
-      {!!data.length && <div className="quadrant-key-row curve-legend curve-legend-below">{data.map((arm) => <span className="curve-legend-item" key={arm.name}><i style={{ background: arm.color }} />{arm.name} · {arm.tokens.toLocaleString()} {tr('tok', 'トークン')}</span>)}</div>}
     </div>
   )
 }

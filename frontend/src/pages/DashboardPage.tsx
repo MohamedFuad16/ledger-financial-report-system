@@ -24,6 +24,11 @@ export function DashboardPage({
   const s3Runs = benchmarkRuns.filter((run) => run.experiment === 'intelligent_scan')
   const s3Stat = stats.find((entry) => entry.key === 'intelligent_scan') || null
   const s3ReportCount = new Set(s3Runs.map(reportCohortKey)).size
+  const disclosedTotals = s3Runs.reduce((sums, run) => ({
+    answered: sums.answered + Number(run.committed_and_compared ?? 0),
+    disclosed: sums.disclosed + Number(run.total_compared ?? 0),
+  }), { answered: 0, disclosed: 0 })
+  const disclosedCoverage = disclosedTotals.disclosed > 0 ? 100 * disclosedTotals.answered / disclosedTotals.disclosed : null
   const parseBaseline = stats.find((entry) => entry.key === 'no_ocr')
   const fastestParser = stats.filter((entry) => entry.extractSeconds != null && entry.extractSeconds > 0)
     .reduce<(typeof stats)[number] | null>((best, entry) => !best || Number(entry.extractSeconds) < Number(best.extractSeconds) ? entry : best, null)
@@ -41,7 +46,15 @@ export function DashboardPage({
   const tiedAccuracyLabel = accuracyLeaders.map((entry) => entry.label).join(tr(' and ', '・'))
   const completeReportCount = new Set(benchmarkRuns.map(reportCohortKey)).size
   const hasUnverifiedReports = benchmarkRuns.some((run) => run.gold_status === 'human_review_required')
-  const conclusion = fastest && accuracyLeader && completeReportCount
+  const s3LeadsAccuracy = !!s3Stat && stats.every((entry) => entry.accuracy == null || Number(s3Stat.accuracy) >= Number(entry.accuracy))
+  const s3CheapestTokens = !!s3Stat && stats.every((entry) => entry.inputTokens == null || Number(s3Stat.inputTokens) <= Number(entry.inputTokens))
+  const s3FastestParse = !!s3Stat && stats.every((entry) => entry.extractSeconds == null || Number(s3Stat.extractSeconds) <= Number(entry.extractSeconds))
+  const conclusion = s3Stat && s3LeadsAccuracy && s3CheapestTokens
+    ? tr(
+        `Intelligent scanning leads exact accuracy at ${formatMetric(s3Stat.accuracy)} with the fewest input tokens${s3FastestParse ? ' and the fastest document processing' : ''}.`,
+        `インテリジェントスキャンが最少の入力トークン${s3FastestParse ? 'と最速のドキュメント処理' : ''}で最高の完全一致率${formatMetric(s3Stat.accuracy)}を達成しています。`,
+      )
+    : fastest && accuracyLeader && completeReportCount
     ? accuracyLeaders.length > 1
       ? tr(`${fastest.label} is faster; ${tiedAccuracyLabel} are tied for exact accuracy at ${formatMetric(accuracyLeader.accuracy)}.`, `${fastest.label} が高速で、${tiedAccuracyLabel} が完全一致率 ${formatMetric(accuracyLeader.accuracy)} で同率首位です。`)
       : fastest.key === accuracyLeader.key
@@ -63,7 +76,7 @@ export function DashboardPage({
 
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
-        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(s3Stat?.coverage ?? average('coverage'))} detail={tr('Fields the intelligent scanning gate returned; sparse statutory filings disclose fewer rows', 'インテリジェントスキャンが返した項目。簡易な官報決算は開示行が少なくなります')} />
+        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
         <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastestParser?.label || '—'} detail={fastestParser && parseSpeedup ? `${formatDuration(fastestParser.extractSeconds)} ${tr('mean parse', '平均解析')} · ${parseSpeedup.toFixed(1)}× ${tr('faster than No OCR', 'OCRなし比で高速')}` : tr('No parse timing yet', '解析時間データはまだありません')} />
       </div>

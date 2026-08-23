@@ -23,8 +23,8 @@ export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
 
 export const comparisonExperimentMeta = {
   no_ocr: { label: 'No OCR', color: '#2563eb' },
-  ocr: { label: 'OCR enabled', color: '#10b981' },
-  intelligent_scan: { label: 'Intelligent scanning', color: '#8b5cf6' },
+  ocr: { label: 'OCR enabled', color: '#dc2626' },
+  intelligent_scan: { label: 'Intelligent scanning', color: '#16a34a' },
 } as const
 
 export function experimentForStrategyPage(kind: StrategyPageKind): BenchmarkExperiment {

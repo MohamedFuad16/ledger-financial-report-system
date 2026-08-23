@@ -408,7 +408,7 @@ td { height: 56px; font-size: 12px; }
 .corpus-layout { display: grid; grid-template-columns: minmax(500px, .95fr) minmax(0, 1.05fr); gap: 12px; }.corpus-builder, .corpus-progress, .corpus-table-card { padding: 24px; }.corpus-table-card { margin-top: 12px; }
 .corpus-provenance { padding: 24px; }
 .curve-legend { display: flex; gap: 14px; flex-wrap: wrap; }
-.curve-legend-below { justify-content: center; margin-top: 10px; }
+.curve-legend-below { justify-content: center; margin-top: 14px; padding-bottom: 2px; }
 .curve-legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; font-weight: 650; }
 .curve-legend-item i { width: 10px; height: 10px; border-radius: 3px; }
 .latency-distribution-card { padding: 24px; }
