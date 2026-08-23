@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronRight, FileText, Files, Search } from 'lucid
 import { useMemo, useState } from 'react'
 import type { CorpusDocument } from '../types'
 import { useLocale } from '../lib/i18n'
+import { companyDisplayName, englishCompanyNames } from '../lib/companies'
 import { Badge, EmptyState } from './ui'
 
 export type CorpusSelectionMode = 'single' | 'batch'
@@ -19,13 +20,13 @@ export function CorpusPicker({
   onModeChange: (mode: CorpusSelectionMode) => void
   onSelectionChange: (ids: string[]) => void
 }) {
-  const { tr } = useLocale()
+  const { locale, tr } = useLocale()
   const [query, setQuery] = useState('')
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return [...documents]
-      .filter((document) => !needle || `${document.company} ${document.filename} ${document.fiscal_year}`.toLowerCase().includes(needle))
+      .filter((document) => !needle || `${document.company} ${englishCompanyNames[document.company] || ''} ${document.filename} ${document.fiscal_year}`.toLowerCase().includes(needle))
       .sort((left, right) => left.company.localeCompare(right.company) || right.fiscal_year - left.fiscal_year)
   }, [documents, query])
   const groups = useMemo(() => Object.values(visible.reduce<Record<string, CorpusDocument[]>>((result, document) => {
@@ -71,7 +72,7 @@ export function CorpusPicker({
             const expanded = expandedCompanies.has(company) || Boolean(query.trim())
             const rows = [<button className="corpus-company-picker-row" type="button" onClick={() => toggleCompany(company)} aria-expanded={expanded} key={`company-${company}`}>
               {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-              <span><strong>{company}</strong><small>{companyDocuments.length} {tr(companyDocuments.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}</small></span>
+              <span><strong>{companyDisplayName(company, locale)}</strong><small>{companyDocuments.length} {tr(companyDocuments.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}</small></span>
               {selectedCount > 0 && <Badge tone="blue">{selectedCount} {tr('selected', '選択')}</Badge>}
             </button>]
             if (!expanded) return rows

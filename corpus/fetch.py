@@ -23,6 +23,13 @@ MAX_PDF_BYTES = 100 * 1024 * 1024
 
 
 def company_slug(name: str) -> str:
+    # Known companies store under their ASCII English slug so the whole corpus
+    # uses one uniform naming scheme (AppBank_annual_report_2022.pdf).
+    from corpus.company_names import english_slug
+
+    mapped = english_slug(name)
+    if mapped:
+        return mapped
     # Keep Unicode letters/numbers so distinct Japanese company names cannot
     # collapse into the same ``Unknown_Company/<year>`` directory. ``\w`` is
     # Unicode-aware in Python; punctuation and path separators are still

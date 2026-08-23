@@ -81,7 +81,7 @@ describe('CorpusPage provenance', () => {
 
     render(<LocaleProvider><CorpusPage settings={null} onNotify={vi.fn()} /></LocaleProvider>)
 
-    expect(await screen.findByText('How Firecrawl built this corpus')).toBeInTheDocument()
+    expect(await screen.findByText('How I used Firecrawl to build this corpus')).toBeInTheDocument()
     expect(screen.getByTitle('Example')).toHaveTextContent('FY2024')
     expect(screen.queryByRole('button', { name: /Discover and download reports/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Load 112 Bakuraku customers/i })).not.toBeInTheDocument()

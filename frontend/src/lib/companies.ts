@@ -1,0 +1,49 @@
+// Canonical English display names for corpus companies.
+// Mirrors corpus/company_names.py — regenerate from it when companies change.
+export const englishCompanyNames: Record<string, string> = {
+  'AppBank株式会社': 'AppBank Inc.',
+  'Byside株式会社': 'Byside Inc.',
+  'JR九州エンジニアリング株式会社': 'JR Kyushu Engineering Co., Ltd.',
+  'JUKI産機テクノロジー株式会社': 'JUKI Industrial Equipment Technology Corp.',
+  'note株式会社': 'note inc.',
+  'キャディ株式会社': 'CADDi Inc.',
+  'クラスター株式会社': 'Cluster, Inc.',
+  'ダイニチ工業株式会社': 'Dainichi Co., Ltd.',
+  'ハコベル株式会社': 'Hacobell Inc.',
+  'ファインディ株式会社': 'Findy Inc.',
+  'メディフォン株式会社': 'MediPhone, Inc.',
+  'ラクスル株式会社': 'Raksul Inc.',
+  'リソルホールディングス株式会社': 'RESOL Holdings Co., Ltd.',
+  '吉田海運株式会社': 'Yoshida Kaiun Co., Ltd.',
+  '坂善商事株式会社': 'Sakazen Shoji Co., Ltd.',
+  '大西運輸株式会社': 'Onishi Transport Co., Ltd.',
+  '日本テーマパーク開発株式会社': 'Japan Theme Park Development, Inc.',
+  '株式会社FABRIC TOKYO': 'FABRIC TOKYO Inc.',
+  '株式会社FLUX': 'FLUX Inc.',
+  '株式会社Morght': 'Morght Inc.',
+  '株式会社PIGNUS（ピグナス）': 'PIGNUS Inc.',
+  '株式会社SANU': 'SANU Inc.',
+  '株式会社iCARE': 'iCARE Co., Ltd.',
+  '株式会社mov': 'mov inc.',
+  '株式会社with': 'with Inc.',
+  '株式会社アップガレージグループ': 'UP GARAGE GROUP Co., Ltd.',
+  '株式会社キズキ': 'Kizuki Co., Ltd.',
+  '株式会社キッズコーポレーション': 'Kids Corporation Inc.',
+  '株式会社グッドパッチ': 'Goodpatch Inc.',
+  '株式会社ストライダーズ': 'Striders Corporation',
+  '株式会社トーエネック': 'TOENEC Corporation',
+  '株式会社ナレッジワーク': 'Knowledge Work Inc.',
+  '株式会社ハッピートラベル': 'Happy Travel Co., Ltd.',
+  '株式会社プレイド': 'PLAID, Inc.',
+  '株式会社ベルク': 'Belc CO., LTD.',
+  '株式会社レスタス': 'Lestas Inc.',
+  '株式会社伊豆シャボテン公園': 'Izu Shaboten Resort Co., Ltd.',
+  '株式会社寿々': 'Juju Co., Ltd.',
+  '株式会社帝国ホテル': 'Imperial Hotel, Ltd.',
+  '西尾レントオール株式会社': 'Nishio Rent All Co., Ltd.',
+}
+
+export function companyDisplayName(company: string, locale: 'en' | 'ja'): string {
+  if (locale === 'ja') return company
+  return englishCompanyNames[company] || company
+}

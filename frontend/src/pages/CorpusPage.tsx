@@ -5,26 +5,15 @@ import type { CorpusDocument, CorpusManifest, CorpusTarget, CorpusVerification, 
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
 import { convertCurrency, currencyPreference, restoreNativeCurrency } from '../lib/currency'
-
-const englishCompanyNames: Record<string, string> = {
-  'AppBank株式会社': 'AppBank Inc.', 'Byside株式会社': 'Byside Inc.', 'JR九州エンジニアリング株式会社': 'JR Kyushu Engineering Co., Ltd.',
-  'JUKI産機テクノロジー株式会社': 'JUKI Industrial Equipment Technology Corp.', 'note株式会社': 'note inc.', 'キャディ株式会社': 'CADDi Inc.',
-  'クラスター株式会社': 'Cluster, Inc.', 'ダイニチ工業株式会社': 'Dainichi Co., Ltd.', 'ハコベル株式会社': 'Hacobell Inc.',
-  'ファインディ株式会社': 'Findy Inc.', 'メディフォン株式会社': 'MediPhone, Inc.', 'ラクスル株式会社': 'Raksul Inc.',
-  'リソルホールディングス株式会社': 'RESOL Holdings Co., Ltd.', '吉田海運株式会社': 'Yoshida Kaiun Co., Ltd.', '坂善商事株式会社': 'Sakazen Shoji Co., Ltd.',
-  '大西運輸株式会社': 'Onishi Transport Co., Ltd.', '日本テーマパーク開発株式会社': 'Japan Theme Park Development, Inc.', '株式会社FABRIC TOKYO': 'FABRIC TOKYO Inc.',
-  '株式会社FLUX': 'FLUX Inc.', '株式会社iCARE': 'iCARE Co., Ltd.', '株式会社Morght': 'Morght Inc.', '株式会社mov': 'mov inc.',
-  '株式会社PIGNUS（ピグナス）': 'PIGNUS Inc.', '株式会社SANU': 'SANU Inc.', '株式会社with': 'with Inc.',
-  '株式会社アップガレージグループ': 'UP GARAGE GROUP Co., Ltd.', '株式会社キズキ': 'Kizuki Co., Ltd.', '株式会社キッズコーポレーション': 'Kids Corporation Inc.',
-  '株式会社グッドパッチ': 'Goodpatch Inc.', '株式会社ストライダーズ': 'Striders Corporation', '株式会社トーエネック': 'TOENEC Corporation',
-  '株式会社ナレッジワーク': 'Knowledge Work Inc.', '株式会社ハッピートラベル': 'Happy Travel Co., Ltd.', '株式会社プレイド': 'PLAID, Inc.',
-  '株式会社ベルク': 'Belc CO., LTD.', '株式会社レスタス': 'Lestas Inc.', '株式会社伊豆シャボテン公園': 'Izu Shaboten Resort Co., Ltd.',
-  '株式会社寿々': 'Juju Co., Ltd.', '株式会社帝国ホテル': 'Imperial Hotel, Ltd.', '西尾レントオール株式会社': 'Nishio Rent All Co., Ltd.',
-}
+import { englishCompanyNames } from '../lib/companies'
 
 function officialHost(url?: string) {
   try { return new URL(url || '').hostname.replace(/^www\./, '') } catch { return '' }
 }
+
+// Filing mirrors and gazette hosts are sources, not company identities; their
+// favicons must never stand in for a company logo.
+const MIRROR_HOSTS = /(?:^|\.)(?:edinet-fsa\.go\.jp|catr\.jp|kanpo\.go\.jp|irbank\.net|xj-storage\.jp|irpocket\.com|swcms\.net)$/
 
 function CompanyLogo({ domain, label }: { domain: string; label: string }) {
   const [failed, setFailed] = useState(false)
@@ -141,7 +130,7 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
       // The library lists only companies whose reports are actually pinned;
       // research targets without a stored report are not corpus members.
       .filter((group) => group.documents.length > 0)
-      .filter((group) => !needle || `${group.company} ${group.target?.official_url || ''} ${group.documents.map((document) => `${document.filename} ${document.fiscal_year}`).join(' ')}`.toLocaleLowerCase().includes(needle))
+      .filter((group) => !needle || `${group.company} ${englishCompanyNames[group.company] || ''} ${group.target?.official_url || ''} ${group.documents.map((document) => `${document.filename} ${document.fiscal_year}`).join(' ')}`.toLocaleLowerCase().includes(needle))
       .sort((left, right) => {
         if (left.company.trim().toLocaleLowerCase() === '3m') return -1
         if (right.company.trim().toLocaleLowerCase() === '3m') return 1
@@ -154,7 +143,8 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
     const seen = new Map<string, { company: string; domain: string; years: number[] }>()
     for (const document of manifest?.documents || []) {
       const target = targetByCompany.get(document.company)
-      const domain = officialHost(target?.official_url) || (document.official_source_verified ? officialHost(document.source_url) : '')
+      const candidates = [officialHost(target?.official_url), document.official_source_verified ? officialHost(document.source_url) : '']
+      const domain = candidates.find((host) => host && !MIRROR_HOSTS.test(host)) || ''
       const entry = seen.get(document.company) || { company: document.company, domain, years: [] }
       if (!entry.domain && domain) entry.domain = domain
       entry.years.push(document.fiscal_year)
@@ -165,9 +155,13 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
       .sort((left, right) => {
         if (left.company.trim().toLocaleLowerCase() === '3m') return -1
         if (right.company.trim().toLocaleLowerCase() === '3m') return 1
+        if (Boolean(left.domain) !== Boolean(right.domain)) return left.domain ? -1 : 1
+        if (left.years.length !== right.years.length) return right.years.length - left.years.length
         return left.company.localeCompare(right.company)
       })
   }, [manifest])
+  const showcaseCompanies = crawledCompanies.slice(0, 10)
+  const showcaseRemainder = Math.max(0, crawledCompanies.length - showcaseCompanies.length)
   const isVerified = (document: CorpusDocument) => ['assignment_supplied', 'human_verified', 'independently_verified'].includes(document.verification_status || '')
   const screeningState = (document: CorpusDocument) => document.screened === 'unreadable' ? 'unreadable' : isVerified(document) ? 'verified' : 'review'
   const toggleCompany = (company: string) => setExpandedCompanies((current) => {
@@ -180,7 +174,7 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
   const reviewIsImmutable = Boolean(verification?.immutable) || verification?.status === 'assignment_supplied'
   const companyLabel = (company: string, officialUrl = '') => {
     if (locale === 'ja' || company.trim().toLocaleLowerCase() === '3m') return company
-    return englishCompanyNames[company] || officialHost(officialUrl) || company
+    return englishCompanyNames[company] || company
   }
   const localizedEvidence = (row: CorpusVerificationRow) => {
     const evidence = row.evidence || ''
@@ -204,13 +198,13 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
       </div>
 
       <Card className="corpus-provenance">
-        <SectionHeading eyebrow={tr('Golden dataset provenance', 'ゴールデンデータセットの出所')} title={tr('How Firecrawl built this corpus', 'Firecrawlによるコーパス構築の方法')} description={tr('Every stored report below came from one bounded Firecrawl acquisition pass; no further crawling runs from this page.', '以下の全レポートは一度の限定的なFirecrawl取得パスで収集されたものです。このページから新たなクロールは実行されません。')} />
+        <SectionHeading eyebrow={tr('Golden dataset provenance', 'ゴールデンデータセットの出所')} title={tr('How I used Firecrawl to build this corpus', 'Firecrawlを使ったコーパス構築の方法')} description={tr('Every stored report below came from one bounded Firecrawl acquisition pass; no further crawling runs from this page.', '以下の全レポートは一度の限定的なFirecrawl取得パスで収集されたものです。このページから新たなクロールは実行されません。')} />
         <div className="firecrawl-explainer">
           <div className="firecrawl-step"><span>1</span><div><strong>{tr('Discover official sources', '公式ソースを探索')}</strong><p>{tr('Firecrawl map and search located each company’s official annual-report library, securities-report page, or public-gazette filing — never arbitrary search hits.', 'Firecrawlのmap/searchで各社の公式年次報告書ライブラリ、有価証券報告書ページ、官報公告を特定しました。任意の検索結果は採用していません。')}</p></div></div>
           <div className="firecrawl-step"><span>2</span><div><strong>{tr('Download & screen locally', 'ダウンロードとローカル検査')}</strong><p>{tr('Ledger downloaded each candidate PDF directly, then confirmed company identity, annual-document type, fiscal year, and a readable balance sheet from inside the file.', 'LedgerがPDFを直接ダウンロードし、ファイル内部から会社の同一性、年次文書種別、会計年度、貸借対照表の可読性を確認しました。')}</p></div></div>
           <div className="firecrawl-step"><span>3</span><div><strong>{tr('Pin & verify', '固定と検証')}</strong><p>{tr('Accepted files are pinned by SHA-256; answer tables are verified against that exact hash, and unscorable rows stay explicitly unscorable rather than fabricated.', '採用ファイルはSHA-256で固定し、回答表はそのハッシュに対して検証します。評価不能な行は捏造せず、明示的に評価対象外のまま保持します。')}</p></div></div>
         </div>
-        <div className="corpus-logo-grid">{crawledCompanies.map((entry) => <div className="corpus-logo-tile" key={entry.company} title={entry.company}><CompanyLogo domain={entry.domain} label={companyLabel(entry.company)} /><span><strong>{companyLabel(entry.company)}</strong><small>{entry.years.map((year) => `FY${year}`).join(' · ')}</small></span></div>)}</div>
+        <div className="corpus-logo-grid">{showcaseCompanies.map((entry) => <div className="corpus-logo-tile" key={entry.company} title={entry.company}><CompanyLogo domain={entry.domain} label={companyLabel(entry.company)} /><span><strong>{companyLabel(entry.company)}</strong><small>{entry.years.map((year) => `FY${year}`).join(' · ')}</small></span></div>)}{showcaseRemainder > 0 && <div className="corpus-logo-tile corpus-logo-more"><span className="corpus-logo-mark corpus-logo-monogram" aria-hidden="true">…</span><span><strong>{tr(`and ${showcaseRemainder} more clients`, `ほか${showcaseRemainder}社`)}</strong><small>{tr('all pinned in the library below', '以下のライブラリに全社掲載')}</small></span></div>}</div>
         <p className="corpus-provenance-footnote"><Flame size={14} /> {tr('The crawl phase is complete and the remaining Firecrawl credits are reserved; this corpus is frozen for benchmarking.', 'クロール工程は完了し、残りのFirecrawlクレジットは温存しています。このコーパスはベンチマーク用に凍結済みです。')}</p>
       </Card>
 
@@ -229,7 +223,7 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
             ? `FY${documents[0].fiscal_year}`
             : `FY${documents[documents.length - 1].fiscal_year}–FY${documents[0].fiscal_year}`
           const rows = [<tr className="corpus-company-row" key={`company-${company}`}>
-            <td><button className="corpus-company-toggle" type="button" onClick={() => documents.length && toggleCompany(company)} aria-expanded={expanded} disabled={!documents.length}>{documents.length ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="corpus-company-placeholder" />}<span><strong>{companyLabel(company, target?.official_url || documents[0]?.source_url)}</strong>{locale === 'en' && companyLabel(company, target?.official_url || documents[0]?.source_url) !== company && <small>{company}</small>}<small>{documents.length ? `${documents.length} ${tr(documents.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}` : tr('research target', '調査対象')}</small></span></button></td>
+            <td><button className="corpus-company-toggle" type="button" onClick={() => documents.length && toggleCompany(company)} aria-expanded={expanded} disabled={!documents.length}>{documents.length ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="corpus-company-placeholder" />}<span><strong>{companyLabel(company, target?.official_url || documents[0]?.source_url)}</strong><small>{documents.length ? `${documents.length} ${tr(documents.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}` : tr('research target', '調査対象')}</small></span></button></td>
             <td>{yearLabel}</td>
             <td><Badge tone={groupState === 'unreadable' ? 'red' : groupState === 'verified' ? 'green' : 'amber'}>{groupState === 'pending' ? tr('Awaiting report', 'レポート待ち') : groupState === 'unreadable' ? tr('Unreadable', '読取不可') : groupState === 'verified' ? tr('Verified', '確認済み') : tr('Review', '確認')}</Badge></td>
             <td><span className="company-answer-summary">{documents.length ? `${verifiedCount}/${documents.length} ${tr('verified', '確認済み')}` : '—'}</span></td>

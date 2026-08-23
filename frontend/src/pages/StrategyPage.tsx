@@ -391,7 +391,7 @@ export function StrategyPage({
               onDrop={(event) => { event.preventDefault(); setDragging(false); acceptFiles(Array.from(event.dataTransfer.files)) }}
             >
               <input type="file" accept="application/pdf,.pdf" multiple onChange={(event) => acceptFiles(Array.from(event.target.files || []))} aria-label={tr('Choose Annual Report PDFs', '年次報告書PDFを選択')} />
-              <FolderUpload active={uploadHovering || dragging} open={dragging} />
+              <FolderUpload active={uploadHovering || dragging} open={dragging} tone={kind === 's1' ? 'blue' : kind === 's2' ? 'red' : 'violet'} />
               <strong>{files.length ? tr(`${files.length} PDF${files.length === 1 ? '' : 's'} ready`, `${files.length}件のPDFを準備済み`) : tr('Drop Annual Reports here', '年次報告書をここにドロップ')}</strong>
               <p>{files.length ? files.map((file) => file.name).join(' · ') : tr('or click to browse from this computer', 'またはクリックして端末から選択')}</p>
             </div>

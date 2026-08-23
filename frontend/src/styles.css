@@ -437,3 +437,5 @@ td { height: 56px; font-size: 12px; }
 
 @media (max-width: 1100px) { .corpus-layout { grid-template-columns: 1fr; }.rate-state { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .corpus-summary { grid-template-columns: 1fr 1fr; }.runtime-grid { grid-template-columns: 1fr; }.runtime-grid .field-wide { grid-column: auto; }.run-drawer { inset: 1vh 1vw; width: 98vw; }.drawer-header { flex-direction: column; }.sheet-actions { justify-content: flex-start; } }
+.corpus-logo-more { border-style: dashed; }
+.corpus-logo-more strong { color: var(--muted); }
