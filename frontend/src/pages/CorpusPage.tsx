@@ -255,9 +255,9 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
             <aside className="review-pdf-pane">
             <div className="review-pdf-head"><ScanText size={16} /><span className="review-pdf-title"><strong>{reviewing.filename}</strong><small>SHA-256 {reviewing.sha256.slice(0, 12)}… · {tr('pinned source PDF', '固定元PDF')}</small></span></div>
             <div className="review-page-nav">
-              <button type="button" onClick={() => setReviewPage((current) => Math.max(1, current - 1))} disabled={reviewPage <= 1} aria-label={tr('Previous page', '前のページ')}><ChevronLeft size={15} /></button>
+              <button type="button" className="review-page-step" onClick={() => setReviewPage((current) => Math.max(1, current - 1))} disabled={reviewPage <= 1} aria-label={tr('Previous page', '前のページ')}><ChevronLeft size={15} /></button>
               <span className="review-page-indicator">{tr('Page', 'ページ')} <input type="number" min={1} max={reviewing.pages || 1} value={reviewPage} onChange={(event) => { const next = Number(event.target.value); if (Number.isFinite(next)) setReviewPage(Math.min(Math.max(1, Math.round(next)), reviewing.pages || 1)) }} aria-label={tr('Go to page', 'ページへ移動')} /> / {reviewing.pages || 1}</span>
-              <button type="button" onClick={() => setReviewPage((current) => Math.min(reviewing.pages || 1, current + 1))} disabled={reviewPage >= (reviewing.pages || 1)} aria-label={tr('Next page', '次のページ')}><ChevronRight size={15} /></button>
+              <button type="button" className="review-page-step" onClick={() => setReviewPage((current) => Math.min(reviewing.pages || 1, current + 1))} disabled={reviewPage >= (reviewing.pages || 1)} aria-label={tr('Next page', '次のページ')}><ChevronRight size={15} /></button>
               {reviewing.balance_sheet_page ? <button type="button" className={`review-balance-jump ${reviewPage === reviewing.balance_sheet_page ? 'is-active' : ''}`} onClick={() => setReviewPage(reviewing.balance_sheet_page || 1)}>{tr(`Balance sheet p.${reviewing.balance_sheet_page}`, `貸借対照表 p.${reviewing.balance_sheet_page}`)}</button> : null}
               <small>{tr('Full-text search: use Open searchable PDF above', '全文検索は上の「検索可能なPDFを開く」から')}</small>
             </div>
