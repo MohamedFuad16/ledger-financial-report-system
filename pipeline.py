@@ -709,7 +709,19 @@ def _run_pipeline_inner(
                 item for item in participants
                 if item not in seen and not seen.add(item) and item not in set(missing_items)
             ]
-    retry_items = missing_items + failed_identity_items
+    # A packet that already contains every readable page decides absence and
+    # zeros on its own — nulls there are answers, not evidence gaps, so only a
+    # failed deterministic identity (a misread) justifies the second call.
+    complete_packet = bool(extracted.diagnostics.get("complete_document_packet"))
+    retry_items = (
+        failed_identity_items if complete_packet else missing_items + failed_identity_items
+    )
+    if complete_packet and missing_items and not failed_identity_items:
+        evidence_retry = {
+            "attempted": False,
+            "reason": "packet covers the complete readable document; remaining nulls are decided absences",
+            "missing_rows": missing_items,
+        }
     if (
         strategy.experiment == "intelligent_scan"
         and retry_items

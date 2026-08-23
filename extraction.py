@@ -945,6 +945,12 @@ def extract_with_intelligent_scanning_gate(
         "page_provenance": page_provenance,
         **gate,
     }
+    # When the gate retained every readable candidate page, the packet IS the
+    # complete readable report: absence from it is absence from the report,
+    # and the prompt + retry logic must not treat it as an excerpt.
+    diagnostics["complete_document_packet"] = (
+        len(selected_pages) == int(gate.get("candidate_page_count") or 0)
+    )
     extracted = _finalize(
         selected_pages,
         len(raw_pages),
@@ -1111,13 +1117,14 @@ STRATEGIES: dict[str, Strategy] = {
             "only pages it marked as needing OCR were replaced by 200-DPI local RapidOCR text; the unified "
             "pages were then ranked by the deterministic intelligent scanning gate using table presence, "
             "financial headings, the fixed 27-field vocabulary, and layout metadata. Page markers identify "
-            "the original source PDF pages. IMPORTANT: this is an excerpt, not the whole report. When a "
-            "row's evidence would normally live in a note schedule that is NOT among the supplied pages — "
-            "loan receivables nested in an 'other' line, the gross-cost and accumulated-depreciation detail "
-            "of the fixed-asset schedule, or a maturity note — return null with confidence 0.0 for that row "
-            "instead of assuming 0 or committing a partial figure; additional pages can then be supplied. "
-            "Never treat absence from this excerpt as absence from the report, and never report a partial "
-            "accumulated-depreciation figure when the complete schedule is not supplied."
+            "the original source PDF pages. The DOCUMENT MAP states whether this packet contains every "
+            "readable page of the document. When it does, this IS the complete readable report: apply the "
+            "normal null/zero rules directly — absence here is absence from the report, and a decomposition "
+            "row with no printed component is 0. Only when pages were excluded is this an excerpt: then, if "
+            "a row's evidence would normally live in a note schedule NOT among the supplied pages — loan "
+            "receivables nested in an 'other' line, the gross-cost and accumulated-depreciation detail of "
+            "the fixed-asset schedule, or a maturity note — return null with confidence 0.0 for that row "
+            "instead of assuming 0 or committing a partial figure; additional pages can then be supplied."
         ),
         extract=extract_with_intelligent_scanning_gate,
         parser="inspector-gate",

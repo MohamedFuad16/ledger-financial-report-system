@@ -144,6 +144,7 @@ _DIAGNOSTIC_LABELS = {
     "native_text_fallback_pages": "Text-based pages recovered from their embedded text layer",
     "selected_pages": "Pages retained by the intelligent scanning gate",
     "selected_page_count": "Pages sent for semantic mapping",
+    "complete_document_packet": "This packet contains every readable page of the document",
     "character_reduction_percent": "Markdown character reduction (%)",
     "outline": "Document outline",
     "outline_entries_total": "Outline entries in document",
