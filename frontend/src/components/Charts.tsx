@@ -59,26 +59,35 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
       }
     }).filter((point): point is NonNullable<typeof point> => point != null)
       .sort((left, right) => left.y - right.y)
-      .map((point, index) => ({ ...point, x: index + 1 }))
     return { experiment, label: meta.label, color: meta.color, points }
   }).filter((entry) => entry.points.length)
+  // Quantile-stretch every curve onto one shared axis so arms with fewer
+  // reports (S1 cannot read gazettes) stay shape-comparable to the full 102.
+  const span = Math.max(...series.map((entry) => entry.points.length), 1)
+  const scaled = series.map((entry) => ({
+    ...entry,
+    points: entry.points.map((point, index) => ({
+      ...point,
+      x: entry.points.length > 1 ? 1 + index * ((span - 1) / (entry.points.length - 1)) : span,
+    })),
+  }))
 
   return (
     <div className="accuracy-quadrant">
-      {!!series.length && <div className="quadrant-key-row curve-legend">{series.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
+      {!!scaled.length && <div className="quadrant-key-row curve-legend">{scaled.map((entry) => <span className="curve-legend-item" key={entry.experiment}><i style={{ background: entry.color }} />{entry.label} · {entry.points.length} {tr('reports', 'レポート')}</span>)}</div>}
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, 'dataMax']} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest', 'レポート（速い順）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, span]} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest (each arm scaled to a common axis)', 'レポート（速い順・共通軸にスケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('End-to-end pass time (seconds, log scale)', 'パス総時間（秒・対数スケール）'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-            {series.map((entry) => (
+            {scaled.map((entry) => (
               <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
-        {!series.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
+        {!scaled.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
       </div>
     </div>
   )
@@ -109,7 +118,7 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
           <BarChart data={data} margin={{ top: 30, right: 24, bottom: 12, left: 12 }} barCategoryGap="28%">
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" vertical={false} />
             <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} />
-            <YAxis type="number" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (log scale — shorter bar is better)', 'レポート別平均入力トークン（対数・短いほど良い）'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" domain={[0, 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (shorter bar is better)', 'レポート別平均入力トークン（短いほど良い）'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
             <Bar dataKey="tokens" radius={[6, 6, 0, 0]} isAnimationActive={false}>
               {data.map((arm) => <Cell key={arm.name} fill={arm.color} />)}
@@ -130,9 +139,9 @@ export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
   // actually change, and the one where the intelligent scanning gate is
   // fastest; model-call time is excluded so provider speed cannot mask it.
   const stats = groupExperimentStats(runs).filter((item) => item.passes && item.extractSeconds != null && item.extractSeconds > 0)
-  const baseline = stats.find((item) => item.key === 'intelligent_scan') || stats[0]
-  const data = stats.map((item) => ({ ...item, ratio: Number(item.extractSeconds) / Number(baseline?.extractSeconds) }))
-  const maxRatio = Math.max(1, ...data.map((item) => item.ratio))
+  const baseline = stats.find((item) => item.key === 'no_ocr') || stats[0]
+  const data = stats.map((item) => ({ ...item, speedup: Number(baseline?.extractSeconds) / Number(item.extractSeconds) }))
+  const maxSpeedup = Math.max(1, ...data.map((item) => item.speedup))
 
   return (
     <div className="speed-benchmark">
@@ -141,10 +150,10 @@ export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
         return (
           <div className="speed-row" key={item.key}>
             <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.extractSeconds)} · {item.passes} {tr('passes', 'パス')}</span></div>
-            <div className="speed-track"><i style={{ width: `${Math.max(8, item.ratio / maxRatio * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
+            <div className="speed-track"><i style={{ width: `${Math.max(8, item.speedup / maxSpeedup * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
             <div className="speed-value">
-              <strong>{isBaseline ? '1.0×' : `${item.ratio.toFixed(item.ratio >= 10 ? 0 : 1)}×`}</strong>
-              <span>{isBaseline ? tr('fastest', '最速') : tr('slower', '低速')}</span>
+              <strong>{isBaseline ? '1.0×' : `${item.speedup.toFixed(item.speedup >= 10 ? 0 : 1)}×`}</strong>
+              <span>{isBaseline ? tr('baseline', '基準') : item.speedup >= 1 ? tr('faster', '高速') : tr('slower', '低速')}</span>
             </div>
           </div>
         )
