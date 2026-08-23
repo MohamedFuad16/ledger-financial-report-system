@@ -82,6 +82,43 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
   )
 }
 
+
+export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
+  const { tr } = useLocale()
+  // One labeled point per strategy: fewer input tokens is left, higher exact
+  // accuracy is up — upper-left wins on both axes at once.
+  const data = groupExperimentStats(runs)
+    .filter((arm) => arm.passes && arm.accuracy != null && arm.inputTokens != null && arm.inputTokens > 0)
+    .map((arm) => ({
+      x: arm.inputTokens as number,
+      y: arm.accuracy as number,
+      accuracy: arm.accuracy,
+      name: arm.label,
+      color: arm.color,
+      p50: arm.p50Seconds,
+    }))
+  return (
+    <div className="accuracy-quadrant">
+      {!!data.length && <div className="quadrant-key-row curve-legend">{data.map((point) => <span className="curve-legend-item" key={point.name}><i style={{ background: point.color }} />{point.name} · {Math.round(point.x).toLocaleString()} {tr('tok', 'トークン')}{point.p50 != null ? ` · P50 ${formatDuration(point.p50)}` : ''}</span>)}</div>}
+      <div className="chart-frame dither-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 16, right: 40, bottom: 34, left: 12 }}>
+            <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
+            <XAxis type="number" dataKey="x" name={tr('Mean input tokens', '平均入力トークン')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (log scale — fewer is better)', 'レポート別平均入力トークン（対数・少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" name={tr('Accuracy', '正確度')} unit="%" domain={[0, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Mean exact accuracy', '平均完全一致率'), angle: -90, position: 'insideLeft', offset: 0, fill: 'var(--muted)', fontSize: 10 }} />
+            <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+            <Scatter data={data} stroke="var(--surface)" strokeWidth={2}>
+              {data.map((point) => <Cell key={point.name} fill={point.color} />)}
+              <LabelList dataKey="name" position="top" fill="var(--text)" fontSize={11} fontWeight={650} />
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+        {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
+      </div>
+    </div>
+  )
+}
+
 export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
   const stats = groupExperimentStats(runs).filter((item) => item.passes && item.totalSeconds != null && item.totalSeconds > 0)
