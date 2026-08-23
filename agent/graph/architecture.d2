@@ -21,6 +21,7 @@ app: "Annual Report Extractor" {
   cohort: "Matched parser cohort"
   gate: "Strategy 3 intelligent scanning gate"
   gold: "Source-bound audited gold"
+  displayfx: "Display-only USD / JPY conversion"
 
   client -> api: "HTTP / SSE"
   client -> api: "select corpus SHA-256"
@@ -42,6 +43,7 @@ app: "Annual Report Extractor" {
   pipeline -> jobs: "phase events"
   storage -> cohort: "latest parser/report result"
   cohort -> client: "equal-weight comparison"
+  displayfx -> client: "render values only"
   corpus -> storage: "screened-ok PDF + SHA-256 manifest"
 }
 

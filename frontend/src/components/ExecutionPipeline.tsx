@@ -86,7 +86,11 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
     const stored = pass.steps?.[step]?.durationSeconds
     if (stored != null) return formatDuration(stored)
     if (state !== 'running') return state === 'complete' ? tr('Done', '完了') : state === 'failed' ? tr('Stopped', '停止') : tr('Waiting', '待機')
-    if (!startedAt.current[key]) startedAt.current[key] = Date.now()
+    const persistedStart = pass.steps?.[step]?.startedAt || pass.startedAt
+    if (!startedAt.current[key]) {
+      const restored = persistedStart ? Date.parse(persistedStart) : Number.NaN
+      startedAt.current[key] = Number.isFinite(restored) ? restored : Date.now()
+    }
     return formatDuration((now - startedAt.current[key]) / 1000)
   }
 

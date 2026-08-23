@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { experimentForStrategyPage, extractionJobBelongsToStrategyPage, formatDuration, groupExperimentStats, groupParserStats, matchedParserCohort, parserMetricLeaders, runBelongsToStrategyPage } from './format'
 import type { RunSummary } from '../types'
 
-const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
+const run = (strategy: string, file: string, accuracy: number, seconds = 1, experiment: 'no_ocr' | 'ocr' | 'intelligent_scan' = 'no_ocr', identity: Partial<RunSummary> = {}): RunSummary => ({
   run_id: `${strategy}-${file}-${accuracy}`,
   strategy,
   experiment,
@@ -35,18 +35,20 @@ describe('strategy page identity', () => {
 })
 
 describe('matched historical parser cohort', () => {
-  it('reduces the dashboard comparison to one no-OCR mean and one OCR mean', () => {
+  it('reduces the dashboard comparison to one mean for each of the three strategies', () => {
     const runs = [
       { ...run('s1', '3M_annual_report_2022.pdf', 80, 10), total_seconds: 100 },
       { ...run('s1', '3M_annual_report_2022.pdf', 100, 10), total_seconds: 200 },
       { ...run('s1-pymupdf', '3M_annual_report_2022.pdf', 100, 10), total_seconds: 50 },
       { ...run('s2-pypdf', '3M_annual_report_2022.pdf', 90, 10, 'ocr'), total_seconds: 90 },
       { ...run('s2', '3M_annual_report_2022.pdf', 100, 10, 'ocr'), total_seconds: 110 },
+      { ...run('s3', '3M_annual_report_2022.pdf', 100, 10, 'intelligent_scan'), total_seconds: 40 },
     ]
     const stats = groupExperimentStats(runs)
-    expect(stats).toHaveLength(2)
+    expect(stats).toHaveLength(3)
     expect(stats[0]).toMatchObject({ key: 'no_ocr', passes: 2, totalSeconds: 100, accuracy: 95 })
     expect(stats[1]).toMatchObject({ key: 'ocr', passes: 2, totalSeconds: 100, accuracy: 95 })
+    expect(stats[2]).toMatchObject({ key: 'intelligent_scan', passes: 1, totalSeconds: 40, accuracy: 100 })
   })
 
   it('excludes a report until every represented parser completed it', () => {

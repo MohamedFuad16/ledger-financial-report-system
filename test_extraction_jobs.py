@@ -12,6 +12,31 @@ import server
 
 
 class ExtractionJobPersistenceTests(unittest.TestCase):
+    def test_corpus_page_preview_renders_one_exact_pdf_page(self):
+        import fitz
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pdf_path = root / "report.pdf"
+            with fitz.open() as pdf:
+                page = pdf.new_page(width=595, height=842)
+                page.insert_text((72, 72), "Consolidated Balance Sheet")
+                pdf.save(pdf_path)
+            document = {
+                "sha256": "a" * 64,
+                "filename": "report.pdf",
+                "local_path": str(pdf_path),
+            }
+            with patch.object(server, "CORPUS_ROOT", root), patch.object(
+                server, "find_document", return_value=document
+            ):
+                response = server.app.test_client().get(
+                    f"/api/corpus/{document['sha256']}/pages/1.png"
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.mimetype, "image/png")
+            self.assertTrue(response.data.startswith(b"\x89PNG"))
+
     def test_start_route_runs_backend_owned_job_and_persists_replay(self):
         prediction = {
             "run_id": "S1_test", "fiscal_year": "2022", "page_count": 10,

@@ -98,6 +98,8 @@ export const api = {
   },
   corpus: () => jsonRequest<CorpusManifest>('/api/corpus'),
   corpusPdfUrl: (documentId: string) => apiUrl(`/api/corpus/${encodeURIComponent(documentId)}/pdf`),
+  corpusPageImageUrl: (documentId: string, pageNumber: number) =>
+    apiUrl(`/api/corpus/${encodeURIComponent(documentId)}/pages/${Math.max(1, Math.trunc(pageNumber))}.png`),
   corpusVerification: (documentId: string) =>
     jsonRequest<CorpusVerification>(`/api/corpus/${encodeURIComponent(documentId)}/verification`),
   extractCorpusVerification: (documentId: string) =>
@@ -145,6 +147,7 @@ export const api = {
 export interface SseEvent<T = Record<string, unknown>> {
   event: string
   data: T
+  at?: string
 }
 
 export async function consumeEventStream(

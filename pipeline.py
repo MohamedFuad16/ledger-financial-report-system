@@ -805,6 +805,7 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
             "pdf_file": prediction.get("pdf_file", ""),
             "page_count": prediction.get("page_count"),
             "approx_input_tokens": prediction.get("approx_input_tokens"),
+            "input_tokens": (prediction.get("usage") or {}).get("prompt_tokens"),
             "input_characters": prediction.get("input_characters"),
             "strategy_label": prediction.get("strategy_label", ""),
             "row_count": len(rows),

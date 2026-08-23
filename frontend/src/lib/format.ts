@@ -24,6 +24,7 @@ export const experimentStrategies: Record<BenchmarkExperiment, string[]> = {
 export const comparisonExperimentMeta = {
   no_ocr: { label: 'No OCR', color: '#2563eb' },
   ocr: { label: 'OCR enabled', color: '#10b981' },
+  intelligent_scan: { label: 'Intelligent scanning', color: '#8b5cf6' },
 } as const
 
 export function experimentForStrategyPage(kind: StrategyPageKind): BenchmarkExperiment {
@@ -161,13 +162,13 @@ export function groupParserStats(runs: RunSummary[], experiment: BenchmarkExperi
 }
 
 /**
- * Compare OCR and no-OCR as two experiment arms. Repeated executions of the
+ * Compare the three locked extraction arms. Repeated executions of the
  * same parser/report are averaged first, so reruns cannot silently outweigh a
  * different report. Timing is end-to-end when available, with parse time only
  * as a compatibility fallback for older artifacts.
  */
 export function groupExperimentStats(runs: RunSummary[]) {
-  return (['no_ocr', 'ocr'] as const).map((experiment) => {
+  return (['no_ocr', 'ocr', 'intelligent_scan'] as const).map((experiment) => {
     const eligible = runs.filter((run) => run.experiment === experiment && reportCohortKey(run))
     const passGroups = Object.values(eligible.reduce<Record<string, RunSummary[]>>((groups, run) => {
       const key = `${reportCohortKey(run)}::${run.strategy}`

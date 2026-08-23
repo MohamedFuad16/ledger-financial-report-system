@@ -116,3 +116,9 @@ identity or job-budget boundary.
 - Cause: The Markdown-link expression treated the filename's first closing parenthesis as the end of the Markdown destination.
 - Resolution: Scan Markdown destinations character-by-character, tracking balanced parentheses and retaining the complete `.pdf` suffix. The linear-time regression includes a 500 KB page so URL repair cannot stall the API worker.
 - First seen: 2026-08-23
+
+## Search metadata admitted wrong-company and non-annual PDFs (resolved)
+- Symptom: The accidental 112-client discovery job produced seven review items whose labels appeared plausible, but six PDFs belonged to unrelated companies and one was a shareholder-meeting notice.
+- Cause: Search-result rejection was conditional on an official domain being present, and post-download screening checked fiscal year/balance-sheet content without rechecking expected company or annual-document identity inside the PDF.
+- Resolution: Reject unmatched search/deep-search results even when the registry has no official URL, and require local text to confirm target company plus annual/securities-report type before canonical replacement. Removed all seven invalid production entries; durable job history retains the source URLs for audit.
+- First seen: 2026-08-23

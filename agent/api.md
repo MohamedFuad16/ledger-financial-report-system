@@ -24,6 +24,7 @@
 | GET/PUT | `/api/corpus/<sha256>/verification` | Read extracted review rows or save the reviewer's SHA-bound approval |
 | POST | `/api/corpus/<sha256>/verification/extract` | Ensure a legacy/missing review sheet is extracted and prefilled from the pinned PDF before editing |
 | GET | `/api/corpus/<sha256>/pdf` | Serve the pinned source PDF inside the review workspace |
+| GET | `/api/corpus/<sha256>/pages/<page>.png` | Render one exact SHA-bound PDF page for deterministic A4 review layout |
 | DELETE | `/api/corpus/<sha256>` | Delete one manifest-owned corpus PDF after an explicit client confirmation; extraction runs remain intact |
 | POST | `/api/corpus/stage` | Validate selected SHA-256 corpus entries and stage their durable PDFs for the normal extraction stream |
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |

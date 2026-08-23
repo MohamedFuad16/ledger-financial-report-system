@@ -55,7 +55,7 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
             <Scatter data={data} line={{ stroke: '#64748b', strokeWidth: 2, strokeOpacity: .55 }} stroke="var(--surface)" strokeWidth={3}>{data.map((point) => <Cell key={point.name} fill={point.color} />)}</Scatter>
           </ScatterChart>
         </ResponsiveContainer>
-        {!data.length && <div className="chart-empty">{tr('No source-verified OCR/no-OCR timing data yet.', '元資料検証済みのOCR有無比較データはまだありません。')}</div>}
+        {!data.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
       </div>
     </div>
   )
@@ -152,7 +152,7 @@ export function ParserAccuracyChart({ runs }: { runs: RunSummary[] }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      {!data.length && <div className="chart-empty">{tr('No scored OCR/no-OCR runs yet.', '評価済みのOCR有無実行はまだありません。')}</div>}
+      {!data.length && <div className="chart-empty">{tr('No scored strategy runs yet.', '評価済みの戦略実行はまだありません。')}</div>}
     </div>
   )
 }

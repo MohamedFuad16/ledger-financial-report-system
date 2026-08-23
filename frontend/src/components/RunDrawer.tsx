@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Copy, Download, FileSearch, Table2, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, Download, FileSearch, Table2, X } from 'lucide-react'
 import type { RunDetail } from '../types'
 import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 import { Badge, Button, EmptyState, LoadingState } from './ui'
+import { convertCurrency, currencyPreference } from '../lib/currency'
 
 function download(name: string, contents: string, type: string) {
   const url = URL.createObjectURL(new Blob([contents], { type }))
@@ -44,10 +45,11 @@ export function RunDrawer({ detail, loading, onClose }: { detail: RunDetail | nu
 function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => void }) {
   const { tr, schemaText } = useLocale()
   const parser = parserFor(detail.strategy)
-  const answerUnit = detail.answer_unit || `M ${detail.currency || 'USD'}`
+  const displayCurrency = currencyPreference()
+  const answerUnit = `M ${displayCurrency.currency}`
   const exportCsv = () => {
     const header = [tr('Classification', '分類'), tr('Subclassification', '小分類'), tr('Item', '項目'), `${tr('Answer', '回答')} (${answerUnit})`]
-    const rows = detail.rows.map((row) => [schemaText(row.classification), schemaText(row.subclassification), schemaText(row.item), row.accepted ? row.answer_m_usd : null])
+    const rows = detail.rows.map((row) => [schemaText(row.classification), schemaText(row.subclassification), schemaText(row.item), row.accepted ? convertCurrency(row.answer_m_usd, detail.currency || 'USD', displayCurrency.currency, displayCurrency.jpyPerUsd) : null])
     download(`${detail.run_id}.csv`, [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8')
   }
   return <>
@@ -64,13 +66,18 @@ function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => vo
       <div className="detail-strip">
         <div><span>{tr('Pages', 'ページ')}</span><strong>{formatNumber(detail.page_count)}</strong></div>
         <div><span>{tr('Estimated tokens', '推定トークン')}</span><strong>{formatNumber(detail.approx_input_tokens)}</strong></div>
+        <div><span>{tr('Actual input tokens', '実入力トークン')}</span><strong>{formatNumber(detail.input_tokens ?? detail.usage?.prompt_tokens)}</strong></div>
         <div><span>{tr('Parse time', '解析時間')}</span><strong>{formatDuration(detail.extract_seconds)}</strong></div>
         <div><span>{tr('Total time', '合計時間')}</span><strong>{formatDuration(detail.total_seconds)}</strong></div>
         <Button variant="ghost" onClick={() => navigator.clipboard.writeText(detail.run_id)}><Copy size={14} /> {tr('Copy run ID', '実行IDをコピー')}</Button>
       </div>
+      {detail.reconciliation && <section className={`reconciliation-summary ${detail.reconciliation.failed ? 'has-failures' : ''}`}>
+        {detail.reconciliation.failed ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+        <div><strong>{detail.reconciliation.failed ? tr(`${detail.reconciliation.failed} balance-sheet identities need attention`, `貸借対照表の恒等式${detail.reconciliation.failed}件を要確認`) : tr('All evaluated balance-sheet identities reconcile', '評価対象の貸借対照表恒等式はすべて一致')}</strong><span>{tr(`${detail.reconciliation.passed} passed · ${detail.reconciliation.skipped} skipped because a component was unavailable`, `${detail.reconciliation.passed}件合格・構成要素不足で${detail.reconciliation.skipped}件スキップ`)}</span></div>
+      </section>}
       <section className="drawer-section">
         <div className="drawer-section-title"><h3>{tr('Extracted balance-sheet rows', '抽出された貸借対照表項目')}</h3><Badge tone="green">{detail.rows.filter((row) => row.accepted).length}/27 {tr('accepted', '採用')}</Badge></div>
-        {detail.rows.length ? <div className="result-table-wrap"><table className="sheet-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer', '回答')} ({answerUnit})</th></tr></thead><tbody>{detail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div> : <EmptyState icon={<FileSearch size={20} />} title={tr('No rows', '行がありません')} description={tr('This run has no completed prediction rows.', 'この実行には完了した予測行がありません。')} />}
+        {detail.rows.length ? <div className="result-table-wrap"><table className="sheet-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer', '回答')} ({answerUnit})</th></tr></thead><tbody>{detail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(convertCurrency(row.answer_m_usd, detail.currency || 'USD', displayCurrency.currency, displayCurrency.jpyPerUsd)) : '—'}</strong></td></tr>)}</tbody></table></div> : <EmptyState icon={<FileSearch size={20} />} title={tr('No rows', '行がありません')} description={tr('This run has no completed prediction rows.', 'この実行には完了した予測行がありません。')} />}
       </section>
     </motion.div>
   </>

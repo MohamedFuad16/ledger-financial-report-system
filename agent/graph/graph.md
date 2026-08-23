@@ -28,10 +28,11 @@
 | `frontend/src/lib/api.ts` | Vite API origin | every client API call | Changes affect cross-origin deployment, visit reporting, staging, settings and extraction |
 | `deploy/aws/` | EC2, SSM, Gunicorn, Caddy, live/seed manifest merge | production API | Changes affect instance bootstrap, TLS, persistent service startup, and corpus-safe rollout |
 | `frontend/src/lib/i18n.tsx` | browser locale/storage | all React pages and shared UI | Changes affect all translated product copy |
+| `frontend/src/lib/currency.ts` | browser storage, explicit USD/JPY display rate | corpus review, run result sheets, settings | Changes affect displayed values only; native extraction, approval and scoring remain unchanged |
 | `frontend/src/components/ExecutionPipeline.tsx` | SSE-derived execution state, locale provider | strategy pages | Changes affect live parser progress and task state |
 | `frontend/src/components/CorpusPicker.tsx` | corpus manifest, locale provider | strategy pages | Changes affect stored-report search and single/batch selection |
 | `frontend/src/components/RunTable.tsx` | runs API, row-local result sheet | dashboard, history, strategy pages | Changes affect where every stored result opens |
-| `frontend/src/lib/format.ts` | stored run identities and metrics | dashboard, strategy comparison, tests | Changes affect matched-cohort membership, parser averages, and equal-weight OCR/no-OCR arm means |
+| `frontend/src/lib/format.ts` | stored run identities and metrics | dashboard, strategy comparison, tests | Changes affect matched-cohort membership, parser averages, and equal-weight three-strategy arm means |
 | `runs/_extraction_jobs` | server job registry | job list/detail/events API, client rehydration | Changes affect navigation-safe long-running extraction state |
 
 Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API boundary. Corpus review prefill now crosses `server.py` → `pipeline.py` → `corpus/fetch.py`; Firecrawl is no longer on that path.
@@ -41,4 +42,4 @@ Hotspots: `schema.py`, `pipeline.py`, `corpus/service.py`, and the client/API bo
 
 
 ## Last generated
-- 2026-08-23 via `graphify update . --no-cluster` (1,123 nodes, 2,492 edges) plus the curated research-pipeline rows above.
+- 2026-08-23 via `graphify update . --no-cluster` (1,143 nodes, 2,538 edges) plus the curated research-pipeline rows above.

@@ -16,7 +16,7 @@ export function DashboardPage({
   onNavigate: (key: PanelKey) => void
 }) {
   const { tr } = useLocale()
-  const benchmarkRuns = runs.filter((run) => run.experiment === 'no_ocr' || run.experiment === 'ocr')
+  const benchmarkRuns = runs.filter((run) => run.experiment === 'no_ocr' || run.experiment === 'ocr' || run.experiment === 'intelligent_scan')
   const stats = groupExperimentStats(benchmarkRuns).filter((entry) => entry.passes)
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
@@ -78,7 +78,7 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Mean pass speed: OCR versus no OCR', '平均パス速度：OCRあり対なし')} description={tr('Two points only. Each arm averages end-to-end time across its successful parser/report passes; No OCR is the 1.0× baseline.', '2点のみ。各条件で成功したパーサー／レポートパスの総時間を平均し、OCRなしを1.0倍の基準とします。')} />
+          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Mean pass speed across three strategies', '3戦略の平均パス速度')} description={tr('No OCR, OCR enabled, and intelligent scanning are averaged independently across successful end-to-end passes; No OCR is the 1.0× baseline.', 'OCRなし、OCRあり、インテリジェントスキャンを成功した総パス時間で個別集計し、OCRなしを1.0倍の基準とします。')} />
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
@@ -89,11 +89,11 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('OCR versus no-OCR: speed × accuracy', 'OCRあり対なし：速度 × 正確度')} description={tr('Each point is one arm mean across successful passes. Upper-left is faster and more accurate.', '各点は成功パスに基づく条件別平均です。左上ほど高速かつ高精度です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Three-strategy speed × accuracy', '3戦略：速度 × 正確度')} description={tr('Each point is one strategy mean across successful passes. Upper-left is faster and more accurate.', '各点は成功パスに基づく戦略別平均です。左上ほど高速かつ高精度です。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">
-          <SectionHeading eyebrow={tr('Benchmark', 'ベンチマーク')} title={tr('Mean exact accuracy', '平均完全一致率')} description={tr('Scored source-bound passes, grouped into OCR and no-OCR arms.', '元資料に固定された評価済みパスをOCRあり／なしで集計しています。')} />
+          <SectionHeading eyebrow={tr('Benchmark', 'ベンチマーク')} title={tr('Mean exact accuracy', '平均完全一致率')} description={tr('Scored source-bound passes grouped into no OCR, OCR enabled, and intelligent scanning.', '元資料に固定された評価済みパスをOCRなし、OCRあり、インテリジェントスキャンで集計しています。')} />
           {loading ? <div className="chart-skeleton" /> : <ParserAccuracyChart runs={benchmarkRuns} />}
         </Card>
       </div>

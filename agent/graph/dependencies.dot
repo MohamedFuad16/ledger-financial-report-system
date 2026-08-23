@@ -1,5 +1,9 @@
 digraph dependencies {
   rankdir=LR; node [shape=box, style=rounded];
+  "frontend/src/lib/currency.ts" -> "browser localStorage";
+  "frontend/src/pages/CorpusPage.tsx" -> "frontend/src/lib/currency.ts";
+  "frontend/src/components/RunDrawer.tsx" -> "frontend/src/lib/currency.ts";
+  "frontend/src/pages/SettingsPage.tsx" -> "frontend/src/lib/currency.ts";
   "research/benchmark/materialize_bakuraku_gold.py" -> "__future__";
   "research/benchmark/materialize_bakuraku_gold.py" -> "json";
   "research/benchmark/materialize_bakuraku_gold.py" -> "sys";

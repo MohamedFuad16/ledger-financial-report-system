@@ -567,7 +567,7 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .parser-option .check-box { width: 30px; height: 30px; flex: 0 0 auto; border-width: 2px; border-radius: 50%; }
 
 /* A compact, deliberate confirmation dialog for destructive corpus actions. */
-.corpus-table { min-width: 1220px; }
+.corpus-table { min-width: 940px; }
 .corpus-delete-column { width: 94px; text-align: right; }
 .corpus-delete-button { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid color-mix(in srgb, var(--red) 34%, var(--line)); border-radius: 9px; background: var(--surface-raised); color: var(--red); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .corpus-delete-button:hover { border-color: var(--red); background: color-mix(in srgb, var(--red) 6%, var(--surface-raised)); }
@@ -636,7 +636,7 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .candidate-row-summary { color: var(--text); font-size: 11px; font-weight: 700; }
 .candidate-consensus-summary { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 650; }
 .review-sheet-actions .button { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
-.review-workspace { min-height: 0; display: grid; grid-template-columns: minmax(660px, 46%) minmax(0, 54%); overflow: hidden; }
+.review-workspace { min-height: 0; display: grid; grid-template-columns: minmax(620px, 48%) minmax(0, 52%); overflow: hidden; }
 .review-pdf-pane { min-width: 0; min-height: 0; padding: 12px; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px; border-right: 1px solid var(--line); background: var(--surface-soft); }
 .review-pdf-pane > div { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; color: var(--muted); }
 .review-pdf-pane strong { color: var(--text); font-size: 11px; }
@@ -644,6 +644,10 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .pdf-search-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; align-self: stretch; justify-self: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
 .review-pdf-pane iframe { width: 100%; height: 100%; display: block; border: 0; background: var(--surface-raised); }
+.review-pdf-frame > img { width: 100%; height: 100%; padding: 10px; display: block; object-fit: contain; object-position: center; background: color-mix(in srgb, var(--surface-soft) 70%, var(--surface-raised)); }
+.review-pdf-mode { justify-self: start; padding: 2px; display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-raised); }
+.review-pdf-mode button { min-height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; }
+.review-pdf-mode button.is-active { background: var(--text); color: var(--surface-raised); }
 .review-answer-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
 .review-prefill-note { padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised)); color: var(--accent-ink); }
 .review-prefill-note div { display: flex; flex-direction: column; gap: 3px; }
@@ -674,11 +678,20 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .review-table input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-color: var(--accent); }
 .review-table input:disabled { background: var(--surface-soft); color: var(--muted); }
 .review-evidence { width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; line-height: 1.55; }
+.reconciliation-summary { margin: 14px 0 0; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; border: 1px solid color-mix(in srgb, #12b76a 34%, var(--line)); border-radius: 12px; background: color-mix(in srgb, #12b76a 6%, var(--surface-raised)); color: #087443; }
+.reconciliation-summary.has-failures { border-color: color-mix(in srgb, #f59e0b 42%, var(--line)); background: color-mix(in srgb, #f59e0b 7%, var(--surface-raised)); color: #b45309; }
+.reconciliation-summary div { display: flex; flex-direction: column; gap: 3px; }
+.reconciliation-summary strong { color: var(--text); font-size: 12px; }
+.reconciliation-summary span { color: var(--muted); font-size: 10px; }
 .review-sheet > footer { padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid var(--line); background: var(--surface-raised); }
 .review-sheet > footer > span { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .ocr-policy-contract { padding: 14px 16px; display: flex; flex-direction: column; gap: 5px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 4%, var(--surface-soft)); }
 .ocr-policy-contract strong { color: var(--text); font-size: 12px; }
 .ocr-policy-contract span { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.display-currency-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.display-currency-setting > span { display: flex; flex-direction: column; gap: 4px; }
+.display-currency-setting strong { color: var(--text); font-size: 12px; }
+.display-currency-setting small { max-width: 620px; color: var(--muted); font-size: 10px; line-height: 1.45; }
 
 /* Keep quadrant guidance outside the plotting surface and connect parser series. */
 .accuracy-quadrant { position: relative; }

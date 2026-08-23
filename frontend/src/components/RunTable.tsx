@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { AlertCircle, Download, FileText, Trash2 } from 'lucide-react'
 import type { RunDetail, RunSummary } from '../types'
 import { api } from '../lib/api'
-import { displayDate, displayReportName, formatDuration, formatMetric, parserFor } from '../lib/format'
+import { displayDate, displayReportName, formatDuration, formatMetric, formatNumber, parserFor } from '../lib/format'
 import { Badge, Button, EmptyState } from './ui'
 import { useLocale } from '../lib/i18n'
 import { RunDrawer } from './RunDrawer'
@@ -65,7 +65,10 @@ export function RunTable({
             <th>{tr('Parser', 'パーサー')}</th>
             <th>{tr('Accuracy', '正確度')}</th>
             <th>{tr('Coverage', 'カバレッジ')}</th>
+            {!compact && <th>{tr('Pages', 'ページ')}</th>}
+            {!compact && <th>{tr('Input tokens', '入力トークン')}</th>}
             {!compact && <th>{tr('Parse time', '解析時間')}</th>}
+            {!compact && <th>{tr('Total time', '合計時間')}</th>}
             {!compact && <th>{tr('Consistency', '整合性')}</th>}
             <th aria-label={tr('Actions', '操作')} />
           </tr>
@@ -74,7 +77,7 @@ export function RunTable({
           {runs.map((run) => {
             const parser = parserFor(run.strategy)
             const expanded = expandedRunId === run.run_id
-            const columnCount = (compact ? 5 : 7) + (selectable ? 1 : 0)
+            const columnCount = (compact ? 5 : 10) + (selectable ? 1 : 0)
             return (
               <Fragment key={run.run_id}>
               <tr className={expanded ? 'is-expanded' : ''}>
@@ -91,7 +94,10 @@ export function RunTable({
                 <td><Badge tone="neutral"><i style={{ background: parser.color }} />{parser.short}</Badge></td>
                 <td className="numeric"><strong>{formatMetric(run.accuracy)}</strong></td>
                 <td className="numeric">{formatMetric(run.coverage)}</td>
+                {!compact && <td className="numeric">{formatNumber(run.page_count)}</td>}
+                {!compact && <td className="numeric"><strong>{formatNumber(run.input_tokens ?? run.approx_input_tokens)}</strong><small>{run.input_tokens != null ? tr('actual', '実測') : tr('estimated', '推定')}</small></td>}
                 {!compact && <td className="numeric">{formatDuration(run.extract_seconds)}</td>}
+                {!compact && <td className="numeric">{formatDuration(run.total_seconds)}</td>}
                 {!compact && <td className="numeric">{formatMetric(run.consistency)}</td>}
                 <td>
                   <div className="row-actions">

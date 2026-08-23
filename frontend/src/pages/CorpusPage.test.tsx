@@ -93,17 +93,17 @@ describe('CorpusPage answer review', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('Extracted prefill — verify, then correct')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledWith(document.sha256)
-    expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M JPY')
+    expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M USD')
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
-    expect(cash).toHaveValue(125)
+    expect(cash).toHaveValue(125 / 150)
     fireEvent.change(cash, { target: { value: '130' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save & approve reviewed answers' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save & confirm approval' }))
 
     await waitFor(() => expect(approve).toHaveBeenCalled())
     expect(approve.mock.calls[0][0]).toBe(document.sha256)
-    expect(approve.mock.calls[0][1][0].answer_m_usd).toBe(130)
+    expect(approve.mock.calls[0][1][0].answer_m_usd).toBe(19_500)
   })
 
   it('shows a retry state instead of a blank manual-entry table when extraction fails', async () => {

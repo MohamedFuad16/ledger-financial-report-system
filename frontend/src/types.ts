@@ -44,6 +44,7 @@ export interface RunSummary extends RunMetrics {
   pdf_file?: string
   page_count?: number
   approx_input_tokens?: number
+  input_tokens?: number
   extract_seconds?: MetricValue
   total_seconds?: MetricValue
   api_elapsed?: MetricValue
@@ -266,10 +267,12 @@ export interface ExecutionPass {
   apiSeconds?: number | null
   fiscalYear?: string
   error?: string
+  startedAt?: string
   steps?: Record<string, {
     state: 'queued' | 'running' | 'complete' | 'failed'
     message?: string
     durationSeconds?: number
+    startedAt?: string
   }>
 }
 

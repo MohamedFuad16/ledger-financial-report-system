@@ -8,8 +8,8 @@ import {
   Save,
 } from 'lucide-react'
 import { api, type SseEvent } from '../lib/api'
-import type { CorpusDocument, ExecutionFile, RunDetail, RunSummary } from '../types'
-import { experimentForStrategyPage, experimentStrategies, extractionJobBelongsToStrategyPage, formatDuration, formatMetric, formatMoney, formatNumber, parserFor, runBelongsToStrategyPage, type StrategyPageKind } from '../lib/format'
+import type { CorpusDocument, ExecutionFile, RunSummary } from '../types'
+import { experimentForStrategyPage, experimentStrategies, extractionJobBelongsToStrategyPage, formatDuration, formatMetric, formatNumber, parserFor, runBelongsToStrategyPage, type StrategyPageKind } from '../lib/format'
 import { ExecutionPipeline } from '../components/ExecutionPipeline'
 import { FolderUpload } from '../components/FolderUpload'
 import { CorpusPicker, type CorpusSelectionMode } from '../components/CorpusPicker'
@@ -40,7 +40,7 @@ export function StrategyPage({
   onRefreshRuns: () => Promise<void>
   onNotify: (message: string, tone: 'success' | 'error') => void
 }) {
-  const { locale, tr, schemaText } = useLocale()
+  const { locale, tr } = useLocale()
   const isStrategy1 = kind === 's1'
   const isStrategy3 = kind === 's3'
   const [files, setFiles] = useState<File[]>([])
@@ -64,11 +64,9 @@ export function StrategyPage({
   const [promptSaving, setPromptSaving] = useState(false)
   const [running, setRunning] = useState(false)
   const [executions, setExecutions] = useState<ExecutionFile[]>([])
-  const [latestDetail, setLatestDetail] = useState<RunDetail | null>(null)
   const storageKey = `ledger-active-extraction-${kind}`
   const [activeJobId, setActiveJobId] = useState<string | null>(() => window.localStorage.getItem(storageKey))
   const eventOffset = useRef(0)
-  const successfulRunIds = useRef<string[]>([])
 
   useEffect(() => {
     setSelectedParsers(parserChoices)
@@ -93,7 +91,6 @@ export function StrategyPage({
     if (pdfs.length !== incoming.length) onNotify(tr('Only PDF files can be staged.', '追加できるのはPDFファイルのみです。'), 'error')
     setFiles(pdfs)
     setExecutions([])
-    setLatestDetail(null)
   }
 
   const savePrompt = async () => {
@@ -133,6 +130,7 @@ export function StrategyPage({
     state: 'queued' | 'running' | 'complete' | 'failed',
     message?: string,
     durationSeconds?: number,
+    startedAt?: string,
   ) => {
     setExecutions((current) => current.map((file, fileIndex) => fileIndex !== index ? file : {
       ...file,
@@ -144,7 +142,7 @@ export function StrategyPage({
         message,
         steps: {
           ...pass.steps,
-          [step]: { state, message, durationSeconds },
+          [step]: { state, message, durationSeconds, startedAt: pass.steps?.[step]?.startedAt || startedAt },
         },
       }),
     }))
@@ -182,7 +180,7 @@ export function StrategyPage({
       })))
     }
     if (message.event === 'pass_start') {
-      updatePass(data.index, data.strategy, { state: 'running', message: tr(`Preparing ${parserFor(data.strategy).short}`, `${parserFor(data.strategy).short}を準備中`) })
+      updatePass(data.index, data.strategy, { state: 'running', startedAt: message.at, message: tr(`Preparing ${parserFor(data.strategy).short}`, `${parserFor(data.strategy).short}を準備中`) })
     }
     if (message.event === 'progress') {
       updateStep(
@@ -192,6 +190,7 @@ export function StrategyPage({
         data.done ? 'complete' : 'running',
         progressMessage(data),
         data.duration_seconds,
+        message.at,
       )
     }
     if (message.event === 'file_done') {
@@ -220,7 +219,6 @@ export function StrategyPage({
           }
         }),
       }))
-      if (data.ok && data.run_id) successfulRunIds.current.push(data.run_id)
     }
     if (message.event === 'file_complete') {
       setExecutions((current) => current.map((file, index) => index !== data.index ? file : {
@@ -247,7 +245,6 @@ export function StrategyPage({
     let timer = 0
     let finished = false
     eventOffset.current = 0
-    successfulRunIds.current = []
     setExecutions([])
     setRunning(true)
 
@@ -261,14 +258,12 @@ export function StrategyPage({
           setRunning(false)
           return
         }
-        job.events.forEach((record) => handleEvent({ event: record.event, data: record.data }))
+        job.events.forEach((record) => handleEvent({ event: record.event, data: record.data, at: record.at }))
         eventOffset.current = job.next_offset
         if ((job.status === 'complete' || job.status === 'failed' || job.status === 'interrupted') && !finished) {
           finished = true
           setRunning(false)
           await onRefreshRuns()
-          const latestId = successfulRunIds.current.at(-1)
-          if (latestId) setLatestDetail(await api.run(latestId))
           window.localStorage.removeItem(storageKey)
           setActiveJobId(null)
           if (job.status === 'failed' || job.status === 'interrupted') {
@@ -304,8 +299,6 @@ export function StrategyPage({
       return
     }
     setRunning(true)
-    setLatestDetail(null)
-    successfulRunIds.current = []
     try {
       const staged = inputSource === 'upload'
         ? await api.stageUploads(files)
@@ -442,24 +435,10 @@ export function StrategyPage({
           {comparisonSummary.length > 0 && <div className="comparison-grid">{comparisonSummary.map((summary) => { const meta = parserFor(summary.strategy); return <article key={summary.strategy}><i style={{ background: meta.color }} /><span>{meta.short}<small>{tr(`Matched average of ${summary.count} report${summary.count === 1 ? '' : 's'}`, `${summary.count}件の対応平均`)}</small></span><strong>{formatMetric(summary.accuracy)}</strong><small>{formatMetric(summary.coverage)} {tr('coverage', 'カバレッジ')} · {formatDuration(summary.totalSeconds)} {tr('average', '平均')}</small><small>{tr(`${summary.successful}/${summary.scheduled} successful · ${summary.failed} failed`, `成功 ${summary.successful}/${summary.scheduled} · 失敗 ${summary.failed}`)}</small></article> })}</div>}
           <div className="comparison-detail-wrap">
             <table className="comparison-detail-table">
-              <thead><tr><th>{tr('Report', 'レポート')}</th><th>{tr('Parser / mode', 'パーサー／モード')}</th><th>{tr('Exact accuracy', '完全一致率')}</th><th>{tr('Field coverage', 'フィールドカバレッジ')}</th><th>{tr('Pages', 'ページ')}</th><th>{tr('Estimated tokens', '推定トークン')}</th><th>{tr('Parse time', '解析時間')}</th><th>{tr('Model time', 'モデル時間')}</th><th>{tr('Total time', '合計時間')}</th><th>{tr('Result', '結果')}</th></tr></thead>
-              <tbody>{completedComparison.map((pass) => <tr key={`${pass.file}-${pass.strategy}`}><td><strong>{pass.file}</strong></td><td>{parserFor(pass.strategy).label}</td><td>{formatMetric(pass.metrics?.accuracy)}</td><td>{formatMetric(pass.metrics?.coverage)}</td><td>{formatNumber(pass.pages)}</td><td>{formatNumber(pass.approxTokens)}</td><td>{formatDuration(pass.extractSeconds)}</td><td>{formatDuration(pass.apiSeconds)}</td><td><strong>{formatDuration(pass.totalSeconds)}</strong></td><td><button disabled={!pass.runId} onClick={async () => { if (pass.runId) setLatestDetail(await api.run(pass.runId)) }}>{tr('View table', '表を表示')}</button></td></tr>)}</tbody>
+              <thead><tr><th>{tr('Report', 'レポート')}</th><th>{tr('Parser / mode', 'パーサー／モード')}</th><th>{tr('Exact accuracy', '完全一致率')}</th><th>{tr('Field coverage', 'フィールドカバレッジ')}</th><th>{tr('Pages', 'ページ')}</th><th>{tr('Estimated tokens', '推定トークン')}</th><th>{tr('Parse time', '解析時間')}</th><th>{tr('Model time', 'モデル時間')}</th><th>{tr('Total time', '合計時間')}</th></tr></thead>
+              <tbody>{completedComparison.map((pass) => <tr key={`${pass.file}-${pass.strategy}`}><td><strong>{pass.file}</strong></td><td>{parserFor(pass.strategy).label}</td><td>{formatMetric(pass.metrics?.accuracy)}</td><td>{formatMetric(pass.metrics?.coverage)}</td><td>{formatNumber(pass.pages)}</td><td>{formatNumber(pass.approxTokens)}</td><td>{formatDuration(pass.extractSeconds)}</td><td>{formatDuration(pass.apiSeconds)}</td><td><strong>{formatDuration(pass.totalSeconds)}</strong></td></tr>)}</tbody>
             </table>
           </div>
-        </Card>
-      )}
-
-      {latestDetail && (
-        <Card className="inline-results">
-          <SectionHeading eyebrow={tr('Latest completed output', '最新の完了出力')} title={latestDetail.pdf_file || tr(`FY${latestDetail.fiscal_year} extracted asset-side balance sheet`, `FY${latestDetail.fiscal_year} 抽出済み資産側貸借対照表`)} description={`${parserFor(latestDetail.strategy).label} · FY${latestDetail.fiscal_year || '—'} · ${latestDetail.run_id}`} action={<div className="result-badges"><Badge tone="green">{formatMetric(latestDetail.metrics.accuracy)} {tr('exact accuracy', '完全一致率')}</Badge><Badge>{formatMetric(latestDetail.metrics.coverage)} {tr('field coverage', 'フィールドカバレッジ')}</Badge></div>} />
-          <div className="detail-strip inline-result-detail-strip">
-            <div><span>{tr('Pages', 'ページ')}</span><strong>{formatNumber(latestDetail.page_count)}</strong></div>
-            <div><span>{tr('Estimated tokens', '推定トークン')}</span><strong>{formatNumber(latestDetail.approx_input_tokens)}</strong></div>
-            <div><span>{tr('Parse time', '解析時間')}</span><strong>{formatDuration(latestDetail.extract_seconds)}</strong></div>
-            <div><span>{tr('Model time', 'モデル時間')}</span><strong>{formatDuration(latestDetail.api_elapsed)}</strong></div>
-            <div><span>{tr('Total time', '合計時間')}</span><strong>{formatDuration(latestDetail.total_seconds)}</strong></div>
-          </div>
-          <div className="result-table-wrap"><table className="result-table result-schema-table"><thead><tr><th>{tr('Classification', '分類')}</th><th>{tr('Subclassification', '小分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Answer', '回答')} ({latestDetail.answer_unit || `M ${latestDetail.currency || 'USD'}`})</th></tr></thead><tbody>{latestDetail.rows.map((row) => <tr className={!row.accepted ? 'is-rejected' : ''} key={row.item}><td>{schemaText(row.classification) || '—'}</td><td>{schemaText(row.subclassification) || '—'}</td><td><strong>{schemaText(row.item)}</strong></td><td className="numeric"><strong>{row.accepted ? formatMoney(row.answer_m_usd) : '—'}</strong></td></tr>)}</tbody></table></div>
         </Card>
       )}
 

@@ -74,7 +74,12 @@ def fetch_report(candidate: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(
                 "Downloaded PDF SHA-256 does not match the independently audited source."
             )
-        screening = screen_pdf(temporary, year)
+        screening = screen_pdf(
+            temporary,
+            year,
+            expected_company=company,
+            require_annual_document=True,
+        )
         if screening.get("screened") != "ok":
             reasons = "; ".join(str(reason) for reason in screening.get("screen_reasons") or [])
             raise ValueError(f"Downloaded PDF failed Annual Report screening: {reasons or 'review required'}")

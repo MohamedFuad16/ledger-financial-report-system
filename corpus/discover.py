@@ -245,7 +245,6 @@ def discover_company_reports(
         # delegates filings to a disclosure/CDN host.
         if (
             discovery in {"search", "deep_search"}
-            and official_domain
             and not matches_official
             and not trusted_public_filing
         ):

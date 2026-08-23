@@ -1,4 +1,5 @@
 import csv
+import io
 import json
 import os
 import queue
@@ -713,6 +714,37 @@ def get_corpus_pdf(document_id):
     if not path.is_relative_to(CORPUS_ROOT.resolve()) or not path.is_file():
         return jsonify({"error": "The pinned PDF is missing from corpus storage."}), 404
     return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=str(document.get("filename") or path.name))
+
+
+@app.route("/api/corpus/<document_id>/pages/<int:page_number>.png", methods=["GET"])
+def get_corpus_pdf_page(document_id, page_number):
+    """Render one pinned page for the A4 review surface.
+
+    Native browser PDF viewers do not consistently honor page-fit fragments;
+    Safari can leave most of the pane blank and expose adjacent pages.  The
+    review workspace therefore uses this exact-page preview by default while
+    retaining the full searchable PDF as an explicit alternate view.
+    """
+    document = find_document(document_id)
+    if document is None:
+        return jsonify({"error": "Corpus document not found."}), 404
+    path = Path(str(document.get("local_path") or "")).resolve()
+    if not path.is_relative_to(CORPUS_ROOT.resolve()) or not path.is_file():
+        return jsonify({"error": "The pinned PDF is missing from corpus storage."}), 404
+    try:
+        import fitz
+
+        with fitz.open(path) as pdf:
+            if page_number < 1 or page_number > pdf.page_count:
+                return jsonify({"error": "PDF page not found."}), 404
+            page = pdf.load_page(page_number - 1)
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
+            payload = io.BytesIO(pixmap.tobytes("png"))
+    except (OSError, RuntimeError, ValueError) as exc:
+        return jsonify({"error": f"Could not render the PDF page: {exc}"}), 500
+    response = send_file(payload, mimetype="image/png", max_age=3600)
+    response.headers["ETag"] = str(document.get("sha256") or "")
+    return response
 
 
 @app.route("/api/corpus/<document_id>/verification", methods=["GET", "PUT"])

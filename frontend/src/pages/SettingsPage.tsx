@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import type { ProviderInfo, SettingsData } from '../types'
 import { Badge, Button, Card, SectionHeading } from '../components/ui'
 import { useLocale } from '../lib/i18n'
+import { currencyPreference, saveCurrencyPreference, type DisplayCurrency } from '../lib/currency'
 
 function ProviderLogo({ providerKey }: { providerKey: string }) {
   const logos: Record<string, { src: string; alt: string }> = {
@@ -46,6 +47,8 @@ export function SettingsPage({
   const [maxConcurrency, setMaxConcurrency] = useState(settings?.max_concurrency ?? 6)
   const [autoConcurrency, setAutoConcurrency] = useState(settings?.auto_concurrency ?? true)
   const [firecrawlKey, setFirecrawlKey] = useState('')
+  const [outputCurrency, setOutputCurrency] = useState<DisplayCurrency>(() => currencyPreference().currency)
+  const [jpyPerUsd, setJpyPerUsd] = useState(() => currencyPreference().jpyPerUsd)
   const provider = useMemo(() => providers.find((item) => item.key === providerKey), [providers, providerKey])
   const providerCredentialSaved = Boolean(settings?.has_key && settings.provider === providerKey && settings.base_url.replace(/\/$/, '') === baseUrl.replace(/\/$/, ''))
   const finiteRate = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback
@@ -54,6 +57,10 @@ export function SettingsPage({
     if (!settings) return
     setProviderKey(settings.provider); setModel(settings.model); setBaseUrl(settings.base_url); setReasoningEnabled(settings.reasoning_effort !== 'none'); setTemperature(settings.temperature); setMaxConcurrency(settings.max_concurrency); setAutoConcurrency(settings.auto_concurrency)
   }, [settings])
+
+  useEffect(() => {
+    saveCurrencyPreference({ currency: outputCurrency, jpyPerUsd })
+  }, [outputCurrency, jpyPerUsd])
 
   const chooseProvider = (key: string) => {
     const next = providers.find((item) => item.key === key)
@@ -65,6 +72,7 @@ export function SettingsPage({
     setRuntimeSaving(true)
     try {
       const result = await api.saveRuntimeSettings({ max_concurrency: maxConcurrency, auto_concurrency: autoConcurrency, firecrawl_api_key: firecrawlKey })
+      saveCurrencyPreference({ currency: outputCurrency, jpyPerUsd })
       setFirecrawlKey('')
       await onSaved()
       const remaining = result.firecrawl_credits?.remainingCredits
@@ -108,6 +116,8 @@ export function SettingsPage({
             <div className="field-wide"><CredentialField label={tr('Firecrawl API key', 'Firecrawl APIキー')} value={firecrawlKey} onChange={setFirecrawlKey} saved={Boolean(settings?.has_firecrawl_key)} masked={settings?.firecrawl_key_masked || ''} placeholder={settings?.has_firecrawl_key ? tr('Enter replacement Firecrawl key', '置換するFirecrawlキーを入力') : 'fc-…'} icon="fire" /></div>
             <label><span>{tr('Parallel request ceiling', '並列リクエスト上限')} <b>{maxConcurrency}</b></span><input type="range" min="1" max="20" step="1" value={maxConcurrency} onChange={(event) => setMaxConcurrency(Number(event.target.value))} /></label>
             <label className="toggle-setting"><span><strong>{tr('Automatic batch sizing', '自動バッチサイズ')}</strong><small>{tr('Use PDF count and estimated token load to choose the initial width.', 'PDF数と推定トークン量から初期並列数を選びます。')}</small></span><input type="checkbox" checked={autoConcurrency} onChange={(event) => setAutoConcurrency(event.target.checked)} /></label>
+            <div className="display-currency-setting field-wide"><span><strong>{tr('Output display currency', '出力表示通貨')}</strong><small>{tr('Extraction and benchmark scoring remain in the filing currency; values are converted only for display so exact accuracy is not distorted.', '抽出とベンチマーク評価は提出書類の通貨のまま行い、完全一致率を歪めないよう表示時のみ換算します。')}</small></span><div className="segmented-control"><button className={outputCurrency === 'USD' ? 'is-active' : ''} type="button" onClick={() => setOutputCurrency('USD')}>USD</button><button className={outputCurrency === 'JPY' ? 'is-active' : ''} type="button" onClick={() => setOutputCurrency('JPY')}>JPY</button></div></div>
+            <label className="field-wide"><span>{tr('Display FX rate (JPY per USD)', '表示用為替レート（1 USDあたりJPY）')}</span><input type="number" min="1" step="0.01" value={jpyPerUsd} onChange={(event) => setJpyPerUsd(Math.max(1, Number(event.target.value) || 1))} /><small>{tr('Applied to displayed values only. Set the assignment-approved historical rate here.', '表示値だけに適用します。課題で承認された過去レートを設定してください。')}</small></label>
             <div className="ocr-policy-contract field-wide">
               <strong>{tr('OCR policy is fixed by parser', 'OCRポリシーはパーサーごとに固定')}</strong>
               <span>{tr('Strategy 1 never uses OCR. Strategy 2 uses page-adaptive OCR for pdf-inspector and PyMuPDF, while PyPDF and Docling force OCR because they do not expose the same reliable per-page decision boundary.', '戦略1はOCRを使用しません。戦略2ではpdf-inspectorとPyMuPDFがページ単位の適応OCRを使用し、同等の判定境界を持たないPyPDFとDoclingはOCRを強制します。')}</span>

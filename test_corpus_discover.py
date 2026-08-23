@@ -2,9 +2,12 @@ import unittest
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from corpus.client import FirecrawlClient, FirecrawlRateGate
 from corpus.discover import discover_company_reports
+from corpus.screen import screen_pdf
 
 
 class _FakeFirecrawl:
@@ -135,6 +138,68 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             official_url="https://example.jp/", country="JP", years=[2024],
         )
         self.assertEqual([], reports[2024])
+
+    def test_missing_official_url_does_not_trust_arbitrary_search_results(self):
+        class UnrelatedSearch(_FakeFirecrawl):
+            def search(self, query, *, limit, country):
+                return [{
+                    "url": "https://unrelated.example/annual_report_2024.pdf",
+                    "title": "2024 Annual Report",
+                    "description": "",
+                }]
+
+        reports = discover_company_reports(
+            UnrelatedSearch(), company="若原義敬税理士事務所",
+            official_url="", country="JP", years=[2024],
+        )
+        self.assertEqual([], reports[2024])
+
+    def test_download_screen_rejects_a_different_company_from_search_metadata(self):
+        extracted = SimpleNamespace(
+            text=(
+                "--- PAGE 1 ---\n日本ロジテム株式会社 有価証券報告書 2025年\n"
+                "--- PAGE 2 ---\n貸借対照表 2025年 流動資産 現金預金 棚卸資産 資産合計 負債合計\n"
+            ),
+            readable_pages=2,
+            page_count=2,
+            garbled_pages=[],
+            warnings=[],
+        )
+        with TemporaryDirectory() as directory, patch(
+            "corpus.screen.extract_with_pypdf", return_value=extracted
+        ):
+            verdict = screen_pdf(
+                Path(directory) / "candidate.pdf",
+                2025,
+                expected_company="ハコベル株式会社",
+                require_annual_document=True,
+            )
+        self.assertEqual("review", verdict["screened"])
+        self.assertFalse(verdict["company_identity_confirmed"])
+
+    def test_download_screen_rejects_a_shareholder_meeting_notice(self):
+        extracted = SimpleNamespace(
+            text=(
+                "--- PAGE 1 ---\n西尾レントオール株式会社 第62回定時株主総会招集ご通知 2020年\n"
+                "--- PAGE 2 ---\n貸借対照表 2020年 流動資産 現金預金 棚卸資産 資産合計 負債合計\n"
+            ),
+            readable_pages=2,
+            page_count=2,
+            garbled_pages=[],
+            warnings=[],
+        )
+        with TemporaryDirectory() as directory, patch(
+            "corpus.screen.extract_with_pypdf", return_value=extracted
+        ):
+            verdict = screen_pdf(
+                Path(directory) / "candidate.pdf",
+                2020,
+                expected_company="西尾レントオール株式会社",
+                require_annual_document=True,
+            )
+        self.assertEqual("review", verdict["screened"])
+        self.assertTrue(verdict["company_identity_confirmed"])
+        self.assertFalse(verdict["annual_document_confirmed"])
 
     def test_exact_issuer_edinet_search_result_is_trusted(self):
         class EdinetSearch(_FakeFirecrawl):

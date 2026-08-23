@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,53 @@ FINANCIAL_TERM_GROUPS = (
     (r"total\s+assets", r"資産(?:合計|の部合計)"),
     (r"liabilit", r"負債(?:合計|の部)"),
 )
+
+ANNUAL_DOCUMENT = re.compile(
+    r"annual\s+report|form\s+10[- ]?k|有価証券報告書|年次報告書|統合報告書",
+    re.I,
+)
+
+NON_ANNUAL_DOCUMENT = re.compile(
+    r"定時株主総会招集ご通知|臨時株主総会|proxy\s+statement|"
+    r"quarter(?:ly)?\s+report|interim\s+report|四半期報告書|半期報告書|決算短信",
+    re.I,
+)
+
+
+def _normalized_identity(value: str) -> str:
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFKC", str(value or "")).casefold()
+        if character.isalnum()
+    )
+
+
+def _company_identity_variants(company: str) -> set[str]:
+    """Return exact legal-name variants that may appear on a filing cover."""
+    raw = unicodedata.normalize("NFKC", str(company or "")).strip()
+    variants = {raw}
+    variants.add(re.split(r"[（(]", raw, maxsplit=1)[0])
+    variants.update(part for part in re.split(r"[／/・]", raw) if part)
+    return {
+        normalized
+        for variant in variants
+        if len(normalized := _normalized_identity(variant)) >= 3
+    }
+
+
+def _company_identity_confirmed(text: str, expected_company: str) -> bool:
+    normalized_text = _normalized_identity(text)
+    return any(
+        identity in normalized_text
+        for identity in _company_identity_variants(expected_company)
+    )
+
+
+def _is_annual_document(text: str) -> bool:
+    compact = re.sub(r"\s+", "", unicodedata.normalize("NFKC", text))
+    if NON_ANNUAL_DOCUMENT.search(text) or NON_ANNUAL_DOCUMENT.search(compact):
+        return False
+    return ANNUAL_DOCUMENT.search(text) is not None or ANNUAL_DOCUMENT.search(compact) is not None
 
 
 def _year_mentions(text: str) -> list[str]:
@@ -100,7 +148,13 @@ def _statement_currency(text: str, balance_page: int | None) -> str:
     return "unknown"
 
 
-def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
+def screen_pdf(
+    path: Path,
+    expected_year: int,
+    *,
+    expected_company: str = "",
+    require_annual_document: bool = False,
+) -> dict[str, Any]:
     extracted = extract_with_pypdf(path)
     mentions = _year_mentions(extracted.text)
     balance_page = _balance_sheet_page(extracted.text)
@@ -112,6 +166,16 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
         else str(expected_year) in mentions
     )
     currency = _statement_currency(extracted.text, balance_page)
+    company_identity_confirmed = (
+        _company_identity_confirmed(extracted.text, expected_company)
+        if expected_company
+        else None
+    )
+    annual_document_confirmed = (
+        _is_annual_document(extracted.text)
+        if require_annual_document
+        else None
+    )
 
     reasons: list[str] = []
     if not year_confirmed:
@@ -120,6 +184,10 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
         reasons.append("No readable text layer.")
     if balance_page is None:
         reasons.append("No balance sheet heading found.")
+    if company_identity_confirmed is False:
+        reasons.append(f"The PDF does not identify the requested company: {expected_company}.")
+    if annual_document_confirmed is False:
+        reasons.append("The PDF is not an annual or securities report.")
 
     verdict = "ok" if not reasons else "review"
     if extracted.readable_pages == 0:
@@ -133,6 +201,8 @@ def screen_pdf(path: Path, expected_year: int) -> dict[str, Any]:
         "balance_sheet_page": balance_page,
         "currency": currency,
         "fiscal_year_confirmed": year_confirmed,
+        "company_identity_confirmed": company_identity_confirmed,
+        "annual_document_confirmed": annual_document_confirmed,
         "reporting_year": reporting_year,
         "statement_years": statement_years,
         "internal_year_mentions": sorted(set(mentions)),
