@@ -101,8 +101,10 @@ class ReadOnlyGateTest(unittest.TestCase):
             client = server_module.app.test_client()
             blocked = client.post("/api/prompt", json={"prompt": "x"})
             self.assertEqual(blocked.status_code, 403)
-            blocked = client.delete("/api/runs/all")
-            self.assertEqual(blocked.status_code, 403)
+            # Run deletion is workspace-scoped server-side, so it stays open
+            # to visitors even in read-only mode (they delete only their own).
+            allowed_delete = client.delete("/api/runs/all")
+            self.assertNotEqual(allowed_delete.status_code, 403)
             allowed = client.get("/api/benchmark-runs")
             self.assertEqual(allowed.status_code, 200)
         finally:

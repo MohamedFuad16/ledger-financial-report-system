@@ -129,6 +129,7 @@ _PUBLIC_WRITE_ALLOWED_PREFIXES = (
     "/api/extraction/jobs",  # batch demo runs
     "/api/uploads",          # staging a PDF for a demo run
     "/api/corpus/stage",     # copying a pinned corpus PDF into a demo run — reads corpus, never mutates it
+    "/api/runs",             # run deletion — workspace-scoped server-side, so a visitor only deletes their own history
     "/api/traffic",          # anonymous visit telemetry
 )
 
