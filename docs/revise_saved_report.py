@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from runpy import run_path
 import sys
+import textwrap
 
 from docx import Document
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
@@ -15,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 SYSTEM_PROMPT = run_path(str(ROOT / "prompts.py"))["SYSTEM_PROMPT"]
 SOURCE = ROOT / "docs" / "バクラク事業部技術_実験報告書_完成版.docx"
-OUTPUT = ROOT / "docs" / "バクラク事業部技術_実験報告書_完成版_改訂.docx"
+OUTPUT = SOURCE
 ASSETS = ROOT / "docs" / "report_assets"
 FONT = "MS Mincho"
 BLACK = RGBColor(0, 0, 0)
@@ -91,31 +92,104 @@ def move_before(anchor, element) -> None:
     anchor._element.addprevious(element)
 
 
-def add_prompt_block(doc: Document, anchor, title: str, lines: list[str], *, page_break: bool) -> None:
+def set_table_column_widths(table, widths) -> None:
+    table.autofit = False
+    grid_columns = table._tbl.tblGrid.gridCol_lst
+    for grid_column, width in zip(grid_columns, widths):
+        grid_column.set(qn("w:w"), str(int(width.twips)))
+    for row in table.rows:
+        for cell, width in zip(row.cells, widths):
+            cell.width = width
+            tc_pr = cell._tc.get_or_add_tcPr()
+            tc_w = tc_pr.find(qn("w:tcW"))
+            if tc_w is None:
+                tc_w = OxmlElement("w:tcW")
+                tc_pr.append(tc_w)
+            tc_w.set(qn("w:w"), str(int(width.twips)))
+            tc_w.set(qn("w:type"), "dxa")
+
+
+def split_balanced_prompt(lines: list[str], columns: int = 3, wrap_width: int = 52) -> list[list[str]]:
+    weights = [max(1, len(textwrap.wrap(line, width=wrap_width)) or 1) for line in lines]
+    target = sum(weights) / columns
+    chunks: list[list[str]] = []
+    start = 0
+    for column in range(columns - 1):
+        accumulated = 0
+        end = start
+        while end < len(lines):
+            if end > start and accumulated + weights[end] > target:
+                break
+            accumulated += weights[end]
+            end += 1
+        chunks.append(lines[start:end])
+        start = end
+    chunks.append(lines[start:])
+    return chunks
+
+
+def add_prompt_page(doc: Document, anchor, lines: list[str]) -> None:
     heading = doc.add_paragraph(style="Heading 3")
-    heading.paragraph_format.page_break_before = page_break
+    heading.paragraph_format.page_break_before = True
     heading.paragraph_format.keep_with_next = True
-    set_paragraph(heading, title, size=11.0)
+    set_paragraph(heading, "D.1 SYSTEM_PROMPT全文（1ページ）", size=11.0)
     move_before(anchor, heading._element)
+
+    table = doc.add_table(rows=1, cols=3)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_column_widths(table, [Inches(2.08), Inches(2.08), Inches(2.08)])
+    row = table.rows[0]
+    add_no_split(row)
+    for cell, chunk in zip(row.cells, split_balanced_prompt(lines)):
+        set_cell_margins(cell, 35)
+        cell.text = ""
+        paragraph = cell.paragraphs[0]
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.line_spacing = Pt(5.6)
+        paragraph.paragraph_format.keep_together = True
+        for index, line in enumerate(chunk):
+            run = paragraph.add_run(line)
+            font_run(run, size=5.0)
+            if index != len(chunk) - 1:
+                run.add_break()
+    move_before(anchor, table._element)
+
+
+def source_excerpt(path: Path, marker: str, maximum_lines: int) -> list[str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    start = next(index for index, line in enumerate(lines) if marker in line)
+    return lines[start : start + maximum_lines]
+
+
+def add_code_block(doc: Document, anchor, title: str, lines: list[str]) -> None:
+    label = doc.add_paragraph()
+    label.paragraph_format.keep_with_next = True
+    label.paragraph_format.space_before = Pt(7)
+    label.paragraph_format.space_after = Pt(3)
+    run = label.add_run(title)
+    font_run(run, size=9.0, bold=True)
+    move_before(anchor, label._element)
 
     table = doc.add_table(rows=1, cols=1)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.autofit = False
-    table.columns[0].width = Inches(6.25)
+    set_table_column_widths(table, [Inches(6.25)])
     row = table.rows[0]
     add_no_split(row)
     cell = row.cells[0]
-    cell.width = Inches(6.25)
-    set_cell_margins(cell, 80)
+    set_cell_margins(cell, 75)
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), "F2F3F5")
+    cell._tc.get_or_add_tcPr().append(shading)
     cell.text = ""
     paragraph = cell.paragraphs[0]
     paragraph.paragraph_format.space_before = Pt(0)
     paragraph.paragraph_format.space_after = Pt(0)
-    paragraph.paragraph_format.line_spacing = Pt(8.5)
+    paragraph.paragraph_format.line_spacing = Pt(8.4)
     paragraph.paragraph_format.keep_together = True
     for index, line in enumerate(lines):
         run = paragraph.add_run(line)
-        font_run(run, size=7.5)
+        font_run(run, size=7.2)
         if index != len(lines) - 1:
             run.add_break()
     move_before(anchor, table._element)
@@ -165,12 +239,24 @@ def main() -> None:
         first_rag.text.replace("アクティブRAGも", "アクティブRAG（Active RAG）も"),
     )
 
-    # Replace embedded charts with the regenerated Gemini-based figures.
+    # Replace every embedded report figure with the regenerated release asset.
+    replace_image_before_caption(
+        doc,
+        "図1",
+        ASSETS / "figure_01_problem_decomposition.png",
+        "課題を入力表現、指示と出力形式、検証と評価の三つに分解する。",
+    )
     replace_image_before_caption(
         doc,
         "図2",
         ASSETS / "figure_02_hypothesis_evolution.png",
         "全文入力、文字認識、アクティブRAGを検討し、決定論的な完全ページ選択を採用した。",
+    )
+    replace_image_before_caption(
+        doc,
+        "図3",
+        ASSETS / "figure_03_final_architecture.png",
+        "PDF解析、直接文字または選択OCR、根拠ページ、LLM抽出、検証、構造化出力、一回限定再試行を示す。",
     )
     replace_image_before_caption(
         doc,
@@ -200,6 +286,10 @@ def main() -> None:
 
     strategy_tables = [t for t in doc.tables if t.rows and t.rows[0].cells[0].text == "戦略"]
     table4 = strategy_tables[3]
+    set_table_column_widths(
+        table4,
+        [Inches(0.90), Inches(1.15), Inches(2.00), Inches(1.15), Inches(1.30)],
+    )
     values = [
         ["戦略一", "96.59%", "96.62%（1,429/1,479）", "37.87秒", "88,936"],
         ["戦略二", "96.41%", "96.42%（1,426/1,479）", "34.74秒", "89,414"],
@@ -207,8 +297,8 @@ def main() -> None:
     ]
     for row, row_values in zip(table4.rows[1:], values):
         add_no_split(row)
-        for cell, value in zip(row.cells, row_values):
-            set_cell(cell, value)
+        for column, (cell, value) in enumerate(zip(row.cells, row_values)):
+            set_cell(cell, value, size=8.3 if column == 2 else 9.0)
 
     set_paragraph(
         find_paragraph(doc, "図4　三戦略の処理速度"),
@@ -239,7 +329,7 @@ def main() -> None:
     anchor_66 = find_paragraph(doc, "6.6 評価上の注意")
     repro_paragraphs = [
         "本実装は、READMEの「Getting started」に従ってローカル環境で再現できる。Python 3.11以上とNode.js 20以上を用意し、PythonとReactの依存関係を導入する。.env.exampleを.envへ複製し、LLM_PROVIDER、LLM_API_KEY、LLM_MODELなどを設定する。APIキーは環境変数としてサーバー側だけで読み込み、ブラウザ、ログ、実行結果、ソースコードへ書き出さない。Flask APIと構築済み画面はhttp://localhost:5000で起動する。React画面を開発する場合は、Flaskとは別にVite開発サーバーを起動する。正確なコマンドと検証手順はREADMEを参照する。",
-        "公開試用環境はhttps://assignment.mohamedfuad.comである。試用用のOpenRouter設定はAWS上のバックエンドに保持し、APIキーをブラウザへ配布しない。残クレジットの範囲では、目安として10〜20件のPDFを投入し、三戦略の出力を比較できる。利用可能件数は、PDFの長さ、選択した戦略、モデル、および残クレジットによって変動する。",
+        "公開試用環境はhttps://assignment.mohamedfuad.comである。APIキーはAWS上のバックエンドだけに保持し、ブラウザへ配布しない。2026年8月24日の読取専用確認では、公開環境のプロバイダはzai-coding、モデルはglm-5.3であった。利用可能件数は、PDFの長さ、選択した戦略、モデル、レート制限、残クレジットによって変動するため、件数を保証しない。OpenRouterを利用する場合も、キーはローカルの環境変数またはサーバー側の秘密管理へ設定し、クライアントへ公開しない。READMEはローカル実行手順を対象とし、AWS基盤を一から再構築する手順書ではない。",
         "ベンチマークでは、正解表を推論入力に含めない。PDFと共通プロンプトだけで抽出を完了した後、独立した評価工程で正解表を参照する。GPT-5.6 Lunaは、現行プロジェクトに呼出し可能なプロバイダ経路とモデルIDがないため、本版の比較表へ含めていない。同一102資料・三戦略で追試するには、利用可能なAPIエンドポイントと正式なモデルIDを先に確定する必要がある。",
     ]
     for text in repro_paragraphs:
@@ -248,32 +338,36 @@ def main() -> None:
         paragraph.paragraph_format.space_after = Pt(6)
         set_paragraph(paragraph, text)
 
-    # Replace the abbreviated prompt with the complete runtime SYSTEM_PROMPT.
+    # Replace the abbreviated prompt with the complete runtime SYSTEM_PROMPT on one page.
     appendix_intro = find_paragraph(doc, "以下は、実験条件を再現するために必要な指示文の主要部分")
     set_paragraph(
         appendix_intro,
-        "以下に、prompts.pyから実行時に生成されるSYSTEM_PROMPT全文を、そのまま掲載する。省略、要約、正解値の挿入は行っていない。論理区分ごとにページを分け、表の途中で分断しない。",
+        "以下に、prompts.pyから実行時に生成されるSYSTEM_PROMPT全文を、そのまま1ページに掲載する。省略、要約、正解値の挿入は行っていない。3列のコードブロックは左列から順に読む。",
     )
     short_prompt = next(t for t in doc.tables if t.rows[0].cells[0].text.startswith("Use only the Annual Report"))
     remove_table(short_prompt)
     source_intro = find_paragraph(doc, "戦略三の中心となる処理は")
     lines = SYSTEM_PROMPT.strip().splitlines()
-    ranges = [(0, 26), (26, 51), (51, 81), (81, 103), (103, 124), (124, len(lines))]
-    titles = [
-        "D.1 SYSTEM_PROMPT全文（前提・規則 1/2）",
-        "D.2 SYSTEM_PROMPT全文（規則 2/2）",
-        "D.3 SYSTEM_PROMPT全文（項目対応 1/3）",
-        "D.4 SYSTEM_PROMPT全文（項目対応 2/3）",
-        "D.5 SYSTEM_PROMPT全文（項目対応 3/3）",
-        "D.6 SYSTEM_PROMPT全文（出力契約）",
-    ]
-    for index, ((start, end), title) in enumerate(zip(ranges, titles)):
-        add_prompt_block(doc, source_intro, title, lines[start:end], page_break=index > 0)
+    add_prompt_page(doc, source_intro, lines)
     code_heading = doc.add_paragraph(style="Heading 3")
     code_heading.paragraph_format.page_break_before = True
     code_heading.paragraph_format.keep_with_next = True
-    set_paragraph(code_heading, "D.7 主要ソースコード", size=11.0)
+    set_paragraph(code_heading, "D.2 主要ソースコード", size=11.0)
     move_before(source_intro, code_heading._element)
+
+    old_code_table = next(
+        t for t in doc.tables if t.rows and t.rows[0].cells[0].text.startswith("selected_pages")
+    )
+    remove_table(old_code_table)
+    appendix_e = find_paragraph(doc, "付録E")
+    code_specs = [
+        ("extraction.py — PDF Inspectorによるページ解析", ROOT / "extraction.py", "def extract_with_pdf_inspector(", 24),
+        ("intelligent_scan.py — 根拠ページの決定論的選択", ROOT / "intelligent_scan.py", "def select_evidence_pages(", 28),
+        ("pipeline.py — 出力契約の検証", ROOT / "pipeline.py", "def parse_and_validate(response", 24),
+        ("prompts.py — 抽出用ユーザープロンプトの構築", ROOT / "prompts.py", "def build_user_prompt(", 26),
+    ]
+    for title, path, marker, maximum_lines in code_specs:
+        add_code_block(doc, appendix_e, title, source_excerpt(path, marker, maximum_lines))
 
     doc.save(OUTPUT)
     print(OUTPUT)

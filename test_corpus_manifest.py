@@ -29,7 +29,14 @@ class CorpusManifestTests(unittest.TestCase):
             self.assertEqual(64, len(source_hash))
             self.assertIn(audited["company"], bakuraku_clients)
             self.assertEqual("independently_verified_partial", audited["status"])
-            self.assertEqual({"Total Assets"}, set(audited["answers"]))
+            # 2026-08-25: gazette gold carries every printed section total —
+            # 資産合計 always, plus 流動資産/固定資産 (and 繰延資産 or the
+            # fixed-asset breakdown where the print discloses them).
+            self.assertIn("Total Assets", set(audited["answers"]))
+            self.assertLessEqual(
+                set(audited["answers"]),
+                {"Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges", "Tangible Assets", "Intangible Assets"},
+            )
             self.assertEqual(
                 canonical,
                 set(audited["answers"]).union(audited["unscorable_rows"]),

@@ -1,0 +1,124 @@
+{
+  "expanded": [
+    [
+      "クラスター株式会社",
+      "2025",
+      {
+        "Current Assets": 821.311,
+        "Fixed Assets": 163.502
+      }
+    ],
+    [
+      "吉田海運株式会社",
+      "2022",
+      {
+        "Current Assets": 15131.52,
+        "Fixed Assets": 5129.304
+      }
+    ],
+    [
+      "株式会社PIGNUS（ピグナス）",
+      "2025",
+      {
+        "Current Assets": 1055.058,
+        "Fixed Assets": 150.361
+      }
+    ],
+    [
+      "株式会社レスタス",
+      "2025",
+      {
+        "Current Assets": 322.186,
+        "Fixed Assets": 298.816
+      }
+    ]
+  ],
+  "closure_failed": [
+    [
+      "Byside株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "JR九州エンジニアリング株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "JUKI産機テクノロジー株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "キャディ株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "ハコベル株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "ファインディ株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "メディフォン株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "坂善商事株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "大西運輸株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "日本テーマパーク開発株式会社",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社FABRIC TOKYO",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社mov",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社SANU",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社with",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社ナレッジワーク",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社ハッピートラベル",
+      "identity did not close from OCR",
+      null
+    ],
+    [
+      "株式会社寿々",
+      "identity did not close from OCR",
+      null
+    ]
+  ],
+  "skipped": []
+}
