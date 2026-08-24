@@ -717,13 +717,24 @@ def _run_pipeline_inner(
     # A packet that already contains every readable page decides absence and
     # zeros on its own — nulls there are answers, not evidence gaps, so only a
     # failed deterministic identity (a misread) justifies the second call.
-    complete_packet = bool(extracted.diagnostics.get("complete_document_packet"))
+    # A one-page filing is fully seen by every strategy, so the sparse-total
+    # verification applies beyond the gate's own complete-packet diagnostic.
+    complete_packet = bool(
+        extracted.diagnostics.get("complete_document_packet")
+        or (int(extracted.page_count or 0) == 1 and int(extracted.readable_pages or 0) == 1)
+    )
     # Exception: a condensed statutory summary yields essentially one number
     # (Total Assets) and nothing for the identities to check, so a misread —
     # e.g. a capital reserve mistaken for the total — is invisible to
     # arithmetic. Those runs get one verification call that must re-derive the
     # total from BOTH sides of the printed balance sheet.
-    answered_row_count = sum(1 for row in rows if row.get("answer_m_usd") is not None)
+    # Zeros are decided absences, not substantive answers: a model that fills
+    # every schema row with 0.0 on a one-page gazette must not bypass the
+    # sparse-total verification the way a 27-zero response otherwise would.
+    answered_row_count = sum(
+        1 for row in rows
+        if row.get("answer_m_usd") is not None and float(row.get("answer_m_usd") or 0.0) != 0.0
+    )
     total_assets_answered = any(
         str(row.get("item")) == "Total Assets" and row.get("answer_m_usd") is not None
         for row in rows

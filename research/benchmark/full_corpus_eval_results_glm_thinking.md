@@ -1,6 +1,6 @@
 # Full-corpus three-strategy end-to-end evaluation
 
-Model: `glm-5.3` · temperature 0.0 · 275/306 arms complete.
+Model: `glm-5.3` · temperature 0.0 · 276/306 arms complete.
 Gold is consulted only after inference for scoring; prompts never contain gold values.
 
 ## Aggregates per strategy
@@ -8,7 +8,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | Strategy | Complete | Scored | Mean exact accuracy | Mean coverage | P50 total s | Mean model-reported input tokens | Retries |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Strategy 1 (`s1`) | 75 | 75 | 98.52 | 100.0 | 213.22 | 97305.64 | 0 |
-| Strategy 2 (`s2-inspector`) | 100 | 100 | 95.93 | 79.33 | 203.4 | 72993.12 | 0 |
+| Strategy 2 (`s2-inspector`) | 101 | 101 | 95.97 | 79.53 | 203.48 | 72838.56 | 0 |
 | Strategy 3 (`s3`) | 100 | 100 | 97.22 | 79.44 | 249.5 | 6756.15 | 37 |
 
 ## Per-report results
@@ -64,6 +64,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | クラスター株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 165.36 | 3631 | — | `S2FC_20260823T115756Z_023` |
 | クラスター株式会社 | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 169.92 | 3870 | — | `S3_20260823T115819Z_024` |
 | ダイニチ工業株式会社 | 2020 | s1 | 18/18 (100.0%) | 100.0 | 85.7 | 218.21 | 57557 | — | `S1_20260823T181445Z_030` |
+| ダイニチ工業株式会社 | 2020 | s2-inspector | 18/18 (100.0%) | 100.0 | 85.7 | 246.29 | 57383 | — | `S2FC_20260824T062102Z_006` |
 | ダイニチ工業株式会社 | 2020 | s3 | 18/18 (100.0%) | 100.0 | 85.7 | 345.94 | 7467 | +0 | `S3_20260823T181823Z_032` |
 | ダイニチ工業株式会社 | 2021 | s1 | 18/18 (100.0%) | 100.0 | 100.0 | 213.22 | 59273 | — | `S1_20260823T181823Z_033` |
 | ダイニチ工業株式会社 | 2021 | s2-inspector | 18/18 (100.0%) | 100.0 | 100.0 | 178.31 | 59013 | — | `S2FC_20260823T181848Z_034` |

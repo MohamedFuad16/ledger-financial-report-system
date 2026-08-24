@@ -8,8 +8,8 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | Strategy | Complete | Scored | Mean exact accuracy | Mean coverage | P50 total s | Mean model-reported input tokens | Retries |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Strategy 1 (`s1`) | 75 | 75 | 96.59 | 100.0 | 37.87 | 88935.61 | 0 |
-| Strategy 2 (`s2-inspector`) | 102 | 102 | 96.38 | 78.39 | 31.74 | 66845.59 | 0 |
-| Strategy 3 (`s3`) | 102 | 102 | 95.39 | 79.95 | 28.46 | 7133.52 | 20 |
+| Strategy 2 (`s2-inspector`) | 102 | 102 | 97.36 | 78.5 | 31.74 | 66845.59 | 0 |
+| Strategy 3 (`s3`) | 102 | 102 | 98.33 | 78.39 | 28.46 | 7133.52 | 21 |
 
 ## Per-report results
 
@@ -59,7 +59,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | note株式会社 | 2025 | s3 | 20/20 (100.0%) | 100.0 | 100.0 | 45.02 | 8444 | +2 | `S3_20260824T042544Z_014` |
 | キャディ株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | キャディ株式会社 | 2024 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 25.94 | 4241 | — | `S2FC_20260824T045526Z_015` |
-| キャディ株式会社 | 2024 | s3 | 0/1 (0.0%) | 100.0 | 100.0 | 42.87 | 4527 | — | `S3_20260824T042558Z_015` |
+| キャディ株式会社 | 2024 | s3 | 1/1 (100.0%) | 25.9 | 100.0 | 48.88 | 4527 | +0 | `S3_20260824T062854Z_005` |
 | クラスター株式会社 | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | クラスター株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 23.87 | 4096 | — | `S2FC_20260824T045532Z_016` |
 | クラスター株式会社 | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 24.24 | 4382 | — | `S3_20260824T042629Z_016` |
@@ -139,9 +139,9 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 日本テーマパーク開発株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 18.13 | 4309 | — | `S2FC_20260824T050300Z_041` |
 | 日本テーマパーク開発株式会社 | 2025 | s3 | 1/1 (100.0%) | 25.9 | 100.0 | 23.42 | 4595 | — | `S3_20260824T043455Z_041` |
 | 株式会社FABRIC TOKYO | 2023 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社FABRIC TOKYO | 2023 | s2-inspector | 0/1 (0.0%) | 14.8 | 100.0 | 21.15 | 4247 | — | `S2FC_20260824T050306Z_042` |
-| 株式会社FABRIC TOKYO | 2023 | s3 | 0/1 (0.0%) | 14.8 | 100.0 | 35.03 | 4533 | — | `S3_20260824T043458Z_042` |
-| 株式会社FLUX | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社FABRIC TOKYO | 2023 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 30.03 | 4247 | — | `S2FC_20260824T063238Z_014` |
+| 株式会社FABRIC TOKYO | 2023 | s3 | 1/1 (100.0%) | 14.8 | 0.0 | 51.14 | 4533 | +0 | `S3_20260824T062942Z_015` |
+| 株式会社FLUX | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社FLUX | 2024 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 22.9 | 4119 | — | `S2FC_20260824T050319Z_043` |
 | 株式会社FLUX | 2024 | s3 | 1/1 (100.0%) | 25.9 | 100.0 | 23.43 | 4405 | — | `S3_20260824T043519Z_043` |
 | 株式会社Morght | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
@@ -284,7 +284,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社伊豆シャボテン公園 | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 42.67 | 4409 | — | `S3_20260824T044553Z_089` |
 | 株式会社寿々 | 2021 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社寿々 | 2021 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 28.73 | 4091 | — | `S2FC_20260824T051546Z_090` |
-| 株式会社寿々 | 2021 | s3 | 0/1 (0.0%) | 100.0 | 71.4 | 64.49 | 4377 | +0 | `S3_20260824T044613Z_090` |
+| 株式会社寿々 | 2021 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 28.85 | 4377 | — | `S3_20260824T063034Z_030` |
 | 株式会社帝国ホテル | 2020 | s1 | 22/22 (100.0%) | 100.0 | 100.0 | 41.81 | 57749 | — | `S1_20260824T054134Z_091` |
 | 株式会社帝国ホテル | 2020 | s2-inspector | 22/22 (100.0%) | 100.0 | 100.0 | 37.14 | 58154 | — | `S2FC_20260824T051609Z_091` |
 | 株式会社帝国ホテル | 2020 | s3 | 22/22 (100.0%) | 100.0 | 100.0 | 26.56 | 8107 | — | `S3_20260824T044636Z_091` |
