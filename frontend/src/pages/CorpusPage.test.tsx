@@ -117,7 +117,7 @@ describe('CorpusPage answer review', () => {
     expect(screen.getAllByText(document.filename).length).toBeGreaterThanOrEqual(2)
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
-    expect(cash).toHaveValue(125 / 150)
+    expect(cash).toHaveValue(Math.round((125 / 150) * 1000) / 1000)
     fireEvent.change(cash, { target: { value: '130' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save & approve reviewed answers' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save & confirm approval' }))

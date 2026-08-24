@@ -409,6 +409,7 @@ td { height: 56px; font-size: 12px; }
 .corpus-provenance { padding: 24px; }
 .curve-legend { display: flex; gap: 14px; flex-wrap: wrap; }
 .curve-legend-below { justify-content: center; margin-top: 14px; padding-bottom: 2px; }
+.sparse-disclosure-note { display: block; margin-top: 4px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
 .curve-legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; font-weight: 650; }
 .curve-legend-item i { width: 10px; height: 10px; border-radius: 3px; }
 .latency-distribution-card { padding: 24px; }

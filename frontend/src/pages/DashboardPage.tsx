@@ -114,7 +114,7 @@ export function DashboardPage({
 
       <div className="dashboard-layout benchmark-frontier">
         <Card className="chart-card chart-card-wide">
-          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Speed × accuracy curves', '速度×正確度カーブ')} description={tr('One curve per strategy: reports ordered fastest to slowest, pass time rising on a logarithmic scale. Each arm is scaled onto a common axis so different report counts stay comparable; the lower a curve sits, the faster the strategy.', '戦略ごとに1本のカーブ。レポートを速い順に並べ、パス時間を対数スケールで示します。各戦略を共通軸にスケールして比較可能にしています。曲線が低いほど高速です。')} />
+          <SectionHeading eyebrow={tr('Experiment frontier', '実験フロンティア')} title={tr('Speed × accuracy curves', '速度×正確度カーブ')} description={tr('One labeled point per strategy: mean pass time (log axis) against mean exact accuracy. Upper-left is strictly better — faster and more accurate at once.', '戦略ごとに1点。平均パス時間（対数軸）と平均完全一致率を示します。左上ほど高速かつ高精度で、一目で優劣が分かります。')} />
           {loading ? <div className="chart-skeleton" /> : <AccuracySpeedChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card accuracy-card">

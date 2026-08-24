@@ -3,10 +3,12 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -33,61 +35,39 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
 
 export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  // One curve per strategy: every point is one report's pass mean, ordered from
-  // the fastest report to the slowest, on a logarithmic time axis.
-  const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
-  const series = experiments.map((experiment) => {
-    const meta = comparisonExperimentMeta[experiment]
-    const eligible = runs.filter((run) => run.experiment === experiment && run.accuracy != null && reportCohortKey(run))
-    const groups: Record<string, RunSummary[]> = {}
-    for (const run of eligible) (groups[`${reportCohortKey(run)}::${run.strategy}`] ||= []).push(run)
-    const points = Object.values(groups).map((passRuns) => {
-      const mean = (field: keyof RunSummary, fallback?: keyof RunSummary) => {
-        const values = passRuns.map((run) => run[field] ?? (fallback ? run[fallback] : null)).filter((value) => value != null).map(Number).filter(Number.isFinite)
-        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-      }
-      const seconds = mean('total_seconds', 'extract_seconds')
-      const accuracy = mean('accuracy')
-      if (seconds == null || seconds <= 0 || accuracy == null) return null
-      const first = passRuns[0]
-      return {
-        y: seconds,
-        seconds,
-        accuracy,
-        name: `${first.company || first.pdf_file} · FY${first.fiscal_year || '—'}`,
-        strategyLabel: meta.label,
-      }
-    }).filter((point): point is NonNullable<typeof point> => point != null)
-      .sort((left, right) => left.y - right.y)
-    return { experiment, label: meta.label, color: meta.color, points }
-  }).filter((entry) => entry.points.length)
-  // Quantile-stretch every curve onto one shared axis so arms with fewer
-  // reports (S1 cannot read gazettes) stay shape-comparable to the full 102.
-  const span = Math.max(...series.map((entry) => entry.points.length), 1)
-  const scaled = series.map((entry) => ({
-    ...entry,
-    points: entry.points.map((point, index) => ({
-      ...point,
-      x: entry.points.length > 1 ? 1 + index * ((span - 1) / (entry.points.length - 1)) : span,
-    })),
-  }))
-
+  // One labeled point per strategy: mean end-to-end pass time against mean
+  // exact accuracy. Upper-left is strictly better — the verdict is readable
+  // at a glance instead of being buried in per-report curves.
+  const data = groupExperimentStats(runs)
+    .filter((arm) => arm.passes && arm.accuracy != null && arm.totalSeconds != null && arm.totalSeconds > 0)
+    .map((arm) => ({
+      x: arm.totalSeconds as number,
+      seconds: arm.totalSeconds as number,
+      y: arm.accuracy as number,
+      accuracy: arm.accuracy as number,
+      name: arm.label,
+      color: arm.color,
+    }))
+  const yMin = data.length ? Math.max(0, Math.floor(Math.min(...data.map((point) => point.y)) / 5) * 5 - 5) : 0
   return (
     <div className="accuracy-quadrant">
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 12, right: 24, bottom: 34, left: 12 }}>
+          <ComposedChart margin={{ top: 26, right: 70, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" name={tr('Report rank', 'レポート順位')} domain={[1, span]} allowDecimals={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Reports, ordered fastest to slowest (each arm scaled to a common axis)', 'レポート（速い順・共通軸にスケール）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" name={tr('Pass time', 'パス時間')} scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('Pass time (s, log)', 'パス時間（秒・対数）'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('Mean end-to-end pass time per report (log scale — left is faster)', 'レポート別平均パス総時間（対数・左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" unit="%" domain={[yMin, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-            {scaled.map((entry) => (
-              <Line key={entry.experiment} name={entry.label} data={entry.points} dataKey="y" type="monotone" stroke={entry.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: entry.color, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
-            ))}
-          </LineChart>
+            <Scatter data={data} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: { color?: string } }) => (
+              <circle cx={props.cx} cy={props.cy} r={9} fill={props.payload?.color || 'var(--text)'} stroke="var(--surface)" strokeWidth={2.5} />
+            )}>
+              <LabelList dataKey="name" position="top" offset={12} fill="var(--text)" fontSize={11.5} fontWeight={700} />
+            </Scatter>
+          </ComposedChart>
         </ResponsiveContainer>
-        {!scaled.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
+        {!data.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
       </div>
+      {!!data.length && <div className="quadrant-key-row curve-legend curve-legend-below">{data.map((point) => <span className="curve-legend-item" key={point.name}><i style={{ background: point.color }} />{point.name} · {formatDuration(point.seconds)} · {formatMetric(point.accuracy)}</span>)}</div>}
     </div>
   )
 }
@@ -115,17 +95,17 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
       color: arm.color,
     }
   }).sort((left, right) => left.x - right.x)
-  const xMax = Math.max(100000, ...data.map((point) => point.x))
+  const xMax = Math.ceil(Math.max(100000, ...data.map((point) => point.x)) * 1.12)
   return (
     <div className="accuracy-quadrant">
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 30, right: 24, bottom: 34, left: 12 }} barCategoryGap="30%">
+          <BarChart data={data} margin={{ top: 30, right: 56, bottom: 34, left: 12 }} barCategoryGap="30%">
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
             <XAxis type="number" dataKey="x" domain={[0, xMax]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (fewer is better)', 'レポート別平均入力トークン（少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
-            <Bar dataKey="y" barSize={56} radius={[6, 6, 0, 0]} isAnimationActive={false}>
+            <Bar dataKey="y" barSize={44} radius={[6, 6, 0, 0]} isAnimationActive={false}>
               {data.map((point) => <Cell key={point.name} fill={point.color} />)}
               <LabelList dataKey="savingLabel" position="top" fill="var(--text)" fontSize={12} fontWeight={700} />
             </Bar>
@@ -133,7 +113,7 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
         </ResponsiveContainer>
         {!data.length && <div className="chart-empty">{tr('No token-accounted runs for this source yet.', 'この結果ソースのトークン計測済み実行はまだありません。')}</div>}
       </div>
-      {!!data.length && <div className="quadrant-key-row curve-legend curve-legend-below">{data.map((point) => <span className="curve-legend-item" key={point.name}><i style={{ background: point.color }} />{point.name} · {point.tokens.toLocaleString()} {tr('tok', 'トークン')} · {formatMetric(point.accuracy)}</span>)}</div>}
+      {!!data.length && <div className="quadrant-key-row curve-legend curve-legend-below">{data.map((point) => <span className="curve-legend-item" key={point.name}><i style={{ background: point.color }} />{point.name} · {point.tokens >= 1000 ? `${Math.round(point.tokens / 1000)}k` : point.tokens} {tr('tok', 'トークン')} · {formatMetric(point.accuracy)}</span>)}</div>}
     </div>
   )
 }
