@@ -1,6 +1,6 @@
 # Full-corpus three-strategy end-to-end evaluation
 
-Model: `glm-5.3` · temperature 0.0 · 274/306 arms complete.
+Model: `glm-5.3` · temperature 0.0 · 276/306 arms complete.
 Gold is consulted only after inference for scoring; prompts never contain gold values.
 
 ## Aggregates per strategy
@@ -8,8 +8,8 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | Strategy | Complete | Scored | Mean exact accuracy | Mean coverage | P50 total s | Mean model-reported input tokens | Retries |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Strategy 1 (`s1`) | 75 | 75 | 98.52 | 100.0 | 213.22 | 97305.64 | 0 |
-| Strategy 2 (`s2-inspector`) | 101 | 101 | 96.96 | 79.64 | 203.48 | 72842.97 | 0 |
-| Strategy 3 (`s3`) | 98 | 98 | 99.2 | 80.8 | 244.1 | 6806.93 | 37 |
+| Strategy 2 (`s2-inspector`) | 102 | 102 | 96.01 | 79.01 | 203.6 | 72166.96 | 0 |
+| Strategy 3 (`s3`) | 99 | 99 | 99.21 | 80.13 | 245.26 | 6782.32 | 38 |
 
 ## Per-report results
 
@@ -158,6 +158,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社iCARE | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 384.47 | 4041 | +0 | `S3_20260823T134519Z_040` |
 | 株式会社mov | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社mov | 2024 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 427.27 | 3990 | — | `S2FC_20260823T135144Z_045` |
+| 株式会社mov | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 1482.97 | 4371 | +0 | `S3_20260824T070459Z_022` |
 | 株式会社with | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社with | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 159.06 | 3778 | — | `S2FC_20260823T140243Z_054` |
 | 株式会社with | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 315.38 | 4017 | +0 | `S3_20260823T140522Z_055` |
@@ -282,6 +283,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社伊豆シャボテン公園 | 2024 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 243.65 | 3814 | — | `S2FC_20260823T154428Z_033` |
 | 株式会社伊豆シャボテン公園 | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 415.98 | 4053 | +0 | `S3_20260823T160307Z_034` |
 | 株式会社寿々 | 2021 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社寿々 | 2021 | s2-inspector | 0/1 (0.0%) | 14.8 | 100.0 | 426.28 | 3890 | — | `S2FC_20260824T071736Z_033` |
 | 株式会社帝国ホテル | 2020 | s1 | 20/22 (90.9%) | 100.0 | 100.0 | 184.77 | 62306 | — | `S1_20260824T013208Z_048` |
 | 株式会社帝国ホテル | 2020 | s2-inspector | 22/22 (100.0%) | 100.0 | 100.0 | 143.69 | 61871 | — | `S2FC_20260824T013344Z_049` |
 | 株式会社帝国ホテル | 2020 | s3 | 22/22 (100.0%) | 100.0 | 100.0 | 110.04 | 7880 | — | `S3_20260824T013513Z_050` |

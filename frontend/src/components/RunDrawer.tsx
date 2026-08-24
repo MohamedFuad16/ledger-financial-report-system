@@ -4,7 +4,7 @@ import type { RunDetail } from '../types'
 import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
 import { Badge, Button, EmptyState, LoadingState } from './ui'
-import { convertCurrency, currencyPreference } from '../lib/currency'
+import { convertCurrency, currencyPreference, displayUnitLabel } from '../lib/currency'
 
 function download(name: string, contents: string, type: string) {
   const url = URL.createObjectURL(new Blob([contents], { type }))
@@ -46,7 +46,7 @@ function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => vo
   const { tr, schemaText } = useLocale()
   const parser = parserFor(detail.strategy)
   const displayCurrency = currencyPreference()
-  const answerUnit = `M ${displayCurrency.currency}`
+  const answerUnit = displayUnitLabel(detail?.currency, displayCurrency)
   const exportCsv = () => {
     const header = [tr('Classification', '分類'), tr('Subclassification', '小分類'), tr('Item', '項目'), `${tr('Answer', '回答')} (${answerUnit})`]
     const rows = detail.rows.map((row) => [schemaText(row.classification), schemaText(row.subclassification), schemaText(row.item), convertCurrency(row.answer_m_usd, detail.currency || 'USD', displayCurrency.currency, displayCurrency.jpyPerUsd)])

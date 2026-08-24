@@ -547,7 +547,7 @@ print("\nProviders, reasoning and prompt caching")
 from providers import (DEFAULT_PROVIDER, PROVIDERS, REASONING_EFFORTS, cache_usage,
                        get_provider, reasoning_payload)
 
-check("OpenRouter is the default provider", DEFAULT_PROVIDER == "openrouter")
+check("Z.AI GLM is the default provider for the hosted app", DEFAULT_PROVIDER == "zai")
 check("Gemini 3.7 Flash is the default OpenRouter model",
       PROVIDERS["openrouter"].default_model == "google/gemini-3.7-flash")
 check("both wired OpenRouter models are offered",

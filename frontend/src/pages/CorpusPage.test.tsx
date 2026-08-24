@@ -107,7 +107,8 @@ describe('CorpusPage answer review', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Review answers' }))
     expect(await screen.findByText('Extracted prefill — verify, then correct')).toBeInTheDocument()
     expect(extract).toHaveBeenCalledWith(document.sha256)
-    expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M USD')
+    // The default display preserves the filing's own currency (JPY here).
+    expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M JPY')
 
     expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
@@ -117,14 +118,15 @@ describe('CorpusPage answer review', () => {
     expect(screen.getAllByText(document.filename).length).toBeGreaterThanOrEqual(2)
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
-    expect(cash).toHaveValue(Math.round((125 / 150) * 1000) / 1000)
+    expect(cash).toHaveValue(125)
     fireEvent.change(cash, { target: { value: '130' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save & approve reviewed answers' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save & confirm approval' }))
 
     await waitFor(() => expect(approve).toHaveBeenCalled())
     expect(approve.mock.calls[0][0]).toBe(document.sha256)
-    expect(approve.mock.calls[0][1][0].answer_m_usd).toBe(19_500)
+    // NATIVE display: the edited value is saved exactly as typed in the filing currency.
+    expect(approve.mock.calls[0][1][0].answer_m_usd).toBe(130)
   })
 
   it('shows a retry state instead of a blank manual-entry table when extraction fails', async () => {
