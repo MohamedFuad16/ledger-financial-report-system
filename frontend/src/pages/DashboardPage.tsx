@@ -24,6 +24,18 @@ export function DashboardPage({
   const s3Runs = benchmarkRuns.filter((run) => run.experiment === 'intelligent_scan')
   const s3Stat = stats.find((entry) => entry.key === 'intelligent_scan') || null
   const s3ReportCount = new Set(s3Runs.map(reportCohortKey)).size
+  // Real OpenRouter list pricing for google/gemini-3.7-flash standard routing;
+  // cost is shown only for the Gemini source (GLM runs on a flat-rate plan).
+  const GEMINI_STD_PRICING = { inputPerM: 0.375, outputPerM: 1.875 }
+  const benchmarkCost = source === 'gemini'
+    ? benchmarkRuns.reduce((sum, run) => {
+        const input = Number(run.input_tokens ?? run.approx_input_tokens ?? 0)
+        const output = Number(run.output_tokens ?? 0)
+        if (!Number.isFinite(input) || input <= 0) return sum
+        return sum + (input * GEMINI_STD_PRICING.inputPerM + (Number.isFinite(output) ? output : 0) * GEMINI_STD_PRICING.outputPerM) / 1e6
+      }, 0)
+    : null
+  const costPerReport = benchmarkCost && s3ReportCount ? benchmarkCost / s3ReportCount : null
   const disclosedTotals = s3Runs.reduce((sums, run) => ({
     answered: sums.answered + Number(run.committed_and_compared ?? 0),
     disclosed: sums.disclosed + Number(run.total_compared ?? 0),
@@ -77,7 +89,7 @@ export function DashboardPage({
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
-        <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
+        <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={benchmarkCost && costPerReport ? tr(`Whole-corpus benchmark cost $${benchmarkCost.toFixed(2)} · ~$${costPerReport.toFixed(3)} per report across all three strategies`, `コーパス全体のベンチマーク費用 $${benchmarkCost.toFixed(2)}・3戦略合計で1レポートあたり約$${costPerReport.toFixed(3)}`) : tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
         <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastestParser?.label || '—'} detail={fastestParser && parseSpeedup ? `${formatDuration(fastestParser.extractSeconds)} ${tr('mean parse', '平均解析')} · ${parseSpeedup.toFixed(1)}× ${tr('faster than No OCR', 'OCRなし比で高速')}` : tr('No parse timing yet', '解析時間データはまだありません')} />
       </div>
 

@@ -55,7 +55,7 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={{ top: 26, right: 70, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" scale="log" domain={[(dataMin: number) => dataMin * 0.72, (dataMax: number) => dataMax * 1.35]} tickCount={5} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(1) : value.toFixed(1)}s`} label={{ value: tr('Mean end-to-end pass time per report (log scale — left is faster)', 'レポート別平均パス総時間（対数・左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.12) / 10) * 10]} ticks={Array.from({ length: 1 + Math.ceil((Math.max(...(data.length ? data.map((point) => point.x) : [40])) * 1.12) / 10) }, (_, index) => index * 10)} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value}s`} label={{ value: tr('Mean end-to-end pass time per report (left is faster)', 'レポート別平均パス総時間（左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" dataKey="y" unit="%" domain={[yMin, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             <Scatter data={data} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: { color?: string } }) => (
@@ -95,14 +95,14 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
       color: arm.color,
     }
   }).sort((left, right) => left.x - right.x)
-  const xMax = Math.ceil(Math.max(100000, ...data.map((point) => point.x)) * 1.12)
+  const xMax = Math.ceil((Math.max(100000, ...data.map((point) => point.x)) * 1.12) / 20000) * 20000
   return (
     <div className="accuracy-quadrant">
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 52, right: 56, bottom: 34, left: 12 }} barCategoryGap="30%">
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" domain={[0, xMax]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (fewer is better)', 'レポート別平均入力トークン（少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" domain={[0, xMax]} ticks={Array.from({ length: xMax / 20000 + 1 }, (_, index) => index * 20000)} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (fewer is better)', 'レポート別平均入力トークン（少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-soft)' }} />
             <Bar dataKey="y" barSize={44} radius={[6, 6, 0, 0]} isAnimationActive={false}>
@@ -143,20 +143,20 @@ export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
     if (!perReport.length) return null
     return { key: experiment, label: meta.label, color: meta.color, seconds: perReport.reduce((sum, value) => sum + value, 0) / perReport.length, reports: perReport.length }
   }).filter((item): item is NonNullable<typeof item> => item != null)
-  const fastest = data.reduce<(typeof data)[number] | null>((best, item) => !best || item.seconds < best.seconds ? item : best, null)
+  const baseline = data.find((item) => item.key === 'no_ocr') || data.reduce<(typeof data)[number] | null>((worst, item) => !worst || item.seconds > worst.seconds ? item : worst, null)
 
   return (
     <div className="speed-benchmark">
       {data.map((item, index) => {
-        const ratio = item.seconds / Number(fastest?.seconds || 1)
-        const isFastest = item.key === fastest?.key
+        const speedup = Number(baseline?.seconds || 1) / item.seconds
+        const isBaseline = item.key === baseline?.key
         return (
           <div className="speed-row" key={item.key}>
             <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.seconds)} · {item.reports} {tr('matched reports', '対応レポート')}</span></div>
-            <div className="speed-track"><i style={{ width: `${Math.max(8, Number(fastest?.seconds || 1) / item.seconds * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
+            <div className="speed-track"><i style={{ width: `${Math.max(8, speedup / Math.max(1, ...data.map((entry) => Number(baseline?.seconds || 1) / entry.seconds)) * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
             <div className="speed-value">
-              <strong>{isFastest ? '1.0×' : `${ratio.toFixed(ratio >= 10 ? 0 : 2)}×`}</strong>
-              <span>{isFastest ? tr('fastest', '最速') : tr('slower', '低速')}</span>
+              <strong>{isBaseline ? '1.0×' : `${speedup.toFixed(2)}×`}</strong>
+              <span>{isBaseline ? tr('baseline', '基準') : speedup >= 1 ? tr('faster', '高速') : tr('slower', '低速')}</span>
             </div>
           </div>
         )

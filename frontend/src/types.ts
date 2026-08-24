@@ -47,6 +47,7 @@ export interface RunSummary extends RunMetrics {
   page_count?: number
   approx_input_tokens?: number
   input_tokens?: number
+  output_tokens?: number
   extract_seconds?: MetricValue
   total_seconds?: MetricValue
   api_elapsed?: MetricValue
