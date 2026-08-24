@@ -34,12 +34,9 @@ export function saveBenchmarkSource(source: BenchmarkSource) {
 export function runMatchesSource(run: RunSummary, source: BenchmarkSource): boolean {
   const model = String(run.model || '').toLowerCase()
   if (source === 'gemini') {
-    if (!model.includes('gemini')) return false
-    // The published Gemini benchmark: medium-effort Strategy 2/3 plus the
-    // low-effort Strategy 1 control (the control is reasoning-insensitive and
-    // the low run covers it), never both efforts of one arm at once.
-    const effort = String(run.reasoning_effort || '')
-    return run.experiment === 'no_ocr' ? effort === 'low' : effort === 'medium'
+    // The published Gemini benchmark is the standard (non-nitro) medium-effort
+    // full-corpus sweep; nitro-era runs are retired and never mixed in.
+    return model.includes('gemini') && !model.includes('nitro') && String(run.reasoning_effort || '') === 'medium'
   }
   if (!model.includes('glm')) return false
   const thinking = run.enable_reasoning !== false

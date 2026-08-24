@@ -411,3 +411,52 @@
 - Context: Caddy forwards the whole public domain to Flask with no authentication; CORS never blocked direct HTTP. Any caller could replace the prompt, change credentials, start paid jobs, delete runs, or overwrite golden answers.
 - Decision: A server-side before_request gate, enabled by LEDGER_PUBLIC_READONLY=1 in the production environment file, rejects every mutating request except the demo surfaces (/api/extract*, /api/extraction/jobs, /api/uploads, /api/traffic) with HTTP 403. Operator changes ship through the git deploy channel. Full authentication (per-user claims-derived workspaces) remains the follow-up.
 - Consequences: The public dashboard and demo keep working; the control plane is writable only from the operator's channel. The production Settings UI cannot save changes — by design.
+
+## ADR-0055 — Deliver the technical report as native Word with code-generated portrait figures
+- Date: 2026-08-24
+- Status: Accepted
+- Context: The earlier report used a manually simulated contents page, mixed decorative colors, and wide text-heavy images that were difficult to read on portrait Word pages. The submission must retain the supplied cover while remaining editable and understandable to non-specialists.
+- Decision: Use native Word Heading 1/2 styles and an updatable linked table of contents with dotted leaders and right-aligned page numbers. Use MS Mincho and black text for all report content. Generate technical figures from HTML/SVG code at 2400×3200, restrict figure labels to short Japanese phrases, place each figure on an A4 portrait page, and explain the evidence and interpretation in adjacent prose. Preserve benchmark artifacts and product code as read-only evidence.
+- Consequences: The report is a 20-page A4 Word artifact with reliable navigation and print layout. Figures remain reproducible from source code and can be regenerated without image-generation tools. Future report edits must refresh the Word TOC and repeat page-by-page rendering checks before delivery.
+
+## ADR-0056 — Use wide inline architecture maps and report retry metrics as conditional observations
+- Date: 2026-08-24
+- Status: Accepted; supersedes the figure placement and page-count details of ADR-0055
+- Context: Full-page vertical box diagrams did not match the requested reference style, and benchmark `reported_prompt_tokens` omits evidence-retry usage. The run artifacts record successful retry tokens, but 2 GLM and 4 Gemini failed retry calls have no provider usage block. Retry-triggered documents are also a harder, non-random subset, so they cannot be treated as a paired architecture experiment.
+- Decision: Generate five 2400×1350 code-based figures and embed them at text width within portrait Word pages. Use left-to-right semantic diagrams for problem decomposition, hypothesis progression, and the PDF Inspector → selective OCR → selected pages → LLM → validation → output flow, with an explicit one-time retry branch. Present Strategy 3 as two conditional observed modes: `単発抽出ベースライン（Single-pass baseline）` and `選択的再試行アーキテクチャ（Selective retry architecture）`. Include whole-pipeline retry timing, recorded token components, recovered-row outcomes, and an explicit lower-bound marker where failed calls lack usage. Do not estimate missing tokens or claim a causal comparison.
+- Consequences: The final report is 19 A4 pages, figures remain legible without occupying full pages, and the evaluation communicates both retry cost and data limitations honestly. Any future causal claim requires a same-document counterfactual benchmark that stores pre-retry scores and complete usage for every call.
+
+## ADR-0057 — Separate retry cohort profiles from same-document recovery evidence
+- Date: 2026-08-24
+- Status: Accepted; tightens ADR-0056
+- Context: The earlier quality figure placed the no-retry and retry cohorts side by side even though retry is triggered by harder documents. Its token stack also looked like a complete total despite missing provider usage for two GLM and four Gemini failed retry calls. Table continuation and forced major-section breaks created avoidable layout gaps.
+- Decision: Use the agreed labels `単発抽出ベースライン` and `フルリトライアーキテクチャ`, and describe their time and per-document token values only as different-cohort profiles. Mark retry token values as lower bounds. Make the sole retry-benefit claim from the same triggered documents by reporting initial missing rows, recovered rows and rate, final missing rows, improved documents, residual arithmetic failures, incremental latency, incremental tokens, usage coverage, and failed calls. Keep every table row intact, repeat only column headers, place captions outside tables, and remove page breaks that strand short continuations. Record benchmark hashes, model settings, parser/OCR versions, and run dates in the report.
+- Consequences: The report distinguishes descriptive cohort differences from evidence of actual retry recovery, does not turn incomplete token usage into a false total, and renders as 17 A4 pages without spacer-only pages. Product code and benchmark snapshots remain unchanged.
+
+## ADR-0058 — Persist Word fields before exporting the matching PDF
+- Date: 2026-08-24
+- Status: Accepted
+- Context: Refreshing the native table of contents on document open updated Word's in-memory view without reliably updating the DOCX file on disk. Exporting before an explicit same-name Word save could therefore produce a PDF whose pagination and TOC state differed from the delivered DOCX.
+- Decision: For the release pair, refresh fields, explicitly save the DOCX under its final name, confirm Word's stored page metadata and visible pagination, and only then export the matching PDF from the same open document. Close without a further save after export, and verify the PDF independently with `pdfinfo`, text extraction, and page renders. Give the TOC title an explicit 18 pt top gap after its page break so Word and PDF exports keep it clear of the printable top edge.
+- Consequences: Both final artifacts now resolve to 17 A4 pages with the same linked TOC and section starts. Future report releases must follow this save-before-export order; a normal Save after an automatic field refresh is not sufficient evidence that the field result reached disk.
+
+## ADR-0059 — Compare strategies on one document and keep retry evidence out of the main result
+- Date: 2026-08-24
+- Status: Accepted; supersedes the main-results chart scope in ADR-0057
+- Context: Retry-triggered and non-triggered runs are different cohorts, so their time and token bars distracted from the requested comparison of the three input strategies. The architecture figures also used oversized bespoke icons, and the report mixed model-provider timing with input-strategy conclusions.
+- Decision: Use one small, consistent Lucide-style stroke icon system for Figures 1–3. Use the same 3M FY2022 document, model, reasoning setting, and temperature for the Strategy 1/2/3 speed and input-token charts. Normalize speed to Strategy 1 and show no sample-count labels in these same-document charts. Remove the retry before/after figure and retry evaluation subsection from the current report. Report full-corpus Strategy 3 accuracy separately by stored model/reasoning snapshot, with macro and micro calculations and completion counts.
+- Consequences: The 15-page report now answers two distinct questions without cohort confusion: model/reasoning accuracy comes from the saved corpus snapshots, while speed and token efficiency come from a controlled same-document three-strategy comparison. The bounded retry remains visible in the architecture but is not presented as a measured headline result.
+
+## ADR-0060 — Preserve report aggregates and disclose a missing historical raw snapshot
+- Date: 2026-08-24
+- Status: Accepted
+- Context: The GLM-thinking benchmark output was still being updated after the report export. Its live contents no longer match the 99.71% historical aggregate printed in Table 3a, and the exact row-level snapshot behind that value was not archived.
+- Decision: Do not overwrite or roll back the live benchmark. Store the exact Table 3a aggregate values in a sidecar JSON manifest, label them as report-generation historical values, retain the historical source digest for audit context, and state explicitly that the GLM-thinking row cannot be fully recomputed without the missing raw snapshot.
+- Consequences: The report remains honest about the evidence available at export time and no longer overclaims reproducibility. Future runs must archive immutable row-level results before using them in a release report.
+
+## ADR-0061 — Size diagram icons with SVG symbols and reserve a branch gutter
+- Date: 2026-08-24
+- Status: Accepted; refines ADR-0059
+- Context: The report diagrams defined reusable icons as ordinary `<g>` elements. SVG `<use>` width and height do not scale a referenced group, so several glyphs appeared oversized or off-center. In the final architecture figure, the direct-text/OCR split and merge occupied the same narrow horizontal interval as the evidence-page label, while the retry connector crossed primary labels at report scale.
+- Decision: Define reusable glyphs as `<symbol viewBox="0 0 24 24">` assets, place them with explicit 22–30 px dimensions, and keep one consistent circular-node scale. Enlarge the final architecture figure to the maximum safe portrait text width. Reserve a wider gutter between the text-layer decision and evidence pages; use smaller auxiliary nodes for direct text and selective OCR; separate their labels vertically; merge them before the evidence node. Route the one-time retry from validation below the full main flow and return it to the text-layer decision without crossing labels.
+- Consequences: Icon dimensions are deterministic across Chromium and Word exports, the branch is readable at normal page scale, and the architecture remains a compact left-to-right figure instead of expanding into a full-page vertical diagram. Future figure edits must be checked in the exported PDF, not only in the standalone SVG/PNG.
