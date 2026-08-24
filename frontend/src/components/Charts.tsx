@@ -55,7 +55,7 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={{ top: 26, right: 70, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
-            <XAxis type="number" dataKey="x" scale="log" domain={['auto', 'auto']} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(0) : value.toFixed(1)}s`} label={{ value: tr('Mean end-to-end pass time per report (log scale — left is faster)', 'レポート別平均パス総時間（対数・左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
+            <XAxis type="number" dataKey="x" scale="log" domain={[(dataMin: number) => dataMin * 0.72, (dataMax: number) => dataMax * 1.35]} tickCount={5} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value >= 100 ? Math.round(value) : value >= 10 ? value.toFixed(1) : value.toFixed(1)}s`} label={{ value: tr('Mean end-to-end pass time per report (log scale — left is faster)', 'レポート別平均パス総時間（対数・左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" dataKey="y" unit="%" domain={[yMin, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             <Scatter data={data} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: { color?: string } }) => (
@@ -100,7 +100,7 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
     <div className="accuracy-quadrant">
       <div className="chart-frame dither-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 30, right: 56, bottom: 34, left: 12 }} barCategoryGap="30%">
+          <BarChart data={data} margin={{ top: 52, right: 56, bottom: 34, left: 12 }} barCategoryGap="30%">
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
             <XAxis type="number" dataKey="x" domain={[0, xMax]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => value >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))} label={{ value: tr('Mean model input tokens per report (fewer is better)', 'レポート別平均入力トークン（少ないほど良い）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
             <YAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 8, fill: 'var(--muted)', fontSize: 10 }} />
@@ -120,31 +120,48 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
 
 export function SpeedBenchmarkChart({ runs }: { runs: RunSummary[] }) {
   const { tr } = useLocale()
-  // Document-processing speed per strategy: the parsing/OCR/gating step that
-  // each strategy runs before the model call. This is the stage the strategies
-  // actually change, and the one where the intelligent scanning gate is
-  // fastest; model-call time is excluded so provider speed cannot mask it.
-  const stats = groupExperimentStats(runs).filter((item) => item.passes && item.extractSeconds != null && item.extractSeconds > 0)
-  const baseline = stats.find((item) => item.key === 'no_ocr') || stats[0]
-  const data = stats.map((item) => ({ ...item, speedup: Number(baseline?.extractSeconds) / Number(item.extractSeconds) }))
-  const maxSpeedup = Math.max(1, ...data.map((item) => item.speedup))
+  // End-to-end pass speed on the matched cohort: only reports that ALL three
+  // strategies completed, so document mix cannot flatter any arm. The fastest
+  // strategy is the 1.0x baseline.
+  const experiments = ['no_ocr', 'ocr', 'intelligent_scan'] as const
+  const byReport: Record<string, Partial<Record<string, number[]>>> = {}
+  for (const run of runs) {
+    const experiment = run.experiment || ''
+    if (!(experiments as readonly string[]).includes(experiment)) continue
+    const seconds = Number(run.total_seconds ?? run.extract_seconds)
+    const key = reportCohortKey(run)
+    if (!key || !Number.isFinite(seconds) || seconds <= 0) continue
+    ;((byReport[key] ||= {})[experiment] ||= []).push(seconds)
+  }
+  const matched = Object.values(byReport).filter((entry) => experiments.every((experiment) => entry[experiment]?.length))
+  const data = experiments.map((experiment) => {
+    const meta = comparisonExperimentMeta[experiment]
+    const perReport = matched.map((entry) => {
+      const values = entry[experiment] as number[]
+      return values.reduce((sum, value) => sum + value, 0) / values.length
+    })
+    if (!perReport.length) return null
+    return { key: experiment, label: meta.label, color: meta.color, seconds: perReport.reduce((sum, value) => sum + value, 0) / perReport.length, reports: perReport.length }
+  }).filter((item): item is NonNullable<typeof item> => item != null)
+  const fastest = data.reduce<(typeof data)[number] | null>((best, item) => !best || item.seconds < best.seconds ? item : best, null)
 
   return (
     <div className="speed-benchmark">
       {data.map((item, index) => {
-        const isBaseline = item.key === baseline?.key
+        const ratio = item.seconds / Number(fastest?.seconds || 1)
+        const isFastest = item.key === fastest?.key
         return (
           <div className="speed-row" key={item.key}>
-            <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.extractSeconds)} · {item.passes} {tr('passes', 'パス')}</span></div>
-            <div className="speed-track"><i style={{ width: `${Math.max(8, item.speedup / maxSpeedup * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
+            <div className="speed-label"><strong>{item.label}</strong><span>{formatDuration(item.seconds)} · {item.reports} {tr('matched reports', '対応レポート')}</span></div>
+            <div className="speed-track"><i style={{ width: `${Math.max(8, Number(fastest?.seconds || 1) / item.seconds * 100)}%`, background: item.color, opacity: Math.max(.72, 1 - index * .06) }} /></div>
             <div className="speed-value">
-              <strong>{isBaseline ? '1.0×' : `${item.speedup.toFixed(item.speedup >= 10 ? 0 : 1)}×`}</strong>
-              <span>{isBaseline ? tr('baseline', '基準') : item.speedup >= 1 ? tr('faster', '高速') : tr('slower', '低速')}</span>
+              <strong>{isFastest ? '1.0×' : `${ratio.toFixed(ratio >= 10 ? 0 : 2)}×`}</strong>
+              <span>{isFastest ? tr('fastest', '最速') : tr('slower', '低速')}</span>
             </div>
           </div>
         )
       })}
-      {!data.length && <div className="chart-empty">{tr('No source-verified pass timing data yet.', '元資料検証済みのパス時間データはまだありません。')}</div>}
+      {!data.length && <div className="chart-empty">{tr('No matched-cohort timing data yet.', '対応コホートの時間データはまだありません。')}</div>}
     </div>
   )
 }

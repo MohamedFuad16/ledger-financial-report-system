@@ -103,7 +103,7 @@ export function DashboardPage({
 
       <div className="benchmark-analytics">
         <Card className="chart-card speed-card">
-          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('Document-processing speed per strategy', '戦略別ドキュメント処理速度')} description={tr('The parsing, OCR and gating step each strategy runs before the model call — the stage the strategies actually change. No OCR is the 1.0× baseline; the OCR and intelligent scanning multiples say how much faster their processing runs. Model-call time is excluded.', 'モデル呼び出し前の解析・OCR・ゲート処理の速度比較です。戦略が実際に変えている工程で、OCRなしを1.0倍の基準とし、各戦略の処理が何倍高速かを示します。モデル呼び出し時間は含みません。')} />
+          <SectionHeading eyebrow={tr('Speed benchmark', '速度ベンチマーク')} title={tr('End-to-end pass speed on matched reports', '対応レポートでのエンドツーエンド速度')} description={tr('Mean complete pass time per strategy, computed only on reports that all three strategies processed — so the document mix cannot flatter any arm. The fastest strategy sets the 1.0× baseline.', '3戦略すべてが処理したレポートのみで平均パス時間を算出し、文書構成による偏りを排除しています。最速の戦略を1.0倍の基準とします。')} />
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
