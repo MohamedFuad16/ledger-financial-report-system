@@ -45,3 +45,17 @@ describe('RunDrawer confidence display (ADR-0031)', () => {
     expect(screen.getByText(/1\/27/)).toBeInTheDocument()
   })
 })
+
+describe('RunDrawer detail strip layout', () => {
+  it('renders the copy action as a direct child of the stats strip', () => {
+    const { container } = render(<LocaleProvider><RunDrawer detail={detail} loading={false} onClose={() => {}} /></LocaleProvider>)
+
+    const strip = container.querySelector('.detail-strip')!
+    // The strip is a CSS grid with an explicit track list, which jsdom cannot
+    // lay out. Pin the shape the grid is sized for: when this count changes,
+    // update `.detail-strip { grid-template-columns }` in editor-theme.css to
+    // match, or the action wraps onto a second row under the first stat.
+    expect(strip.querySelectorAll(':scope > div')).toHaveLength(5)
+    expect(strip.querySelector(':scope > .button')).toBeInTheDocument()
+  })
+})

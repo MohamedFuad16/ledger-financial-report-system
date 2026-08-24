@@ -416,11 +416,12 @@ body {
 .run-expansion-row > td { height: auto; padding: 0 0 18px; background: transparent; border-bottom: 1px solid var(--line); }
 .run-expansion-error { margin: 0 12px 12px; padding: 14px; display: flex; align-items: center; gap: 9px; border: 1px solid color-mix(in srgb, var(--red) 30%, var(--line)); border-radius: 10px; color: var(--red); background: color-mix(in srgb, var(--red) 6%, var(--surface)); }
 .run-inspector-inline { margin: 0; border-radius: 0 0 14px 14px; border-inline: 0; }
-.detail-strip { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)) auto; gap: 0; padding: 0; overflow: hidden; }
+/* Track count must match the stat cells in RunDrawer's .detail-strip (five)
+   plus the trailing action column, or the action wraps under the first stat. */
+.detail-strip { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)) auto; gap: 0; padding: 0; overflow: hidden; }
 .detail-strip > div { min-height: 70px; padding: 13px 16px; display: flex; flex-direction: column; justify-content: center; gap: 5px; border-right: 1px solid var(--line); }
 .detail-strip > div span { color: var(--faint); font-size: 10px; }
 .detail-strip > div strong { color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
-.inline-result-detail-strip { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
 .detail-strip .button { margin: 0 12px !important; align-self: center; }
 .sheet-table { min-width: 760px; table-layout: fixed; }
 .sheet-table th:nth-child(1),
@@ -516,12 +517,14 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 :root[data-theme='dark'] .metric-grid { border-color: var(--line); }
 :root[data-theme='dark'] .metric-card:nth-child(n) { border-color: var(--line); background: transparent; }
 :root[data-theme='dark'] .speed-track,
-:root[data-theme='dark'] .result-metric-ring circle { background: var(--surface-soft); stroke: var(--line-strong); }
+:root[data-theme='dark'] .result-metric-ring { background: var(--surface-soft); }
+:root[data-theme='dark'] .result-metric-ring circle { stroke: var(--line-strong); }
 :root[data-theme='dark'] .quadrant-label { border-color: #2f5a91; background: #172c49; color: #93c5fd; }
 :root[data-theme='dark'] .quadrant-slow { border-color: var(--line); background: var(--surface-soft); color: var(--muted); }
 :root[data-theme='dark'] .execution-file-card,
 :root[data-theme='dark'] .pipeline-empty-icon,
 :root[data-theme='dark'] .result-metric-ring,
+:root[data-theme='dark'] .run-inspector-inline,
 :root[data-theme='dark'] .conclusion-card,
 :root[data-theme='dark'] .reasoning-toggle,
 :root[data-theme='dark'] .reasoning-toggle > div { border-color: var(--line-strong); }

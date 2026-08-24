@@ -19,8 +19,13 @@ export function currencyPreference(): CurrencyPreference {
 }
 
 export function saveCurrencyPreference(preference: CurrencyPreference) {
-  window.localStorage.setItem('ledger-output-currency', preference.currency)
-  window.localStorage.setItem('ledger-jpy-per-usd', String(preference.jpyPerUsd))
+  try {
+    window.localStorage.setItem('ledger-output-currency', preference.currency)
+    window.localStorage.setItem('ledger-jpy-per-usd', String(preference.jpyPerUsd))
+  } catch {
+    // Settings writes this on mount; a storage-restricted browser must not
+    // take the page down. The in-memory preference still applies.
+  }
 }
 
 export function convertCurrency(value: number | null | undefined, source: string, target: DisplayCurrency, jpyPerUsd: number) {
