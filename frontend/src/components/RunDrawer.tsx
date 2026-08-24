@@ -31,7 +31,6 @@ function MetricRing({ label, value, color }: { label: string; value: number | nu
 }
 
 export function RunDrawer({ detail, loading, onClose }: { detail: RunDetail | null; loading: boolean; onClose: () => void }) {
-  const [copiedRunId, setCopiedRunId] = useState(false)
   const { tr } = useLocale()
   return (
     <AnimatePresence initial={false}>
@@ -45,6 +44,7 @@ export function RunDrawer({ detail, loading, onClose }: { detail: RunDetail | nu
 }
 
 function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => void }) {
+  const [copiedRunId, setCopiedRunId] = useState(false)
   const { tr, schemaText } = useLocale()
   const parser = parserFor(detail.strategy)
   const displayCurrency = currencyPreference()
