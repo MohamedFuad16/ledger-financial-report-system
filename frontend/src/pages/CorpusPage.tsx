@@ -89,10 +89,20 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
     try {
       let payload = await api.corpusVerification(document.sha256)
       if (payload.status !== 'assignment_supplied' && !payload.candidate_extracted) {
-        setReviewPhase('extracting')
-        payload = await api.extractCorpusVerification(document.sha256)
+        if (payload.rows?.some((row) => row.answer_m_usd !== null)) {
+          // A verified sheet already exists; never block the reader on a fresh
+          // extraction (which the public read-only deployment rejects anyway).
+        } else {
+          setReviewPhase('extracting')
+          try {
+            payload = await api.extractCorpusVerification(document.sha256)
+          } catch (extractError) {
+            if (!payload.rows?.length) throw extractError
+            // Read-only deployment: fall back to the stored sheet as-is.
+          }
+        }
       }
-      if (!payload.candidate_extracted) throw new Error(tr('The PDF extraction did not produce a review table. Retry extraction before reviewing.', 'PDF抽出で確認表を生成できませんでした。確認前に抽出を再試行してください。'))
+      if (!payload.rows?.length) throw new Error(tr('The PDF extraction did not produce a review table. Retry extraction before reviewing.', 'PDF抽出で確認表を生成できませんでした。確認前に抽出を再試行してください。'))
       setVerification(payload)
       setReviewRows(payload.rows)
     } catch (error) {
