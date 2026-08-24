@@ -19,3 +19,4 @@ corpus_dataset/**/*.pdf
 corpus_dataset/.corpus_manifest.lock
 .vercel
 .env.local
+~$*.docx
