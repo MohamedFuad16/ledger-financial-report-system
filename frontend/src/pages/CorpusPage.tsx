@@ -15,11 +15,18 @@ function officialHost(url?: string) {
 // favicons must never stand in for a company logo.
 const MIRROR_HOSTS = /(?:^|\.)(?:edinet-fsa\.go\.jp|catr\.jp|kanpo\.go\.jp|irbank\.net|xj-storage\.jp|irpocket\.com|swcms\.net)$/
 
+// logo.dev publishable (client-side) key — intended for browser embedding.
+const LOGO_DEV_TOKEN = 'pk_TNlXVDj6TlWBPBITQHArTg'
+
 function CompanyLogo({ domain, label }: { domain: string; label: string }) {
-  const [failed, setFailed] = useState(false)
+  // Fallback chain: logo.dev brand logo -> site favicon -> monogram.
+  const [stage, setStage] = useState<0 | 1 | 2>(0)
   const monogram = (label.trim()[0] || '?').toLocaleUpperCase()
-  if (!domain || failed) return <span className="corpus-logo-mark corpus-logo-monogram" aria-hidden="true">{monogram}</span>
-  return <span className="corpus-logo-mark"><img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`} alt="" loading="lazy" onError={() => setFailed(true)} /></span>
+  if (!domain || stage === 2) return <span className="corpus-logo-mark corpus-logo-monogram" aria-hidden="true">{monogram}</span>
+  const src = stage === 0
+    ? `https://img.logo.dev/${encodeURIComponent(domain)}?token=${LOGO_DEV_TOKEN}&size=64&format=png&retina=true`
+    : `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
+  return <span className="corpus-logo-mark"><img src={src} alt="" loading="lazy" onError={() => setStage(stage === 0 ? 1 : 2)} /></span>
 }
 
 export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNotify: (message: string, tone: 'success' | 'error') => void }) {
