@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from runpy import run_path
 from pathlib import Path
 
 from docx import Document
@@ -175,7 +176,7 @@ def normalize_existing_front_matter(doc: Document) -> None:
         "特定の企業や報告書の形式だけに依存するのではなく、他企業の年次報告書が入力された場合にも対応できる、汎用的な仕組みを目標とします。":
             "課題を、入力表現、指示と出力形式、検証と評価の三つへ分解した。文字認識を使わない全文入力、文字認識後の全文入力、必要ページだけを選ぶ入力の三戦略を比較した。",
         "本報告書では、課題に対する初期の考え方、各実験で設定した仮説、実装方法、試行錯誤の過程、実験結果、精度評価、発見した技術的課題、および各課題に対する改善の見通しを記録します。":
-            "同一条件の3M社2022年では、必要ページだけを選ぶ戦略が27項目すべての一致を維持し、全文文字認識と比べて入力トークン数を96.1%削減した。",
+            "更新済み全コーパスのGLM-5.3思考モードでは、必要ページだけを選ぶ戦略三が102/102資料を完了し、マクロ平均正確性99.23%、マイクロ正確性99.14%であった。三戦略すべてが完了した同一75資料では、戦略三の全呼出し入力トークン数は戦略一比90.1%少なかった。",
         "現在の進捗": "主要結果",
         "複数の仮説に基づく手法を実装し、比較実験・精度検証を実施中":
             "最終的に、決定論的なページ選択を採用した。",
@@ -193,6 +194,10 @@ def normalize_existing_front_matter(doc: Document) -> None:
             if replacement == "要旨":
                 # Keep the linked TOC as a dedicated second page.
                 paragraph.paragraph_format.page_break_before = True
+            elif replacement == "主要結果":
+                # The abstract title is Heading 1; its first subsection must be
+                # Heading 2 so the semantic outline does not skip a level.
+                paragraph.style = doc.styles["Heading 2"]
 
     # The supplied cover uses spacer paragraphs sized for its original font.
     # Removing the final empty spacers prevents the cover from spilling onto an
@@ -241,15 +246,9 @@ def add_portrait_section(doc: Document):
 
 def add_inline_figure(doc: Document, image_path: Path, title: str, caption: str) -> None:
     p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p.paragraph_format.keep_with_next = True
-    p.paragraph_format.space_before = Pt(7)
-    p.paragraph_format.space_after = Pt(3)
-    r = p.add_run(title)
-    set_run_font(r, size=10, bold=True, color=BODY_COLOR)
-    p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.keep_with_next = True
+    p.paragraph_format.space_before = Pt(7)
     p.paragraph_format.space_after = Pt(2)
     figure_width = 6.70 if image_path.name == "figure_03_final_architecture.png" else 6.45
     shape = p.add_run().add_picture(str(image_path), width=Inches(figure_width))
@@ -258,7 +257,9 @@ def add_inline_figure(doc: Document, image_path: Path, title: str, caption: str)
     cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     cap.paragraph_format.space_before = Pt(1)
     cap.paragraph_format.space_after = Pt(5)
-    run = cap.add_run(caption)
+    run = cap.add_run(title)
+    set_run_font(run, size=9, bold=True, color=BODY_COLOR)
+    run = cap.add_run("\n" + caption)
     set_run_font(run, size=8.5, color=BODY_COLOR)
 
 
@@ -330,6 +331,10 @@ def add_code_block(doc: Document, lines: list[str]) -> None:
     p.paragraph_format.space_after = Pt(0)
     r = p.add_run("\n".join(lines))
     set_run_font(r, size=8.3, color=BODY_COLOR)
+    row_pr = table.rows[0]._tr.get_or_add_trPr()
+    cant_split = OxmlElement("w:cantSplit")
+    cant_split.set(qn("w:val"), "true")
+    row_pr.append(cant_split)
 
 
 def add_markdown_table(doc: Document, rows: list[list[str]]) -> None:
@@ -347,10 +352,10 @@ def add_markdown_table(doc: Document, rows: list[list[str]]) -> None:
         set_run_font(run, size=9, bold=True, color=BODY_COLOR)
         rows = [row[:] for row in rows]
         first_header_overrides = {
-            "表3a": "モデル",
-            "表3b": "モデル",
-            "表3c": "モデル",
-            "表3d": "モデル",
+            "表3a": "戦略",
+            "表3b": "戦略",
+            "表3c": "戦略",
+            "表3d": "戦略",
             "表3e": "区分",
             "表2a": "比較観点",
             "表4": "戦略",
@@ -432,7 +437,7 @@ def append_markdown(doc: Document, markdown: str) -> None:
                 doc,
                 ASSETS / "figure_04_benchmark_efficiency.png",
                 "図4　三戦略の処理速度（戦略一比）",
-                "3M社2022年の同一PDF、同一モデル、推論あり、温度0.0の実測時間から算出した。モデル間の速度差ではなく、入力戦略の差だけを比較する。",
+                "Gemini 3.7 Flash・中程度で三戦略すべてが完了した同一75資料のP50処理時間から算出した。モデル間ではなく、入力戦略だけを比較する。",
             )
             i += 1
             continue
@@ -440,9 +445,14 @@ def append_markdown(doc: Document, markdown: str) -> None:
             add_inline_figure(
                 doc,
                 ASSETS / "figure_05_benchmark_quality.png",
-                "図5　三戦略の入力トークン数",
-                "図4と同じ3M社2022年の条件で比較した。戦略三は27/27を維持し、戦略一に対して入力トークン数を96.1%削減した。",
+                "図5　三戦略の全呼出し入力トークン数",
+                "図4と同じ75資料における1資料当たりの平均である。初回抽出、契約修復、根拠再試行の報告入力トークンを合算した。戦略三は戦略一に対して89.1%削減した。",
             )
+            i += 1
+            continue
+        if stripped == "[[FULL_SYSTEM_PROMPT]]":
+            system_prompt = run_path(str(ROOT / "prompts.py"))["SYSTEM_PROMPT"]
+            add_code_block(doc, system_prompt.strip().splitlines())
             i += 1
             continue
         if stripped.startswith("|"):
@@ -470,7 +480,7 @@ def append_markdown(doc: Document, markdown: str) -> None:
                 pending_figure = (
                     ASSETS / "figure_02_hypothesis_evolution.png",
                     "図2　仮説の変化と採用判断",
-                    "全文入力、文字認識、能動的検索を検討し、決定論的な完全ページ選択を採用した。",
+                    "全文入力、文字認識、アクティブRAGを検討し、決定論的な完全ページ選択を採用した。",
                 )
                 inserted_hypothesis = True
             if text.startswith("5.2") and not inserted_architecture:

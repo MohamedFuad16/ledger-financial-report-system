@@ -41,12 +41,7 @@ export function DashboardPage({
     disclosed: sums.disclosed + Number(run.total_compared ?? 0),
   }), { answered: 0, disclosed: 0 })
   const disclosedCoverage = disclosedTotals.disclosed > 0 ? 100 * disclosedTotals.answered / disclosedTotals.disclosed : null
-  const parseBaseline = stats.find((entry) => entry.key === 'no_ocr')
-  const fastestParser = stats.filter((entry) => entry.extractSeconds != null && entry.extractSeconds > 0)
-    .reduce<(typeof stats)[number] | null>((best, entry) => !best || Number(entry.extractSeconds) < Number(best.extractSeconds) ? entry : best, null)
-  const parseSpeedup = fastestParser?.extractSeconds && parseBaseline?.extractSeconds
-    ? Number(parseBaseline.extractSeconds) / Number(fastestParser.extractSeconds)
-    : null
+  const corpusCompanies = new Set(benchmarkRuns.map((run) => String(run.company || '').trim()).filter(Boolean)).size
   const average = (key: keyof RunSummary) => {
     const values = stats.map((entry) => entry[key as keyof typeof entry]).filter((value) => value != null).map(Number).filter(Number.isFinite)
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
@@ -89,8 +84,8 @@ export function DashboardPage({
       <div className="metric-grid">
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
-        <MetricCard label={tr('Matched reports', '対応レポート')} value={(s3ReportCount || completeReportCount).toLocaleString()} detail={benchmarkCost && costPerReport ? tr(`Whole-corpus benchmark cost $${benchmarkCost.toFixed(2)} · ~$${costPerReport.toFixed(3)} per report across all three strategies`, `コーパス全体のベンチマーク費用 $${benchmarkCost.toFixed(2)}・3戦略合計で1レポートあたり約$${costPerReport.toFixed(3)}`) : tr('Distinct source-verified reports scored by intelligent scanning', 'インテリジェントスキャンが評価した元資料検証済みレポート数')} />
-        <MetricCard label={tr('Fastest parser', '最速パーサー')} value={fastestParser?.label || '—'} detail={fastestParser && parseSpeedup ? `${formatDuration(fastestParser.extractSeconds)} ${tr('mean parse', '平均解析')} · ${parseSpeedup.toFixed(1)}× ${tr('faster than No OCR', 'OCRなし比で高速')}` : tr('No parse timing yet', '解析時間データはまだありません')} />
+        <MetricCard label={tr('Cost per report', 'レポート単価')} value={costPerReport ? `$${costPerReport.toFixed(3)}` : '—'} detail={benchmarkCost ? tr(`$${benchmarkCost.toFixed(2)} for the whole corpus — all three strategies at Gemini medium, priced from actual token usage`, `コーパス全体で$${benchmarkCost.toFixed(2)}（3戦略・Gemini medium・実トークン使用量から算出）`) : tr('Cost is shown for the Gemini source, priced from each run\u2019s actual token usage', '費用はGeminiソース選択時に実トークン使用量から表示されます')} />
+        <MetricCard label={tr('Benchmark corpus', 'ベンチマークコーパス')} value={`${corpusCompanies || 41} ${tr('companies', '社')}`} detail={tr(`${(s3ReportCount || completeReportCount).toLocaleString()} SHA-pinned annual reports · FY2020–FY2025, every one gold-backed`, `SHA固定の年次報告書${(s3ReportCount || completeReportCount).toLocaleString()}件・FY2020〜FY2025・全件ゴールド照合済み`)} />
       </div>
 
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />

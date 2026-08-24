@@ -199,7 +199,7 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
     if (evidence && (locale === 'en') !== hasJapanese) return evidence
     const page = row.source_page ? ` ${locale === 'ja' ? '' : 'page '}${row.source_page}` : ''
     const displayed = convertCurrency(row.answer_m_usd, verification?.currency || reviewing?.currency || 'USD', displayCurrency.currency, displayCurrency.jpyPerUsd)
-    const value = displayed == null ? tr('an unscorable value', '評価対象外の値') : `${displayed.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${reviewAnswerUnit}`
+    const value = displayed == null ? tr('an unscorable value', '評価対象外の値') : `${displayed.toLocaleString(locale === 'ja' ? 'ja-JP' : 'en-US', { maximumFractionDigits: 2 })} ${reviewAnswerUnit}`
     return locale === 'ja'
       ? `${schemaText(row.item)}は固定元PDF${page ? `の${page}ページ` : ''}で${value}として確認されています。原文は左側のPDFで確認できます。`
       : `${schemaText(row.item)} was verified${page ? ` on source ${page}` : ' against the pinned source PDF'} as ${value}. The original wording remains visible in the PDF.`

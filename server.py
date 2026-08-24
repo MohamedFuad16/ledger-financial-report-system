@@ -771,18 +771,27 @@ def get_corpus_pdf_page(document_id, page_number):
     path = Path(str(document.get("local_path") or "")).resolve()
     if not path.is_relative_to(CORPUS_ROOT.resolve()) or not path.is_file():
         return jsonify({"error": "The pinned PDF is missing from corpus storage."}), 404
-    try:
-        import fitz
+    # Pages are pinned by SHA-256, so a rendered page never changes: render
+    # once to a disk cache and serve it immutably afterwards. The continuous
+    # scroll viewer requests many pages at once; re-rendering each on every
+    # request serialized the whole worker behind image traffic.
+    cache_file = CORPUS_ROOT / ".page_cache" / str(document.get("sha256") or "unknown") / f"{page_number}.png"
+    if not cache_file.is_file():
+        try:
+            import fitz
 
-        with fitz.open(path) as pdf:
-            if page_number < 1 or page_number > pdf.page_count:
-                return jsonify({"error": "PDF page not found."}), 404
-            page = pdf.load_page(page_number - 1)
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
-            payload = io.BytesIO(pixmap.tobytes("png"))
-    except (OSError, RuntimeError, ValueError) as exc:
-        return jsonify({"error": f"Could not render the PDF page: {exc}"}), 500
-    response = send_file(payload, mimetype="image/png", max_age=3600)
+            with fitz.open(path) as pdf:
+                if page_number < 1 or page_number > pdf.page_count:
+                    return jsonify({"error": "PDF page not found."}), 404
+                page = pdf.load_page(page_number - 1)
+                pixmap = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                temporary = cache_file.with_suffix(".png.tmp")
+                temporary.write_bytes(pixmap.tobytes("png"))
+                temporary.replace(cache_file)
+        except (OSError, RuntimeError, ValueError) as exc:
+            return jsonify({"error": f"Could not render the PDF page: {exc}"}), 500
+    response = send_file(cache_file, mimetype="image/png", max_age=86400, conditional=True)
     response.headers["ETag"] = str(document.get("sha256") or "")
     return response
 

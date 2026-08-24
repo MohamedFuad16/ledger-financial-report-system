@@ -48,7 +48,8 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
       name: arm.label,
       color: arm.color,
     }))
-  const yMin = data.length ? Math.max(0, Math.floor(Math.min(...data.map((point) => point.y)) / 5) * 5 - 5) : 0
+  const yMin = data.length ? Math.max(0, Math.floor(Math.min(...data.map((point) => point.y))) - 1) : 90
+  const yTicks = Array.from({ length: 100 - yMin + 1 }, (_, index) => yMin + index).filter((tick) => (100 - yMin) <= 8 || tick % 2 === 0)
   return (
     <div className="accuracy-quadrant">
       <div className="chart-frame dither-chart">
@@ -56,13 +57,11 @@ export function AccuracySpeedChart({ runs }: { runs: RunSummary[] }) {
           <ComposedChart margin={{ top: 26, right: 70, bottom: 34, left: 12 }}>
             <CartesianGrid stroke="var(--grid)" strokeDasharray="2 5" />
             <XAxis type="number" dataKey="x" domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.12) / 10) * 10]} ticks={Array.from({ length: 1 + Math.ceil((Math.max(...(data.length ? data.map((point) => point.x) : [40])) * 1.12) / 10) }, (_, index) => index * 10)} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} tickFormatter={(value: number) => `${value}s`} label={{ value: tr('Mean end-to-end pass time per report (left is faster)', 'レポート別平均パス総時間（左ほど高速）'), position: 'insideBottom', offset: -18, fill: 'var(--muted)', fontSize: 10 }} />
-            <YAxis type="number" dataKey="y" unit="%" domain={[yMin, 100]} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="y" unit="%" domain={[yMin, 100]} ticks={yTicks} tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--line-strong)' }} tickLine={false} label={{ value: tr('Exact accuracy', '完全一致率'), angle: -90, position: 'insideLeft', offset: 12, fill: 'var(--muted)', fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             <Scatter data={data} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: { color?: string } }) => (
               <circle cx={props.cx} cy={props.cy} r={9} fill={props.payload?.color || 'var(--text)'} stroke="var(--surface)" strokeWidth={2.5} />
-            )}>
-              <LabelList dataKey="name" position="top" offset={12} fill="var(--text)" fontSize={11.5} fontWeight={700} />
-            </Scatter>
+            )} />
           </ComposedChart>
         </ResponsiveContainer>
         {!data.length && <div className="chart-empty">{tr('No source-verified strategy timing data yet.', '元資料検証済みの戦略比較データはまだありません。')}</div>}
@@ -91,7 +90,7 @@ export function TokenAccuracyChart({ runs }: { runs: RunSummary[] }) {
       y: arm.accuracy as number,
       accuracy: arm.accuracy as number,
       name: arm.label,
-      savingLabel: saving < 0.5 ? tr('baseline', '基準') : `${saving.toFixed(0)}% ${tr('fewer tokens', 'トークン削減')}`,
+      savingLabel: saving < 0.5 ? '1×' : `\u2212${saving.toFixed(0)}%`,
       color: arm.color,
     }
   }).sort((left, right) => left.x - right.x)
