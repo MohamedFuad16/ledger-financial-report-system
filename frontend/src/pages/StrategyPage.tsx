@@ -299,6 +299,16 @@ export function StrategyPage({
       return
     }
     setRunning(true)
+    // Show the pipeline instantly: seed one queued card per selected report so
+    // the click lands in Live execution with no dead gap while staging runs.
+    const optimisticNames = inputSource === 'upload'
+      ? files.map((file) => file.name)
+      : selectedCorpusIds.map((id) => corpusDocuments.find((document) => document.sha256 === id)?.filename || id)
+    setExecutions(optimisticNames.map((name) => ({
+      name,
+      state: 'queued' as const,
+      passes: selectedParsers.map((key) => ({ strategy: key, strategyLabel: parserFor(key).label, state: 'queued' as const })),
+    })))
     try {
       const staged = inputSource === 'upload'
         ? await api.stageUploads(files)
@@ -318,6 +328,7 @@ export function StrategyPage({
       setActiveJobId(job.job_id)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : tr('The extraction could not be completed.', '抽出を完了できませんでした。'), 'error')
+      setExecutions([])
       setRunning(false)
     }
   }
