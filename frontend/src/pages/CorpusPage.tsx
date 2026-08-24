@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, ExternalLink, FileDown, Flame, LoaderCircle, RefreshCw, Save, ScanText, Search, ShieldCheck, Trash2, TriangleAlert, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardCheck, ExternalLink, FileDown, Flame, LoaderCircle, RefreshCw, Save, ScanText, Search, ShieldCheck, Trash2, TriangleAlert, X } from 'lucide-react'
 import { api } from '../lib/api'
 import type { CorpusDocument, CorpusManifest, CorpusTarget, CorpusVerification, CorpusVerificationRow, SettingsData } from '../types'
 import { Badge, Button, Card, EmptyState, SectionHeading } from '../components/ui'
@@ -17,6 +17,15 @@ const MIRROR_HOSTS = /(?:^|\.)(?:edinet-fsa\.go\.jp|catr\.jp|kanpo\.go\.jp|irban
 
 // logo.dev publishable (client-side) key — intended for browser embedding.
 const LOGO_DEV_TOKEN = 'pk_TNlXVDj6TlWBPBITQHArTg'
+
+function brandDomain(company: string, sourceUrl?: string) {
+  const curated = showcaseDomains[company]
+  if (curated) return curated
+  try {
+    const host = new URL(String(sourceUrl || '')).hostname.replace(/^www\./, '')
+    return host && !MIRROR_HOSTS.test(host) ? host : ''
+  } catch { return '' }
+}
 
 function CompanyLogo({ domain, label }: { domain: string; label: string }) {
   // Fallback chain: logo.dev brand logo -> site favicon -> monogram.
@@ -43,7 +52,6 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
   const [confirmApprove, setConfirmApprove] = useState(false)
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [tableQuery, setTableQuery] = useState('')
-  const [reviewPage, setReviewPage] = useState(1)
   const displayCurrency = currencyPreference()
 
   const refresh = () => api.corpus().then(setManifest).catch((error) => onNotify(error instanceof Error ? error.message : tr('Could not load the corpus.', 'コーパスを読み込めませんでした。'), 'error'))
@@ -95,7 +103,6 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
   }
 
   const openReview = (document: CorpusDocument) => {
-    setReviewPage(document.balance_sheet_page || 1)
     setReviewing(document)
     void loadReview(document)
   }
@@ -233,7 +240,7 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
             ? `FY${documents[0].fiscal_year}`
             : `FY${documents[documents.length - 1].fiscal_year}–FY${documents[0].fiscal_year}`
           const rows = [<tr className="corpus-company-row" key={`company-${company}`}>
-            <td><button className="corpus-company-toggle" type="button" onClick={() => documents.length && toggleCompany(company)} aria-expanded={expanded} disabled={!documents.length}>{documents.length ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="corpus-company-placeholder" />}<span><strong>{companyLabel(company, target?.official_url || documents[0]?.source_url)}</strong><small>{documents.length ? `${documents.length} ${tr(documents.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}` : tr('research target', '調査対象')}</small></span></button></td>
+            <td><button className="corpus-company-toggle" type="button" onClick={() => documents.length && toggleCompany(company)} aria-expanded={expanded} disabled={!documents.length}>{documents.length ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="corpus-company-placeholder" />}<CompanyLogo domain={brandDomain(company, target?.official_url || documents[0]?.source_url)} label={companyLabel(company, target?.official_url || documents[0]?.source_url)} /><span><strong>{companyLabel(company, target?.official_url || documents[0]?.source_url)}</strong><small>{documents.length ? `${documents.length} ${tr(documents.length === 1 ? 'fiscal year' : 'fiscal years', '年度')}` : tr('research target', '調査対象')}</small></span></button></td>
             <td>{yearLabel}</td>
             <td><Badge tone={groupState === 'unreadable' ? 'red' : groupState === 'verified' ? 'green' : 'amber'}>{groupState === 'pending' ? tr('Awaiting report', 'レポート待ち') : groupState === 'unreadable' ? tr('Unreadable', '読取不可') : groupState === 'verified' ? tr('Verified', '確認済み') : tr('Review', '確認')}</Badge></td>
             <td><span className="company-answer-summary">{documents.length ? `${verifiedCount}/${documents.length} ${tr('verified', '確認済み')}` : '—'}</span></td>
@@ -262,13 +269,11 @@ export function CorpusPage({ onNotify }: { settings: SettingsData | null; onNoti
             <aside className="review-pdf-pane">
             <div className="review-pdf-head"><ScanText size={16} /><span className="review-pdf-title"><strong>{reviewing.filename}</strong><small>SHA-256 {reviewing.sha256.slice(0, 12)}… · {tr('pinned source PDF', '固定元PDF')}</small></span></div>
             <div className="review-page-nav">
-              <button type="button" className="review-page-step" onClick={() => setReviewPage((current) => Math.max(1, current - 1))} disabled={reviewPage <= 1} aria-label={tr('Previous page', '前のページ')}><ChevronLeft size={15} /></button>
-              <span className="review-page-indicator">{tr('Page', 'ページ')} <input type="number" min={1} max={reviewing.pages || 1} value={reviewPage} onChange={(event) => { const next = Number(event.target.value); if (Number.isFinite(next)) setReviewPage(Math.min(Math.max(1, Math.round(next)), reviewing.pages || 1)) }} aria-label={tr('Go to page', 'ページへ移動')} /> / {reviewing.pages || 1}</span>
-              <button type="button" className="review-page-step" onClick={() => setReviewPage((current) => Math.min(reviewing.pages || 1, current + 1))} disabled={reviewPage >= (reviewing.pages || 1)} aria-label={tr('Next page', '次のページ')}><ChevronRight size={15} /></button>
-              {reviewing.balance_sheet_page ? <button type="button" className={`review-balance-jump ${reviewPage === reviewing.balance_sheet_page ? 'is-active' : ''}`} onClick={() => setReviewPage(reviewing.balance_sheet_page || 1)}>{tr(`Balance sheet p.${reviewing.balance_sheet_page}`, `貸借対照表 p.${reviewing.balance_sheet_page}`)}</button> : null}
+              <span className="review-page-indicator">{reviewing.pages || 1} {tr('pages — scroll freely', 'ページ・自由にスクロール')}</span>
+              {reviewing.balance_sheet_page ? <button type="button" className="review-balance-jump" onClick={() => document.getElementById(`review-pdf-page-${reviewing.balance_sheet_page}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{tr(`Balance sheet p.${reviewing.balance_sheet_page}`, `貸借対照表 p.${reviewing.balance_sheet_page}`)}</button> : null}
               <small>{tr('Full-text search: use Open searchable PDF above', '全文検索は上の「検索可能なPDFを開く」から')}</small>
             </div>
-            <div className="review-pdf-frame"><img src={api.corpusPageImageUrl(reviewing.sha256, reviewPage)} alt={tr(`Report page ${reviewPage}`, `レポートページ${reviewPage}`)} /></div></aside>
+            <div className="review-pdf-frame review-pdf-scroll">{Array.from({ length: reviewing.pages || 1 }, (_, index) => index + 1).map((page) => <div key={page} id={`review-pdf-page-${page}`} className={`review-pdf-page ${page === reviewing.balance_sheet_page ? 'is-balance-sheet' : ''}`}><img src={api.corpusPageImageUrl(reviewing.sha256, page)} alt={tr(`Report page ${page}`, `レポートページ${page}`)} loading="lazy" decoding="async" /><span className="review-pdf-page-number">{page === reviewing.balance_sheet_page ? tr(`p.${page} · balance sheet`, `p.${page}・貸借対照表`) : `p.${page}`}</span></div>)}</div></aside>
             <div className="review-answer-pane">
               {reviewPhase !== 'idle' ? <div className="review-sheet-loading" role="status"><LoaderCircle className="spin" size={22} /><strong>{reviewPhase === 'extracting' ? tr('Preparing a PDF-derived review draft…', 'PDFから確認用の下書きを作成中…') : tr('Loading the stored answer sheet…', '保存済み回答表を読み込んでいます…')}</strong><span>{reviewPhase === 'extracting' ? tr('No verified answer sheet is stored for this exact PDF yet. Ledger is mapping the 27 rows now; you will only need to check and correct them.', 'このPDFに固定された検証済み回答表はまだありません。Ledgerが27項目をマッピング中です。確認と修正のみ行ってください。') : tr('Verified source-bound answers appear immediately when they exist for this PDF hash.', 'このPDFハッシュに固定された検証済み回答がある場合は、すぐに表示されます。')}</span></div> : reviewError ? <div className="review-extraction-error"><TriangleAlert size={24} /><strong>{tr('PDF extraction did not complete', 'PDF抽出が完了しませんでした')}</strong><p>{reviewError}</p><Button variant="secondary" onClick={() => void loadReview(reviewing)}><RefreshCw size={15} /> {tr('Retry PDF extraction', 'PDF抽出を再試行')}</Button></div> : <><div className="review-prefill-note"><ScanText size={17} /><div><strong>{reviewIsImmutable ? tr('Audited answers — read only', '監査済み回答 — 読み取り専用') : tr('Extracted prefill — verify, then correct', '抽出済み入力 — 照合して修正')}</strong>{reviewRows.length > 0 && reviewRows.filter((row) => row.answer_m_usd !== null).length <= 5 && <span className="sparse-disclosure-note">{tr(`This condensed statutory filing discloses only ${reviewRows.filter((row) => row.answer_m_usd !== null).length} of 27 schema fields (${reviewRows.filter((row) => row.answer_m_usd !== null).map((row) => row.item).join(', ') || '—'}) — the blank rows are legitimately undisclosed in the source, not extraction failures.`, `この簡易な決算公告は27項目中${reviewRows.filter((row) => row.answer_m_usd !== null).length}項目（${reviewRows.filter((row) => row.answer_m_usd !== null).map((row) => row.item).join('、') || '—'}）のみ開示しています。空欄は抽出漏れではなく、原資料が開示していない項目です。`)}</span>}<span>{reviewIsImmutable ? tr(`This source-bound table has already been independently verified against the exact PDF. Values are displayed in ${displayCurrency.currency === 'NATIVE' ? (verification?.currency || reviewing.currency) + ' (as reported)' : displayCurrency.currency}; scoring remains in ${verification?.currency || reviewing.currency}.`, `この表は対象PDFと照合して独立検証済みです。表示は${displayCurrency.currency}、評価は${verification?.currency || reviewing.currency}のままです。`) : tr(`These values came from the PDF. Values are displayed in ${displayCurrency.currency === 'NATIVE' ? (verification?.currency || reviewing.currency) + ' (as reported)' : displayCurrency.currency}; edit only mismatches, then approve.`, `これらの値はPDFから抽出されています。${displayCurrency.currency}表示で不一致のみ修正し、承認してください。`)}</span></div></div><div className="review-table-wrap"><table className="review-table"><thead><tr><th>#</th><th>{tr('Classification', '分類')}</th><th>{tr('Item', '項目')}</th><th>{tr('Extracted answer', '抽出回答')} ({reviewAnswerUnit})</th><th>{tr('Agreement', '一致度')}</th><th>{tr('Page', 'ページ')}</th><th>{tr('Extracted evidence', '抽出根拠')}</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={row.item}><td>{String(index + 1).padStart(2, '0')}</td><td>{schemaText(row.classification)}<small>{schemaText(row.subclassification) || '—'}</small></td><td><strong>{schemaText(row.item)}</strong></td><td><input type="number" step="any" value={(() => { const converted = convertCurrency(row.answer_m_usd, verification?.currency || reviewing.currency, displayCurrency.currency, displayCurrency.jpyPerUsd); return converted == null ? '' : Math.round(converted * 1000) / 1000 })()} disabled={reviewIsImmutable} onChange={(event) => updateReviewAnswer(index, event.target.value)} aria-label={`${schemaText(row.item)} answer`} /></td><td>{row.agreement_count !== undefined ? <Badge tone={row.stability === 'disagreement' || row.stability === 'missing' ? 'amber' : 'green'}>{row.agreement_count}/{verification?.consensus_summary?.requested_passes ?? row.successful_passes ?? 1}</Badge> : '—'}</td><td>{row.source_page ?? '—'}</td><td><div className="review-evidence" title={row.evidence || undefined}>{localizedEvidence(row) || '—'}</div></td></tr>)}</tbody></table></div></>}
             </div>

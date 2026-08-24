@@ -110,11 +110,10 @@ describe('CorpusPage answer review', () => {
     // The default display preserves the filing's own currency (JPY here).
     expect(screen.getByRole('columnheader', { name: /Extracted answer/ })).toHaveTextContent('M JPY')
 
+    // The continuous-scroll viewer renders every page lazily; the balance
+    // sheet page exists in the stream and the jump chip targets it.
     expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(screen.getByAltText('Report page 43')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Balance sheet p.42' }))
-    expect(screen.getByAltText('Report page 42')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Balance sheet p.42' })).toBeInTheDocument()
     expect(screen.getAllByText(document.filename).length).toBeGreaterThanOrEqual(2)
 
     const cash = screen.getByLabelText('Cash & Cash Equivalents answer')
