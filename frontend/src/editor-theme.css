@@ -654,6 +654,9 @@ html[lang='ja'] .section-heading p { font-size: 14px; }
 .review-pdf-frame { width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; align-self: stretch; justify-self: stretch; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
 .review-pdf-frame > img { width: 100%; height: auto; display: block; background: #fff; }
 .review-pdf-scroll { display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--surface-soft); }
+.review-pdf-embed { padding: 0; overflow: hidden; }
+.review-pdf-embed object { width: 100%; height: 100%; display: block; }
+.review-pdf-embed-fallback { padding: 18px; color: var(--muted); font-size: 12.5px; }
 .review-pdf-page { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
 .review-pdf-page.is-balance-sheet { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .25); }
 .review-pdf-page img { width: 100%; height: auto; display: block; min-height: 120px; }
