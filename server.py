@@ -197,7 +197,7 @@ def prediction_response(prediction: dict) -> dict:
     """
     rows, deterministic_derivations = derive_identity_values(prediction.get("rows", []))
     rows = apply_confidence_gate(rows)
-    fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
+    fiscal_year = prediction.get("fiscal_year") or prediction.get("detected_fiscal_year", "")
     metrics = compute_metrics(
         rows,
         fiscal_year,
@@ -812,6 +812,8 @@ def corpus_verification(document_id):
         return jsonify({"error": "A 27-row review table is required."}), 400
     try:
         payload = approve_document_answers(document_id, rows, reviewer=str(body.get("reviewer") or "human"))
+        # Gold changed: cached run summaries embed scores against the old gold.
+        invalidate_run_summaries()
     except KeyError:
         return jsonify({"error": "Corpus document not found."}), 404
     except (ValueError, OSError) as exc:
@@ -887,6 +889,8 @@ def delete_corpus_document(document_id):
     """
     try:
         deleted = delete_pinned_document(document_id)
+        # A deleted document takes its gold with it; drop stale scored summaries.
+        invalidate_run_summaries()
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except OSError as exc:

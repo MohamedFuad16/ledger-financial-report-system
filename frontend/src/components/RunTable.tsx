@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { AlertCircle, Download, FileText, Trash2 } from 'lucide-react'
 import type { RunDetail, RunSummary } from '../types'
 import { api } from '../lib/api'
@@ -31,6 +31,7 @@ export function RunTable({
   const [detail, setDetail] = useState<RunDetail | null>(null)
   const [loadingRunId, setLoadingRunId] = useState<string | null>(null)
   const [detailError, setDetailError] = useState('')
+  const requestedRunId = useRef<string | null>(null)
 
   const openRun = async (run: RunSummary) => {
     if (expandedRunId === run.run_id) {
@@ -38,9 +39,13 @@ export function RunTable({
       return
     }
     setExpandedRunId(run.run_id); setDetail(null); setDetailError(''); setLoadingRunId(run.run_id)
-    try { setDetail(await api.run(run.run_id)) }
-    catch (error) { setDetailError(error instanceof Error ? error.message : tr('Could not load this run.', 'この実行を読み込めませんでした。')) }
-    finally { setLoadingRunId(null) }
+    requestedRunId.current = run.run_id
+    try {
+      const loaded = await api.run(run.run_id)
+      if (requestedRunId.current === run.run_id) setDetail(loaded)
+    }
+    catch (error) { if (requestedRunId.current === run.run_id) setDetailError(error instanceof Error ? error.message : tr('Could not load this run.', 'この実行を読み込めませんでした。')) }
+    finally { if (requestedRunId.current === run.run_id) setLoadingRunId(null) }
   }
   const exportRun = async (run: RunSummary) => {
     const detail = await api.run(run.run_id)

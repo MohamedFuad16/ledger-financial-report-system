@@ -35,7 +35,8 @@ export function DashboardPage({
         return sum + (input * GEMINI_STD_PRICING.inputPerM + (Number.isFinite(output) ? output : 0) * GEMINI_STD_PRICING.outputPerM) / 1e6
       }, 0)
     : null
-  const costPerReport = benchmarkCost && s3ReportCount ? benchmarkCost / s3ReportCount : null
+  const costedReportCount = new Set(benchmarkRuns.map(reportCohortKey)).size
+  const costPerReport = benchmarkCost && costedReportCount ? benchmarkCost / costedReportCount : null
   const disclosedTotals = s3Runs.reduce((sums, run) => ({
     answered: sums.answered + Number(run.committed_and_compared ?? 0),
     disclosed: sums.disclosed + Number(run.total_compared ?? 0),
@@ -85,7 +86,7 @@ export function DashboardPage({
         <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
         <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
         <MetricCard label={tr('Cost per report', 'レポート単価')} value={costPerReport ? `$${costPerReport.toFixed(3)}` : '—'} detail={benchmarkCost ? tr(`$${benchmarkCost.toFixed(2)} for the whole corpus — all three strategies at Gemini medium, priced from actual token usage`, `コーパス全体で$${benchmarkCost.toFixed(2)}（3戦略・Gemini medium・実トークン使用量から算出）`) : tr('Cost is shown for the Gemini source, priced from each run\u2019s actual token usage', '費用はGeminiソース選択時に実トークン使用量から表示されます')} />
-        <MetricCard label={tr('Benchmark corpus', 'ベンチマークコーパス')} value={`${corpusCompanies || 41} ${tr('companies', '社')}`} detail={tr(`${(s3ReportCount || completeReportCount).toLocaleString()} SHA-pinned annual reports · FY2020–FY2025, every one gold-backed`, `SHA固定の年次報告書${(s3ReportCount || completeReportCount).toLocaleString()}件・FY2020〜FY2025・全件ゴールド照合済み`)} />
+        <MetricCard label={tr('Benchmark corpus', 'ベンチマークコーパス')} value={corpusCompanies ? `${corpusCompanies} ${tr('companies', '社')}` : '—'} detail={corpusCompanies ? tr(`${(s3ReportCount || completeReportCount).toLocaleString()} SHA-pinned annual reports · FY2020–FY2025, every one gold-backed`, `SHA固定の年次報告書${(s3ReportCount || completeReportCount).toLocaleString()}件・FY2020〜FY2025・全件ゴールド照合済み`) : tr('Waiting for the benchmark feed', 'ベンチマークフィードを待機中')} />
       </div>
 
       <SectionHeading eyebrow={tr('Benchmark tracks', 'ベンチマーク条件')} title={tr('Extraction strategies', '抽出戦略')} description={tr('Each strategy changes one boundary while preserving the output contract.', '出力契約を保ったまま、各戦略で一つの境界だけを変更します。')} />

@@ -245,7 +245,9 @@ export function StrategyPage({
     let timer = 0
     let finished = false
     eventOffset.current = 0
-    setExecutions([])
+    // Keep the optimistic queued cards seeded by startRun; only clear stale
+    // completed state from a previous job (fresh mount resumes start empty).
+    setExecutions((current) => current.length && current.every((file) => file.state === 'queued') ? current : [])
     setRunning(true)
 
     const poll = async () => {
@@ -316,7 +318,7 @@ export function StrategyPage({
       const usable = staged.files.filter((file) => file.id && !file.error)
       if (!usable.length) throw new Error(staged.files[0]?.error || tr('No readable PDF could be staged.', '読み取り可能なPDFを追加できませんでした。'))
       const advisories = [...(staged.advisories || []), ...(staged.plan.advisories || [])]
-      if (advisories.length) onNotify(advisories.join(' '), 'error')
+      if (advisories.length) onNotify(advisories.join(' '), 'success')
       const job = await api.startExtractionJob({
         upload_ids: usable.map((file) => file.id),
         strategies: selectedParsers,

@@ -352,7 +352,7 @@ def compute_metrics(
 
             document = find_document(source_pdf_sha256)
             verification = verification_payload(document) if document else None
-        except (OSError, ValueError, KeyError):
+        except Exception:  # a malformed gold artifact must degrade to unscored, never crash a paid run
             verification = None
         verification_currency = str((verification or {}).get("currency") or "USD").strip().upper()
         if (
@@ -1055,7 +1055,9 @@ def _summarize_run_dir(directory: Path) -> tuple[str, dict[str, Any]] | None:
 
     rows, _ = derive_identity_values(prediction.get("rows", []))
     rows = apply_confidence_gate(rows)
-    fiscal_year = prediction.get("detected_fiscal_year") or prediction.get("fiscal_year", "")
+    # The screened corpus year is authoritative (run_pipeline files runs by
+    # it); the model-detected year is only a fallback for ad-hoc uploads.
+    fiscal_year = prediction.get("fiscal_year") or prediction.get("detected_fiscal_year", "")
     # Always recompute rather than trusting the stored block: the stored
     # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
     # force at the time, and a history scored under two different rules is
