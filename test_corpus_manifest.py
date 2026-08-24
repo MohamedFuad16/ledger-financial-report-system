@@ -23,8 +23,8 @@ class CorpusManifestTests(unittest.TestCase):
         with registry_path.open(encoding="utf-8", newline="") as handle:
             bakuraku_clients = {row["company_name"] for row in csv.DictReader(handle)}
 
-        self.assertEqual(27, len(fixture["documents"]))
-        self.assertEqual(27, len({item["company"] for item in fixture["documents"].values()}))
+        self.assertEqual(24, len(fixture["documents"]))
+        self.assertEqual(24, len({item["company"] for item in fixture["documents"].values()}))
         for source_hash, audited in fixture["documents"].items():
             self.assertEqual(64, len(source_hash))
             self.assertIn(audited["company"], bakuraku_clients)

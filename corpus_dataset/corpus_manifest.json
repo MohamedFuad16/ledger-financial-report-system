@@ -1502,39 +1502,6 @@
       ]
     },
     {
-      "company": "坂善商事株式会社",
-      "company_slug": "Sakazen_Shoji",
-      "fiscal_year": 2023,
-      "source_url": "https://catr.jp/companies/51e88/149089/settlements/ec2e4/346747",
-      "source_title": "Public gazette statutory balance-sheet announcement",
-      "official_domain": "catr.jp",
-      "official_source_verified": false,
-      "source_provenance": "public_gazette_image_mirror",
-      "source_image_url": "https://image.catr.jp/images/20240418/0002_14bebf5669ed32c58631314e5e868487377fcf955ae2e3f9d4a3f4e3a0ed8660accfdb4508a6f70fa9af8ae26c3fd6cbdb5434af0d3c63add7d861afcdb69885/0069_45a9f32a19661178218875024f148a399cf14f5cf49051c1739ec3132673014bf1967e90bbf29764a728bd5bbaebc180b073a072527326efa1f6d00084c8a229/0069_45a9f32a19661178218875024f148a399cf14f5cf49051c1739ec3132673014bf1967e90bbf29764a728bd5bbaebc180b073a072527326efa1f6d00084c8a229_02.png?v=1781051212",
-      "source_image_sha256": "a93b93bce55f0fedce2b8cb7c81995e88c1f47fff0aefeb1176975762ef78551",
-      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
-      "downloaded_at": "2026-08-23T00:12:31.348932+00:00",
-      "local_path": "corpus_dataset/Sakazen_Shoji/2023/Sakazen_Shoji_statutory_report_2023.pdf",
-      "filename": "Sakazen_Shoji_statutory_report_2023.pdf",
-      "sha256": "ecc2b62665f25fdda1f5dea5d07ff90d009f0056c4c5cc79c9596b1675cabb94",
-      "size_bytes": 552639,
-      "golden_answers": null,
-      "screened": "ok",
-      "screen_reasons": [],
-      "pages": 1,
-      "readable_pages": 0,
-      "garbled_pages": [],
-      "balance_sheet_page": 1,
-      "currency": "JPY",
-      "fiscal_year_confirmed": true,
-      "internal_year_mentions": [
-        "2023"
-      ],
-      "warnings": [
-        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
-      ]
-    },
-    {
       "company": "大西運輸株式会社",
       "company_slug": "Onishi_Transport",
       "fiscal_year": 2024,
@@ -1595,39 +1562,6 @@
       "fiscal_year_confirmed": true,
       "internal_year_mentions": [
         "2025"
-      ],
-      "warnings": [
-        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
-      ]
-    },
-    {
-      "company": "株式会社FABRIC TOKYO",
-      "company_slug": "FABRIC_TOKYO",
-      "fiscal_year": 2023,
-      "source_url": "https://catr.jp/companies/c0e4b/35312/settlements/3e67f/327263",
-      "source_title": "Public gazette statutory balance-sheet announcement",
-      "official_domain": "catr.jp",
-      "official_source_verified": false,
-      "source_provenance": "public_gazette_image_mirror",
-      "source_image_url": "https://image.catr.jp/images/20230830/0002_e17baa23b17d9471eaa4981b1ef8191d758f7f67639c1dd925d8b38c84dfa715d43384757a50a3f3c042302a31692ef4bf4bb4eb167e4dbb206c35742929e7a4/0062_1500f2e7b59baebe8d28a543e82123a5497fbd08d277130a21858507784f0d052681488babd60c237eba396d0d013d76621f7ad0878bb179272f8e5561a300ec/0062_1500f2e7b59baebe8d28a543e82123a5497fbd08d277130a21858507784f0d052681488babd60c237eba396d0d013d76621f7ad0878bb179272f8e5561a300ec_01.png?v=1781051212",
-      "source_image_sha256": "979c2ec5125d26ad532a2aab6b7fc72394721c1106c062e0ce1471d92faa8cb3",
-      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
-      "downloaded_at": "2026-08-23T00:12:31.348958+00:00",
-      "local_path": "corpus_dataset/FABRIC_TOKYO/2023/FABRIC_TOKYO_statutory_report_2023.pdf",
-      "filename": "FABRIC_TOKYO_statutory_report_2023.pdf",
-      "sha256": "e9278747a2dedfdd8d5564e38b6bbf72db968b3006030fada1374b98a5bc232e",
-      "size_bytes": 367189,
-      "golden_answers": null,
-      "screened": "ok",
-      "screen_reasons": [],
-      "pages": 1,
-      "readable_pages": 0,
-      "garbled_pages": [],
-      "balance_sheet_page": 1,
-      "currency": "JPY",
-      "fiscal_year_confirmed": true,
-      "internal_year_mentions": [
-        "2023"
       ],
       "warnings": [
         "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
@@ -3448,39 +3382,6 @@
       "fiscal_year_confirmed": true,
       "internal_year_mentions": [
         "2024"
-      ],
-      "warnings": [
-        "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."
-      ]
-    },
-    {
-      "company": "株式会社寿々",
-      "company_slug": "Juju",
-      "fiscal_year": 2021,
-      "source_url": "https://catr.jp/companies/fa265/185158/settlements/745e1/236884",
-      "source_title": "Public gazette statutory balance-sheet announcement",
-      "official_domain": "catr.jp",
-      "official_source_verified": false,
-      "source_provenance": "public_gazette_image_mirror",
-      "source_image_url": "https://image.catr.jp/images/20220119/0002_c500d772ce5ccb0642157809abf8b7be1608ccfacd8723431a2415ef2aa2145a9a4cd3985f928d1e8bbe626e9544b46652dfe944780a0c8b9a390ee8b29df644/0104_df4337df50c03eebd29381627ddd460ce25a8947d1e76b0b309493c4cb146dc97923a7b952fe4a74f925090f5e1d2047cd8bfda1c61524c64cf27b73d073f0c5/0104_df4337df50c03eebd29381627ddd460ce25a8947d1e76b0b309493c4cb146dc97923a7b952fe4a74f925090f5e1d2047cd8bfda1c61524c64cf27b73d073f0c5_02.png?v=1781051212",
-      "source_image_sha256": "e28cfebd481c927d35bb3ada39f2e533b901e4956619fee142f5bb26f9011ce5",
-      "discovery": "firecrawl_statutory_sweep+gazette_exact_entity_index",
-      "downloaded_at": "2026-08-23T00:12:31.349083+00:00",
-      "local_path": "corpus_dataset/Juju/2021/Juju_statutory_report_2021.pdf",
-      "filename": "Juju_statutory_report_2021.pdf",
-      "sha256": "8faf9955404645afc5e7d25042071a5f41dd007e5dffc5877627006580fe7019",
-      "size_bytes": 180006,
-      "golden_answers": null,
-      "screened": "ok",
-      "screen_reasons": [],
-      "pages": 1,
-      "readable_pages": 0,
-      "garbled_pages": [],
-      "balance_sheet_page": 1,
-      "currency": "JPY",
-      "fiscal_year_confirmed": true,
-      "internal_year_mentions": [
-        "2021"
       ],
       "warnings": [
         "Raster-only public gazette announcement; only Total Assets is benchmark-scorable."

@@ -137,7 +137,9 @@ def add_prompt_page(doc: Document, anchor, lines: list[str]) -> None:
 
     table = doc.add_table(rows=1, cols=3)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_column_widths(table, [Inches(2.08), Inches(2.08), Inches(2.08)])
+    # The finalizer gives this prompt its own landscape A4 section, allowing
+    # the exact full prompt to remain on one page at a readable size.
+    set_table_column_widths(table, [Inches(3.42), Inches(3.42), Inches(3.42)])
     row = table.rows[0]
     add_no_split(row)
     for cell, chunk in zip(row.cells, split_balanced_prompt(lines)):
@@ -146,11 +148,11 @@ def add_prompt_page(doc: Document, anchor, lines: list[str]) -> None:
         paragraph = cell.paragraphs[0]
         paragraph.paragraph_format.space_before = Pt(0)
         paragraph.paragraph_format.space_after = Pt(0)
-        paragraph.paragraph_format.line_spacing = Pt(5.6)
+        paragraph.paragraph_format.line_spacing = Pt(7.5)
         paragraph.paragraph_format.keep_together = True
         for index, line in enumerate(chunk):
             run = paragraph.add_run(line)
-            font_run(run, size=5.0)
+            font_run(run, size=6.5)
             if index != len(chunk) - 1:
                 run.add_break()
     move_before(anchor, table._element)

@@ -1,6 +1,6 @@
 # Full-corpus three-strategy end-to-end evaluation
 
-Model: `glm-5.3` · temperature 0.0 · 279/306 arms complete.
+Model: `glm-5.3` · temperature 0.0 · 273/297 arms complete.
 Gold is consulted only after inference for scoring; prompts never contain gold values.
 
 ## Aggregates per strategy
@@ -8,8 +8,8 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | Strategy | Complete | Scored | Mean exact accuracy | Mean coverage | P50 total s | Mean model-reported input tokens | Retries |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Strategy 1 (`s1`) | 75 | 75 | 92.65 | 99.85 | 39.42 | 97268.04 | 0 |
-| Strategy 2 (`s2-inspector`) | 102 | 102 | 92.9 | 80.97 | 35.61 | 72148.02 | 0 |
-| Strategy 3 (`s3`) | 102 | 102 | 94.1 | 82.46 | 40.9 | 6705.09 | 43 |
+| Strategy 2 (`s2-inspector`) | 99 | 99 | 91.67 | 83.12 | 35.51 | 74211.99 | 0 |
+| Strategy 3 (`s3`) | 99 | 99 | 91.63 | 84.66 | 40.82 | 6776.54 | 43 |
 
 ## Per-report results
 
@@ -37,14 +37,14 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | AppBank株式会社 | 2025 | s2-inspector | 18/20 (90.0%) | 100.0 | 100.0 | 36.21 | 110927 | — | `S2FC_20260823T175559Z_020` |
 | AppBank株式会社 | 2025 | s3 | 20/20 (100.0%) | 100.0 | 100.0 | 38.15 | 7014 | — | `S3_20260823T175706Z_021` |
 | Byside株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| Byside株式会社 | 2024 | s2-inspector | 1/1 (100.0%) | 100.0 | 85.7 | 39.21 | 3777 | — | `S2FC_20260823T175711Z_023` |
-| Byside株式会社 | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 56.15 | 4052 | — | `S3_20260823T175731Z_024` |
+| Byside株式会社 | 2024 | s2-inspector | 3/3 (100.0%) | 100.0 | 85.7 | 39.21 | 3777 | — | `S2FC_20260823T175711Z_023` |
+| Byside株式会社 | 2024 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 56.15 | 4052 | — | `S3_20260823T175731Z_024` |
 | JR九州エンジニアリング株式会社 | 2022 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| JR九州エンジニアリング株式会社 | 2022 | s2-inspector | 1/1 (100.0%) | 37.0 | 100.0 | 50.67 | 3876 | — | `S2FC_20260823T175748Z_026` |
-| JR九州エンジニアリング株式会社 | 2022 | s3 | 1/1 (100.0%) | 29.6 | 100.0 | 37.96 | 4151 | — | `S3_20260823T175808Z_027` |
+| JR九州エンジニアリング株式会社 | 2022 | s2-inspector | 5/5 (100.0%) | 37.0 | 100.0 | 50.67 | 3876 | — | `S2FC_20260823T175748Z_026` |
+| JR九州エンジニアリング株式会社 | 2022 | s3 | 2/5 (40.0%) | 29.6 | 100.0 | 37.96 | 4151 | — | `S3_20260823T175808Z_027` |
 | JUKI産機テクノロジー株式会社 | 2022 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| JUKI産機テクノロジー株式会社 | 2022 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 107.82 | 3939 | — | `S2FC_20260823T175843Z_029` |
-| JUKI産機テクノロジー株式会社 | 2022 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 252.37 | 4320 | +0 | `S3_20260824T073829Z_004` |
+| JUKI産機テクノロジー株式会社 | 2022 | s2-inspector | 1/3 (33.3%) | 14.8 | 100.0 | 107.82 | 3939 | — | `S2FC_20260823T175843Z_029` |
+| JUKI産機テクノロジー株式会社 | 2022 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 252.37 | 4320 | +0 | `S3_20260824T073829Z_004` |
 | note株式会社 | 2022 | s1 | 27/27 (100.0%) | 100.0 | 100.0 | 43.57 | 116342 | — | `S1_20260823T180009Z_031` |
 | note株式会社 | 2022 | s2-inspector | 22/27 (81.5%) | 100.0 | 100.0 | 36.71 | 115960 | — | `S2FC_20260823T180047Z_032` |
 | note株式会社 | 2022 | s3 | 23/27 (85.2%) | 100.0 | 100.0 | 27.96 | 8609 | — | `S3_20260823T180128Z_033` |
@@ -57,12 +57,12 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | note株式会社 | 2025 | s1 | 19/20 (95.0%) | 100.0 | 100.0 | 38.75 | 150257 | — | `S1_20260823T180447Z_040` |
 | note株式会社 | 2025 | s2-inspector | 20/20 (100.0%) | 100.0 | 100.0 | 36.01 | 148392 | — | `S2FC_20260823T180511Z_041` |
 | note株式会社 | 2025 | s3 | 16/20 (80.0%) | 81.5 | 100.0 | 91.94 | 7856 | +0 | `S3_20260823T180545Z_042` |
-| キャディ株式会社 | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| キャディ株式会社 | 2024 | s2-inspector | 0/1 (0.0%) | 18.5 | None | 127.19 | 4071 | — | `S2FC_20260824T073829Z_006` |
-| キャディ株式会社 | 2024 | s3 | 0/1 (0.0%) | 81.5 | 80.0 | 413.26 | 4346 | +0 | `S3_20260824T074036Z_007` |
-| クラスター株式会社 | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| クラスター株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 19.88 | 3786 | — | `S2FC_20260823T180745Z_047` |
-| クラスター株式会社 | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 24.17 | 4061 | — | `S3_20260823T180808Z_048` |
+| キャディ株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| キャディ株式会社 | 2024 | s2-inspector | 0/3 (0.0%) | 18.5 | None | 127.19 | 4071 | — | `S2FC_20260824T073829Z_006` |
+| キャディ株式会社 | 2024 | s3 | 0/3 (0.0%) | 81.5 | 80.0 | 413.26 | 4346 | +0 | `S3_20260824T074036Z_007` |
+| クラスター株式会社 | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| クラスター株式会社 | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 19.88 | 3786 | — | `S2FC_20260823T180745Z_047` |
+| クラスター株式会社 | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 24.17 | 4061 | — | `S3_20260823T180808Z_048` |
 | ダイニチ工業株式会社 | 2020 | s1 | 18/18 (100.0%) | 100.0 | 71.4 | 46.38 | 57557 | — | `S1_20260823T180827Z_049` |
 | ダイニチ工業株式会社 | 2020 | s2-inspector | 16/18 (88.9%) | 100.0 | 85.7 | 41.5 | 57277 | — | `S2FC_20260823T180851Z_050` |
 | ダイニチ工業株式会社 | 2020 | s3 | 18/18 (100.0%) | 100.0 | 85.7 | 55.38 | 7467 | +0 | `S3_20260823T180852Z_051` |
@@ -81,15 +81,15 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | ダイニチ工業株式会社 | 2025 | s1 | 15/18 (83.3%) | 100.0 | 71.4 | 56.48 | 67788 | — | `S1_20260823T181636Z_064` |
 | ダイニチ工業株式会社 | 2025 | s2-inspector | 15/18 (83.3%) | 100.0 | 57.1 | 39.32 | 67591 | — | `S2FC_20260823T181830Z_065` |
 | ダイニチ工業株式会社 | 2025 | s3 | 18/18 (100.0%) | 100.0 | 85.7 | 63.14 | 7454 | +0 | `S3_20260823T181917Z_066` |
-| ハコベル株式会社 | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| ハコベル株式会社 | 2024 | s2-inspector | 1/1 (100.0%) | 3.7 | None | 16.1 | 3797 | — | `S2FC_20260823T181924Z_068` |
-| ハコベル株式会社 | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 25.75 | 4072 | — | `S3_20260823T181955Z_069` |
-| ファインディ株式会社 | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| ファインディ株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 20.06 | 3776 | — | `S2FC_20260823T182010Z_071` |
-| ファインディ株式会社 | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 19.17 | 4051 | — | `S3_20260823T182026Z_072` |
+| ハコベル株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| ハコベル株式会社 | 2024 | s2-inspector | 1/3 (33.3%) | 3.7 | None | 16.1 | 3797 | — | `S2FC_20260823T181924Z_068` |
+| ハコベル株式会社 | 2024 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 25.75 | 4072 | — | `S3_20260823T181955Z_069` |
+| ファインディ株式会社 | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| ファインディ株式会社 | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 20.06 | 3776 | — | `S2FC_20260823T182010Z_071` |
+| ファインディ株式会社 | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 19.17 | 4051 | — | `S3_20260823T182026Z_072` |
 | メディフォン株式会社 | 2021 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| メディフォン株式会社 | 2021 | s2-inspector | 1/1 (100.0%) | 100.0 | 71.4 | 27.93 | 3922 | — | `S2FC_20260823T182027Z_074` |
-| メディフォン株式会社 | 2021 | s3 | 1/1 (100.0%) | 3.7 | None | 94.39 | 4197 | +0 | `S3_20260823T182138Z_075` |
+| メディフォン株式会社 | 2021 | s2-inspector | 3/3 (100.0%) | 100.0 | 71.4 | 27.93 | 3922 | — | `S2FC_20260823T182027Z_074` |
+| メディフォン株式会社 | 2021 | s3 | 1/3 (33.3%) | 3.7 | None | 94.39 | 4197 | +0 | `S3_20260823T182138Z_075` |
 | ラクスル株式会社 | 2020 | s1 | 22/24 (91.7%) | 100.0 | 85.7 | 42.13 | 102529 | — | `S1_20260823T182156Z_076` |
 | ラクスル株式会社 | 2020 | s2-inspector | 23/24 (95.8%) | 100.0 | 100.0 | 37.43 | 101673 | — | `S2FC_20260823T182214Z_077` |
 | ラクスル株式会社 | 2020 | s3 | 24/24 (100.0%) | 100.0 | 100.0 | 52.47 | 7993 | +0 | `S3_20260823T182256Z_078` |
@@ -127,41 +127,35 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | リソルホールディングス株式会社 | 2025 | s2-inspector | 11/11 (100.0%) | 100.0 | 100.0 | 68.21 | 103243 | — | `S2FC_20260823T183911Z_110` |
 | リソルホールディングス株式会社 | 2025 | s3 | 11/11 (100.0%) | 100.0 | 85.7 | 58.25 | 7401 | +3 | `S3_20260823T184048Z_111` |
 | 吉田海運株式会社 | 2022 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 吉田海運株式会社 | 2022 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 24.18 | 3790 | — | `S2FC_20260823T184058Z_113` |
-| 吉田海運株式会社 | 2022 | s3 | 1/1 (100.0%) | 3.7 | None | 43.31 | 4065 | +0 | `S3_20260823T184129Z_114` |
-| 坂善商事株式会社 | 2023 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 坂善商事株式会社 | 2023 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 52.55 | 4229 | — | `S2FC_20260823T184152Z_116` |
-| 坂善商事株式会社 | 2023 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 79.82 | 4504 | — | `S3_20260823T184333Z_117` |
+| 吉田海運株式会社 | 2022 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 24.18 | 3790 | — | `S2FC_20260823T184058Z_113` |
+| 吉田海運株式会社 | 2022 | s3 | 1/3 (33.3%) | 3.7 | None | 43.31 | 4065 | +0 | `S3_20260823T184129Z_114` |
 | 大西運輸株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 大西運輸株式会社 | 2024 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 15.83 | 3807 | — | `S2FC_20260823T184346Z_119` |
-| 大西運輸株式会社 | 2024 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 22.19 | 4082 | — | `S3_20260823T184402Z_120` |
+| 大西運輸株式会社 | 2024 | s2-inspector | 3/3 (100.0%) | 25.9 | 100.0 | 15.83 | 3807 | — | `S2FC_20260823T184346Z_119` |
+| 大西運輸株式会社 | 2024 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 22.19 | 4082 | — | `S3_20260823T184402Z_120` |
 | 日本テーマパーク開発株式会社 | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 日本テーマパーク開発株式会社 | 2025 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 28.05 | 4002 | — | `S2FC_20260823T184417Z_122` |
-| 日本テーマパーク開発株式会社 | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 18.2 | 4277 | — | `S3_20260823T184438Z_123` |
-| 株式会社FABRIC TOKYO | 2023 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社FABRIC TOKYO | 2023 | s2-inspector | 0/1 (0.0%) | 11.1 | None | 36.96 | 4098 | — | `S2FC_20260824T074242Z_017` |
-| 株式会社FABRIC TOKYO | 2023 | s3 | 0/1 (0.0%) | 0.0 | None | 28.78 | 4373 | — | `S3_20260824T074319Z_018` |
-| 株式会社FLUX | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社FLUX | 2024 | s2-inspector | 1/1 (100.0%) | 100.0 | 71.4 | 35.54 | 3811 | — | `S2FC_20260823T184521Z_128` |
-| 株式会社FLUX | 2024 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 51.09 | 4086 | +0 | `S3_20260823T184523Z_129` |
+| 日本テーマパーク開発株式会社 | 2025 | s2-inspector | 3/3 (100.0%) | 25.9 | 100.0 | 28.05 | 4002 | — | `S2FC_20260823T184417Z_122` |
+| 日本テーマパーク開発株式会社 | 2025 | s3 | 1/3 (33.3%) | 14.8 | 100.0 | 18.2 | 4277 | — | `S3_20260823T184438Z_123` |
+| 株式会社FLUX | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社FLUX | 2024 | s2-inspector | 3/3 (100.0%) | 100.0 | 71.4 | 35.54 | 3811 | — | `S2FC_20260823T184521Z_128` |
+| 株式会社FLUX | 2024 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 51.09 | 4086 | +0 | `S3_20260823T184523Z_129` |
 | 株式会社Morght | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社Morght | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 14.38 | 3797 | — | `S2FC_20260823T184729Z_134` |
-| 株式会社Morght | 2025 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 57.0 | 4072 | +0 | `S3_20260823T184754Z_135` |
-| 株式会社PIGNUS（ピグナス） | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社PIGNUS（ピグナス） | 2025 | s2-inspector | 1/1 (100.0%) | 22.2 | 100.0 | 29.24 | 3759 | — | `S2FC_20260823T184923Z_140` |
-| 株式会社PIGNUS（ピグナス） | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 35.29 | 4034 | — | `S3_20260823T184944Z_141` |
-| 株式会社SANU | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社SANU | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 29.51 | 3795 | — | `S2FC_20260823T185012Z_143` |
-| 株式会社SANU | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 45.31 | 4070 | — | `S3_20260823T185012Z_144` |
-| 株式会社iCARE | 2025 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社iCARE | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 18.67 | 3802 | — | `S2FC_20260823T184637Z_131` |
-| 株式会社iCARE | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 27.23 | 4077 | — | `S3_20260823T184712Z_132` |
-| 株式会社mov | 2024 | s1 | failed | — | — | 0.01 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社mov | 2024 | s2-inspector | 0/1 (0.0%) | 14.8 | None | 60.93 | 4096 | — | `S2FC_20260824T074347Z_023` |
-| 株式会社mov | 2024 | s3 | 0/1 (0.0%) | 0.0 | None | 107.18 | 4371 | — | `S3_20260824T074448Z_024` |
+| 株式会社Morght | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 14.38 | 3797 | — | `S2FC_20260823T184729Z_134` |
+| 株式会社Morght | 2025 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 57.0 | 4072 | +0 | `S3_20260823T184754Z_135` |
+| 株式会社PIGNUS（ピグナス） | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社PIGNUS（ピグナス） | 2025 | s2-inspector | 3/3 (100.0%) | 22.2 | 100.0 | 29.24 | 3759 | — | `S2FC_20260823T184923Z_140` |
+| 株式会社PIGNUS（ピグナス） | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 35.29 | 4034 | — | `S3_20260823T184944Z_141` |
+| 株式会社SANU | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社SANU | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 29.51 | 3795 | — | `S2FC_20260823T185012Z_143` |
+| 株式会社SANU | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 45.31 | 4070 | — | `S3_20260823T185012Z_144` |
+| 株式会社iCARE | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社iCARE | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 18.67 | 3802 | — | `S2FC_20260823T184637Z_131` |
+| 株式会社iCARE | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 27.23 | 4077 | — | `S3_20260823T184712Z_132` |
+| 株式会社mov | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
+| 株式会社mov | 2024 | s2-inspector | 0/3 (0.0%) | 14.8 | None | 60.93 | 4096 | — | `S2FC_20260824T074347Z_023` |
+| 株式会社mov | 2024 | s3 | 0/3 (0.0%) | 0.0 | None | 107.18 | 4371 | — | `S3_20260824T074448Z_024` |
 | 株式会社with | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社with | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 19.95 | 3778 | — | `S2FC_20260823T185042Z_146` |
-| 株式会社with | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 19.33 | 4053 | — | `S3_20260823T185046Z_147` |
+| 株式会社with | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 19.95 | 3778 | — | `S2FC_20260823T185042Z_146` |
+| 株式会社with | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 19.33 | 4053 | — | `S3_20260823T185046Z_147` |
 | 株式会社アップガレージグループ | 2022 | s1 | 24/27 (88.9%) | 100.0 | 100.0 | 47.44 | 89823 | — | `S1_20260823T185105Z_148` |
 | 株式会社アップガレージグループ | 2022 | s2-inspector | 27/27 (100.0%) | 100.0 | 100.0 | 36.55 | 89381 | — | `S2FC_20260823T185125Z_149` |
 | 株式会社アップガレージグループ | 2022 | s3 | 22/27 (81.5%) | 100.0 | 100.0 | 40.52 | 7861 | — | `S3_20260823T185224Z_150` |
@@ -175,11 +169,11 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社アップガレージグループ | 2025 | s2-inspector | 22/22 (100.0%) | 100.0 | 100.0 | 36.03 | 98630 | — | `S2FC_20260823T185618Z_158` |
 | 株式会社アップガレージグループ | 2025 | s3 | 22/22 (100.0%) | 100.0 | 100.0 | 32.74 | 8361 | — | `S3_20260823T185654Z_159` |
 | 株式会社キズキ | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社キズキ | 2025 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 18.76 | 3767 | — | `S2FC_20260823T185730Z_161` |
-| 株式会社キズキ | 2025 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 40.98 | 4042 | +0 | `S3_20260823T185730Z_162` |
+| 株式会社キズキ | 2025 | s2-inspector | 3/3 (100.0%) | 25.9 | 100.0 | 18.76 | 3767 | — | `S2FC_20260823T185730Z_161` |
+| 株式会社キズキ | 2025 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 40.98 | 4042 | +0 | `S3_20260823T185730Z_162` |
 | 株式会社キッズコーポレーション | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社キッズコーポレーション | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 18.04 | 3754 | — | `S2FC_20260823T185748Z_164` |
-| 株式会社キッズコーポレーション | 2025 | s3 | 1/1 (100.0%) | 3.7 | None | 38.38 | 4029 | +0 | `S3_20260823T185803Z_165` |
+| 株式会社キッズコーポレーション | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 18.04 | 3754 | — | `S2FC_20260823T185748Z_164` |
+| 株式会社キッズコーポレーション | 2025 | s3 | 1/3 (33.3%) | 3.7 | None | 38.38 | 4029 | +0 | `S3_20260823T185803Z_165` |
 | 株式会社グッドパッチ | 2020 | s1 | 18/18 (100.0%) | 100.0 | 100.0 | 28.6 | 83060 | — | `S1_20260823T185849Z_166` |
 | 株式会社グッドパッチ | 2020 | s2-inspector | 18/18 (100.0%) | 100.0 | 100.0 | 25.02 | 82290 | — | `S2FC_20260823T185938Z_167` |
 | 株式会社グッドパッチ | 2020 | s3 | 17/18 (94.4%) | 100.0 | 100.0 | 34.14 | 7349 | — | `S3_20260823T185946Z_168` |
@@ -235,11 +229,11 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社トーエネック | 2025 | s2-inspector | 13/13 (100.0%) | 100.0 | 100.0 | 35.69 | 118506 | — | `S2FC_20260823T192124Z_218` |
 | 株式会社トーエネック | 2025 | s3 | 13/13 (100.0%) | 100.0 | 100.0 | 34.89 | 7797 | — | `S3_20260823T192237Z_219` |
 | 株式会社ナレッジワーク | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社ナレッジワーク | 2025 | s2-inspector | 1/1 (100.0%) | 66.7 | 100.0 | 29.16 | 3799 | — | `S2FC_20260823T192239Z_221` |
-| 株式会社ナレッジワーク | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 16.55 | 4074 | — | `S3_20260823T192254Z_222` |
+| 株式会社ナレッジワーク | 2025 | s2-inspector | 3/3 (100.0%) | 66.7 | 100.0 | 29.16 | 3799 | — | `S2FC_20260823T192239Z_221` |
+| 株式会社ナレッジワーク | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 16.55 | 4074 | — | `S3_20260823T192254Z_222` |
 | 株式会社ハッピートラベル | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社ハッピートラベル | 2025 | s2-inspector | 1/1 (100.0%) | 25.9 | 100.0 | 34.15 | 3940 | — | `S2FC_20260823T192312Z_224` |
-| 株式会社ハッピートラベル | 2025 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 68.79 | 4215 | +0 | `S3_20260823T192321Z_225` |
+| 株式会社ハッピートラベル | 2025 | s2-inspector | 1/3 (33.3%) | 25.9 | 100.0 | 34.15 | 3940 | — | `S2FC_20260823T192312Z_224` |
+| 株式会社ハッピートラベル | 2025 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 68.79 | 4215 | +0 | `S3_20260823T192321Z_225` |
 | 株式会社プレイド | 2020 | s1 | 22/26 (84.6%) | 100.0 | 100.0 | 30.03 | 78300 | — | `S1_20260823T192328Z_226` |
 | 株式会社プレイド | 2020 | s2-inspector | 23/26 (88.5%) | 100.0 | 100.0 | 33.92 | 78042 | — | `S2FC_20260823T192447Z_227` |
 | 株式会社プレイド | 2020 | s3 | 24/26 (92.3%) | 100.0 | 100.0 | 49.2 | 7276 | +0 | `S3_20260823T192549Z_228` |
@@ -277,14 +271,11 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社ベルク | 2025 | s2-inspector | 17/22 (77.3%) | 100.0 | 85.7 | 34.74 | 90865 | — | `S2FC_20260823T193621Z_260` |
 | 株式会社ベルク | 2025 | s3 | 22/22 (100.0%) | 100.0 | 100.0 | 58.24 | 7034 | — | `S3_20260823T193623Z_261` |
 | 株式会社レスタス | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社レスタス | 2025 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 26.03 | 3745 | — | `S2FC_20260823T193635Z_263` |
-| 株式会社レスタス | 2025 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 23.46 | 4020 | — | `S3_20260823T193656Z_264` |
+| 株式会社レスタス | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 26.03 | 3745 | — | `S2FC_20260823T193635Z_263` |
+| 株式会社レスタス | 2025 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 23.46 | 4020 | — | `S3_20260823T193656Z_264` |
 | 株式会社伊豆シャボテン公園 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社伊豆シャボテン公園 | 2024 | s2-inspector | 1/1 (100.0%) | 14.8 | 100.0 | 23.29 | 3814 | — | `S2FC_20260823T193701Z_266` |
-| 株式会社伊豆シャボテン公園 | 2024 | s3 | 1/1 (100.0%) | 100.0 | 71.4 | 43.53 | 4089 | +0 | `S3_20260823T193719Z_267` |
-| 株式会社寿々 | 2021 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社寿々 | 2021 | s2-inspector | 1/1 (100.0%) | 3.7 | None | 52.55 | 3784 | — | `S2FC_20260823T193721Z_269` |
-| 株式会社寿々 | 2021 | s3 | 1/1 (100.0%) | 14.8 | 100.0 | 49.63 | 4165 | — | `S3_20260824T074636Z_035` |
+| 株式会社伊豆シャボテン公園 | 2024 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 23.29 | 3814 | — | `S2FC_20260823T193701Z_266` |
+| 株式会社伊豆シャボテン公園 | 2024 | s3 | 3/3 (100.0%) | 100.0 | 71.4 | 43.53 | 4089 | +0 | `S3_20260823T193719Z_267` |
 | 株式会社帝国ホテル | 2020 | s1 | 22/22 (100.0%) | 100.0 | 100.0 | 31.31 | 62200 | — | `S1_20260823T193803Z_271` |
 | 株式会社帝国ホテル | 2020 | s2-inspector | 20/22 (90.9%) | 100.0 | 85.7 | 27.4 | 61765 | — | `S2FC_20260823T193803Z_272` |
 | 株式会社帝国ホテル | 2020 | s3 | 18/22 (81.8%) | 100.0 | 100.0 | 31.17 | 7774 | — | `S3_20260823T193814Z_273` |
@@ -333,10 +324,8 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 - ファインディ株式会社 FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - メディフォン株式会社 FY2021 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 吉田海運株式会社 FY2022 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 坂善商事株式会社 FY2023 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 大西運輸株式会社 FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 日本テーマパーク開発株式会社 FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社FABRIC TOKYO FY2023 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社FLUX FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社Morght FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社PIGNUS（ピグナス） FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
@@ -350,4 +339,3 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 - 株式会社ハッピートラベル FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社レスタス FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社伊豆シャボテン公園 FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社寿々 FY2021 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.

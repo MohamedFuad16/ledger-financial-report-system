@@ -15,10 +15,8 @@ export const englishCompanyNames: Record<string, string> = {
   'ラクスル株式会社': 'Raksul Inc.',
   'リソルホールディングス株式会社': 'RESOL Holdings Co., Ltd.',
   '吉田海運株式会社': 'Yoshida Kaiun Co., Ltd.',
-  '坂善商事株式会社': 'Sakazen Shoji Co., Ltd.',
   '大西運輸株式会社': 'Onishi Transport Co., Ltd.',
   '日本テーマパーク開発株式会社': 'Japan Theme Park Development, Inc.',
-  '株式会社FABRIC TOKYO': 'FABRIC TOKYO Inc.',
   '株式会社FLUX': 'FLUX Inc.',
   '株式会社Morght': 'Morght Inc.',
   '株式会社PIGNUS（ピグナス）': 'PIGNUS Inc.',
@@ -38,7 +36,6 @@ export const englishCompanyNames: Record<string, string> = {
   '株式会社ベルク': 'Belc CO., LTD.',
   '株式会社レスタス': 'Lestas Inc.',
   '株式会社伊豆シャボテン公園': 'Izu Shaboten Resort Co., Ltd.',
-  '株式会社寿々': 'Juju Co., Ltd.',
   '株式会社帝国ホテル': 'Imperial Hotel, Ltd.',
   '西尾レントオール株式会社': 'Nishio Rent All Co., Ltd.',
 }

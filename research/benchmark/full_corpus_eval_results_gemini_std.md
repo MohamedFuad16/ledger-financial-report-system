@@ -1,6 +1,6 @@
 # Full-corpus three-strategy end-to-end evaluation
 
-Model: `google/gemini-3.7-flash` · temperature 0.0 · 276/306 arms complete.
+Model: `google/gemini-3.7-flash` · temperature 0.0 · 273/297 arms complete.
 Gold is consulted only after inference for scoring; prompts never contain gold values.
 
 ## Aggregates per strategy
@@ -8,7 +8,7 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | Strategy | Complete | Scored | Mean exact accuracy | Mean coverage | P50 total s | Mean model-reported input tokens | Retries |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Strategy 1 (`s1`) | 75 | 75 | 96.59 | 100.0 | 37.87 | 88935.61 | 0 |
-| Strategy 2 (`s2-inspector`) | 102 | 102 | 95.56 | 78.5 | 31.74 | 66845.59 | 0 |
+| Strategy 2 (`s2-inspector`) | 99 | 99 | 96.6 | 80.32 | 31.78 | 68741.43 | 0 |
 | Strategy 3 (`s3`) | 99 | 99 | 98.28 | 80.21 | 28.46 | 7211.24 | 20 |
 
 ## Per-report results
@@ -129,18 +129,12 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 吉田海運株式会社 | 2022 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 吉田海運株式会社 | 2022 | s2-inspector | 1/3 (33.3%) | 25.9 | 100.0 | 23.49 | 4114 | — | `S2FC_20260824T050216Z_038` |
 | 吉田海運株式会社 | 2022 | s3 | 3/3 (100.0%) | 25.9 | 100.0 | 28.21 | 4400 | — | `S3_20260824T043356Z_038` |
-| 坂善商事株式会社 | 2023 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 坂善商事株式会社 | 2023 | s2-inspector | 1/3 (33.3%) | 14.8 | 100.0 | 40.08 | 4510 | — | `S2FC_20260824T050226Z_039` |
-| 坂善商事株式会社 | 2023 | s3 | failed | — | — | 2.52 | — | — | `GLMError: HTTP 402: {'message': 'This request requires more ` |
 | 大西運輸株式会社 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 大西運輸株式会社 | 2024 | s2-inspector | 3/3 (100.0%) | 25.9 | 100.0 | 21.09 | 4129 | — | `S2FC_20260824T050239Z_040` |
 | 大西運輸株式会社 | 2024 | s3 | 3/3 (100.0%) | 25.9 | 100.0 | 23.7 | 4415 | — | `S3_20260824T043434Z_040` |
 | 日本テーマパーク開発株式会社 | 2025 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 日本テーマパーク開発株式会社 | 2025 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 18.13 | 4309 | — | `S2FC_20260824T050300Z_041` |
 | 日本テーマパーク開発株式会社 | 2025 | s3 | 3/3 (100.0%) | 25.9 | 100.0 | 23.42 | 4595 | — | `S3_20260824T043455Z_041` |
-| 株式会社FABRIC TOKYO | 2023 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社FABRIC TOKYO | 2023 | s2-inspector | 3/3 (100.0%) | 25.9 | 100.0 | 30.03 | 4247 | — | `S2FC_20260824T063238Z_014` |
-| 株式会社FABRIC TOKYO | 2023 | s3 | failed | — | — | 1.41 | — | — | `GLMError: HTTP 402: {'message': 'This request requires more ` |
 | 株式会社FLUX | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社FLUX | 2024 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 22.9 | 4119 | — | `S2FC_20260824T050319Z_043` |
 | 株式会社FLUX | 2024 | s3 | 3/3 (100.0%) | 25.9 | 100.0 | 23.43 | 4405 | — | `S3_20260824T043519Z_043` |
@@ -282,9 +276,6 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 | 株式会社伊豆シャボテン公園 | 2024 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
 | 株式会社伊豆シャボテン公園 | 2024 | s2-inspector | 3/3 (100.0%) | 14.8 | 100.0 | 25.5 | 4123 | — | `S2FC_20260824T051544Z_089` |
 | 株式会社伊豆シャボテン公園 | 2024 | s3 | 3/3 (100.0%) | 14.8 | 100.0 | 42.67 | 4409 | — | `S3_20260824T044553Z_089` |
-| 株式会社寿々 | 2021 | s1 | failed | — | — | 0.0 | — | — | `RuntimeError: No readable page text remains, so there is not` |
-| 株式会社寿々 | 2021 | s2-inspector | 2/4 (50.0%) | 14.8 | 100.0 | 28.73 | 4091 | — | `S2FC_20260824T051546Z_090` |
-| 株式会社寿々 | 2021 | s3 | failed | — | — | 0.91 | — | — | `GLMError: HTTP 402: {'message': 'This request requires more ` |
 | 株式会社帝国ホテル | 2020 | s1 | 22/22 (100.0%) | 100.0 | 100.0 | 41.81 | 57749 | — | `S1_20260824T054134Z_091` |
 | 株式会社帝国ホテル | 2020 | s2-inspector | 22/22 (100.0%) | 100.0 | 100.0 | 37.14 | 58154 | — | `S2FC_20260824T051609Z_091` |
 | 株式会社帝国ホテル | 2020 | s3 | 22/22 (100.0%) | 100.0 | 100.0 | 26.56 | 8107 | — | `S3_20260824T044636Z_091` |
@@ -333,12 +324,8 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 - ファインディ株式会社 FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - メディフォン株式会社 FY2021 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 吉田海運株式会社 FY2022 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 坂善商事株式会社 FY2023 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 坂善商事株式会社 FY2023 `s3`: GLMError: HTTP 402: {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 9394. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'limit_source': 'openrouter_credits', 'remedy_hint': 'Add credits at https://openrouter.ai/settings/credits, or lower max_tokens / prompt size to fit your remaining balance.', 'provider_name': None, 'previous_errors': [{'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 18788. To increase, visit https://openrouter.ai/settings/credits and add more credits'}]}}
 - 大西運輸株式会社 FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 日本テーマパーク開発株式会社 FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社FABRIC TOKYO FY2023 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社FABRIC TOKYO FY2023 `s3`: GLMError: HTTP 402: {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 9394. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'limit_source': 'openrouter_credits', 'remedy_hint': 'Add credits at https://openrouter.ai/settings/credits, or lower max_tokens / prompt size to fit your remaining balance.', 'provider_name': None, 'previous_errors': [{'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 18788. To increase, visit https://openrouter.ai/settings/credits and add more credits'}]}}
 - 株式会社FLUX FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社Morght FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社PIGNUS（ピグナス） FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
@@ -352,5 +339,3 @@ Gold is consulted only after inference for scoring; prompts never contain gold v
 - 株式会社ハッピートラベル FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社レスタス FY2025 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
 - 株式会社伊豆シャボテン公園 FY2024 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社寿々 FY2021 `s1`: RuntimeError: No readable page text remains, so there is nothing safe to send to the model. This document needs OCR or a vision-capable strategy.
-- 株式会社寿々 FY2021 `s3`: GLMError: HTTP 402: {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 9394. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'limit_source': 'openrouter_credits', 'remedy_hint': 'Add credits at https://openrouter.ai/settings/credits, or lower max_tokens / prompt size to fit your remaining balance.', 'provider_name': None, 'previous_errors': [{'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 18788. To increase, visit https://openrouter.ai/settings/credits and add more credits'}]}}

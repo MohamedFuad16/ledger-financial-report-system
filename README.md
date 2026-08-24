@@ -116,7 +116,7 @@ The answer key is never model input. A low-confidence value remains visible, is 
 
 ## Annual Report corpus
 
-The corpus is frozen for benchmarking: 102 SHA-pinned reports across 41 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. The public UI shows the acquisition provenance and the library; it no longer exposes discovery controls. Owner-driven acquisition remains available through the CLI worker and the research scripts. During acquisition, Firecrawl found candidate official URLs (map/search only); Ledger downloaded each PDF directly, verified and screened it, then stored it as:
+The corpus is frozen for benchmarking: 99 SHA-pinned reports across 38 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. The public UI shows the acquisition provenance and the library; it no longer exposes discovery controls. Owner-driven acquisition remains available through the CLI worker and the research scripts. During acquisition, Firecrawl found candidate official URLs (map/search only); Ledger downloaded each PDF directly, verified and screened it, then stored it as:
 
 ```text
 corpus_dataset/

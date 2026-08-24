@@ -11,8 +11,8 @@ Last verified: 22 August 2026
 > The sparse-total verification now also covers zero-stuffed answers and
 > one-page documents in every strategy.
 >
-> **Addendum (23 August 2026):** the corpus now holds 102 SHA-pinned, gold-backed
-> reports across 41 companies (year expansion acquired manually from EDINET
+> **Addendum (23 August 2026):** the corpus now holds 99 SHA-pinned, gold-backed
+> reports across 38 companies (year expansion acquired manually from EDINET
 > indexes; no Firecrawl credits spent). All stored answers were independently
 > re-verified against source pages; ambiguous rows are explicitly unscorable.
 > Strategy 3 gained a bounded evidence-retry loop, the public corpus page shows
@@ -204,7 +204,7 @@ The Japanese cohort is evaluated in M JPY with no foreign-exchange conversion. C
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
 - The public deployment runs in read-only control-plane mode (`LEDGER_PUBLIC_READONLY=1`): reads and demo extractions are open; settings, prompts, corpus records, golden answers and run deletion return 403 to unauthenticated callers. Full per-user authentication remains future work.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
-- All 102 corpus documents are gold-backed and SHA-256-bound (101 independently verified, 1 assignment-supplied); rows a source does not disclose or that cannot be proven are explicitly unscorable rather than guessed.
+- All 99 corpus documents are gold-backed and SHA-256-bound (101 independently verified, 1 assignment-supplied); rows a source does not disclose or that cannot be proven are explicitly unscorable rather than guessed.
 - Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
 - Final accuracy can include deterministic normalization and one contract-repair call. Benchmark reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
 - Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.
