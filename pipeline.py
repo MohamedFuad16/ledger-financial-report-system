@@ -744,7 +744,10 @@ def _run_pipeline_inner(
         and answered_row_count <= 3
     )
     if verification_mode:
-        retry_items = ["Total Assets"]
+        # The both-sides verification derives the printed section totals on
+        # the way to the total, so a misassigned section (a neighboring
+        # column or company read into the wrong row) is correctable too.
+        retry_items = ["Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges"]
     elif complete_packet:
         retry_items = failed_identity_items
     else:
@@ -836,7 +839,8 @@ def _run_pipeline_inner(
                 retry_time_accounted = retry_elapsed
                 retry_result, _ = parse_and_validate(retry_response)
                 replaceable_items = (
-                    ["Total Assets"] if verification_mode else failed_identity_items
+                    ["Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges"]
+                    if verification_mode else failed_identity_items
                 )
                 merged_rows, recovered, replaced = merge_retry_rows(
                     rows, rows_as_dicts(retry_result), missing_items, replaceable_items
