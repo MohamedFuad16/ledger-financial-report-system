@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Copy, Download, FileSearch, Table2, X } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Copy, Download, FileSearch, Table2, X } from 'lucide-react'
 import type { RunDetail } from '../types'
 import { formatDuration, formatMetric, formatMoney, formatNumber, parserFor } from '../lib/format'
 import { useLocale } from '../lib/i18n'
@@ -30,6 +31,7 @@ function MetricRing({ label, value, color }: { label: string; value: number | nu
 }
 
 export function RunDrawer({ detail, loading, onClose }: { detail: RunDetail | null; loading: boolean; onClose: () => void }) {
+  const [copiedRunId, setCopiedRunId] = useState(false)
   const { tr } = useLocale()
   return (
     <AnimatePresence initial={false}>
@@ -69,7 +71,10 @@ function ResultSheet({ detail, onClose }: { detail: RunDetail; onClose: () => vo
         <div><span>{tr('Actual input tokens', '実入力トークン')}</span><strong>{formatNumber(detail.input_tokens ?? detail.usage?.prompt_tokens)}</strong></div>
         <div><span>{tr('Parse time', '解析時間')}</span><strong>{formatDuration(detail.extract_seconds)}</strong></div>
         <div><span>{tr('Total time', '合計時間')}</span><strong>{formatDuration(detail.total_seconds)}</strong></div>
-        <Button variant="ghost" onClick={() => navigator.clipboard.writeText(detail.run_id)}><Copy size={14} /> {tr('Copy run ID', '実行IDをコピー')}</Button>
+        <Button variant="ghost" onClick={async () => {
+          try { await navigator.clipboard.writeText(detail.run_id); setCopiedRunId(true); window.setTimeout(() => setCopiedRunId(false), 1600) }
+          catch { window.prompt(tr('Copy the run ID:', '実行IDをコピー:'), detail.run_id) }
+        }}>{copiedRunId ? <Check size={14} /> : <Copy size={14} />} {copiedRunId ? tr('Copied', 'コピー済み') : tr('Copy run ID', '実行IDをコピー')}</Button>
       </div>
       {detail.reconciliation && <section className={`reconciliation-summary ${detail.reconciliation.failed ? 'has-failures' : ''}`}>
         {detail.reconciliation.failed ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
