@@ -95,7 +95,7 @@ export function RunTable({
                 <td className="numeric"><strong>{formatMetric(run.accuracy)}</strong></td>
                 <td className="numeric">{formatMetric(run.coverage)}</td>
                 {!compact && <td className="numeric">{formatNumber(run.page_count)}</td>}
-                {!compact && <td className="numeric"><strong>{formatNumber(run.input_tokens ?? run.approx_input_tokens)}</strong><small>{run.input_tokens != null ? tr('actual', '実測') : tr('estimated', '推定')}</small></td>}
+                {!compact && <td className="numeric"><strong>{formatNumber(run.input_tokens ?? run.approx_input_tokens)}</strong> <small>{run.input_tokens != null ? tr('actual tokens', '実測トークン') : tr('estimated tokens', '推定トークン')}</small></td>}
                 {!compact && <td className="numeric">{formatDuration(run.extract_seconds)}</td>}
                 {!compact && <td className="numeric">{formatDuration(run.total_seconds)}</td>}
                 {!compact && <td className="numeric">{formatMetric(run.consistency)}</td>}

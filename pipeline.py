@@ -330,15 +330,13 @@ def compute_metrics(
         # cannot inherit gold.
         audited = SOURCE_BOUND_GOLDEN_ANSWERS.get(source_pdf_sha256)
         if audited:
-            audited_company = normalize_company_key(audited.get("company"))
-            audited_year = str(audited.get("fiscal_year") or "")
             audited_currency = str(audited.get("currency") or "USD").strip().upper()
-            if (
-                audited_company == normalized_company
-                and year
-                and audited_year == year.group()
-                and audited_currency == normalized_currency
-            ):
+            # The SHA-256 already pins the exact bytes, so the fixture's own
+            # company and fiscal year are authoritative; a filename-derived
+            # identity on an uploaded copy of the same PDF must not detach the
+            # gold. Only the output currency must agree, because values in a
+            # different display currency are not comparable numbers.
+            if audited_currency == normalized_currency:
                 golden = {
                     str(item): float(value)
                     for item, value in dict(audited.get("answers") or {}).items()

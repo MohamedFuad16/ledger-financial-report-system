@@ -128,12 +128,20 @@ def image_relationship_id(paragraph) -> str:
     return blips[0].get(qn("r:embed"))
 
 
-def replace_image_before_caption(doc: Document, caption_text: str, image_path: Path) -> None:
+def replace_image_before_caption(
+    doc: Document,
+    caption_text: str,
+    image_path: Path,
+    alt_text: str,
+) -> None:
     paragraphs = doc.paragraphs
     index = next(i for i, p in enumerate(paragraphs) if p.text.startswith(caption_text))
     picture = paragraphs[index - 1]
     rid = image_relationship_id(picture)
     doc.part.rels[rid].target_part._blob = image_path.read_bytes()
+    for doc_property in picture._element.xpath(".//wp:docPr"):
+        doc_property.set("descr", alt_text)
+        doc_property.set("title", alt_text)
 
 
 def find_paragraph(doc: Document, prefix: str):
@@ -158,9 +166,24 @@ def main() -> None:
     )
 
     # Replace embedded charts with the regenerated Gemini-based figures.
-    replace_image_before_caption(doc, "図2", ASSETS / "figure_02_hypothesis_evolution.png")
-    replace_image_before_caption(doc, "図4", ASSETS / "figure_04_benchmark_efficiency.png")
-    replace_image_before_caption(doc, "図5", ASSETS / "figure_05_benchmark_quality.png")
+    replace_image_before_caption(
+        doc,
+        "図2",
+        ASSETS / "figure_02_hypothesis_evolution.png",
+        "全文入力、文字認識、アクティブRAGを検討し、決定論的な完全ページ選択を採用した。",
+    )
+    replace_image_before_caption(
+        doc,
+        "図4",
+        ASSETS / "figure_04_benchmark_efficiency.png",
+        "Gemini 3.7 Flash・中程度の同一75資料で三戦略の処理速度を比較する。",
+    )
+    replace_image_before_caption(
+        doc,
+        "図5",
+        ASSETS / "figure_05_benchmark_quality.png",
+        "Gemini 3.7 Flash・中程度の同一75資料で三戦略の全呼出し入力トークン数を比較する。",
+    )
 
     set_paragraph(
         find_paragraph(doc, "更新済み全コーパスのGLM-5.3思考モードでは"),

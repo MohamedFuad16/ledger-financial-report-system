@@ -436,7 +436,7 @@ export function StrategyPage({
         </Card>
       </div>
 
-      {completedComparison.length > 0 && (
+      {completedComparison.length > 0 && !isStrategy3 && (
         <Card className="comparison-card">
           <SectionHeading eyebrow={isStrategy3 ? tr('Selected-page results', '選択ページ結果') : tr('Controlled comparison', '統制比較')} title={isStrategy3 ? tr('Intelligent gate extraction results', 'インテリジェントゲート抽出結果') : tr('Extraction technology bake-off', '抽出技術ベイクオフ')} description={isStrategy3 ? tr('Each result records OCR routing, selected pages, score components, input reduction, model output and deterministic validation.', '各結果にOCRルーティング、選択ページ、スコア内訳、入力削減、モデル出力、決定論的検証を記録します。') : tr('Batch averages compare each parser across the same reports. Per-report results remain available below.', '同じレポート群に対するパーサーごとの平均を比較し、各レポートの結果も下に保持します。')} />
           <div className="comparison-cohort-note">
