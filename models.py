@@ -19,11 +19,17 @@ quietly succeeded.
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
-
 import math
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from schema import ASSET_SCHEMA
 
@@ -46,14 +52,14 @@ class AssetRow(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=False)
 
     item: str
-    answer_m_usd: Optional[float] = Field(
+    answer_m_usd: float | None = Field(
         default=...,
         description="Value in the run's declared million-unit currency, or null (legacy field name).",
     )
     confidence: float = Field(default=..., ge=0.0, le=1.0)
-    source_page: Optional[int] = None
-    source_label: Optional[str] = None
-    evidence: Optional[str] = None
+    source_page: int | None = None
+    source_label: str | None = None
+    evidence: str | None = None
 
     # Copied from the schema after validation so the response is self-describing.
     # The model's own values for these are ignored, never trusted.
@@ -85,9 +91,7 @@ class AssetRow(BaseModel):
                         "must be a finite JSON number or null; this value is too large to represent."
                     ) from exc
                 if not finite:
-                    raise ValueError(
-                        "must be a finite JSON number or null; NaN and infinities are rejected."
-                    )
+                    raise ValueError("must be a finite JSON number or null; NaN and infinities are rejected.")
             return value
         raise ValueError(
             f"must be a JSON number or null, got {type(value).__name__} ({value!r}). "
@@ -114,7 +118,7 @@ class ExtractionResult(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    detected_fiscal_year: Optional[str] = None
+    detected_fiscal_year: str | None = None
     rows: list[AssetRow]
 
     @field_validator("detected_fiscal_year", mode="before")
@@ -128,7 +132,7 @@ class ExtractionResult(BaseModel):
         return text
 
     @model_validator(mode="after")
-    def _rows_must_match_the_schema_exactly(self) -> "ExtractionResult":
+    def _rows_must_match_the_schema_exactly(self) -> ExtractionResult:
         returned = [row.item for row in self.rows]
 
         if len(returned) != EXPECTED_ROW_COUNT:
@@ -146,7 +150,7 @@ class ExtractionResult(BaseModel):
             )
 
         if returned != CANONICAL_ITEMS:
-            first = next(i for i, (a, b) in enumerate(zip(returned, CANONICAL_ITEMS)) if a != b)
+            first = next(i for i, (a, b) in enumerate(zip(returned, CANONICAL_ITEMS, strict=True)) if a != b)
             raise ValueError(
                 f"rows are not in TARGET_SCHEMA order: position {first + 1} is "
                 f"'{returned[first]}', expected '{CANONICAL_ITEMS[first]}'"

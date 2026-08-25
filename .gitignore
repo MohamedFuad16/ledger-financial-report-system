@@ -15,8 +15,7 @@ frontend/vite.config.d.ts
 graphify-out/
 /tmp/
 /output/
-corpus_dataset/**/*.pdf
-corpus_dataset/.corpus_manifest.lock
+/corpus_dataset/
 .vercel
 .env.local
 ~$*.docx

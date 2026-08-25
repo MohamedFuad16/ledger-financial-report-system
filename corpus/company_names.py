@@ -21,7 +21,6 @@ COMPANY_EN: dict[str, str] = {
     "note株式会社": "note inc.",
     "キャディ株式会社": "CADDi Inc.",
     "クラスター株式会社": "Cluster, Inc.",
-    "ダイニチ工業株式会社": "Dainichi Co., Ltd.",
     "ハコベル株式会社": "Hacobell Inc.",
     "ファインディ株式会社": "Findy Inc.",
     "メディフォン株式会社": "MediPhone, Inc.",
@@ -41,11 +40,9 @@ COMPANY_EN: dict[str, str] = {
     "株式会社キズキ": "Kizuki Co., Ltd.",
     "株式会社キッズコーポレーション": "Kids Corporation Inc.",
     "株式会社グッドパッチ": "Goodpatch Inc.",
-    "株式会社ストライダーズ": "Striders Corporation",
     "株式会社トーエネック": "TOENEC Corporation",
     "株式会社ナレッジワーク": "Knowledge Work Inc.",
     "株式会社ハッピートラベル": "Happy Travel Co., Ltd.",
-    "株式会社プレイド": "PLAID, Inc.",
     "株式会社ベルク": "Belc CO., LTD.",
     "株式会社レスタス": "Lestas Inc.",
     "株式会社伊豆シャボテン公園": "Izu Shaboten Resort Co., Ltd.",
@@ -53,9 +50,7 @@ COMPANY_EN: dict[str, str] = {
     "西尾レントオール株式会社": "Nishio Rent All Co., Ltd.",
 }
 
-_LEGAL_SUFFIXES = re.compile(
-    r"(?:,?\s+(?:Inc|inc|Corp|Corporation|Co|Ltd|LTD|CO|K\.K)\.?,?)+\s*$"
-)
+_LEGAL_SUFFIXES = re.compile(r"(?:,?\s+(?:Inc|inc|Corp|Corporation|Co|Ltd|LTD|CO|K\.K)\.?,?)+\s*$")
 
 # Names where a legal-suffix word is part of the brand itself.
 _SLUG_OVERRIDES = {

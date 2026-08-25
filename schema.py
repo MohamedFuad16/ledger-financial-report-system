@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 # Standard 27-row Asset Schema for LLM Prompting
 # IMPORTANT: This schema is passed directly to the LLM during prompt construction.
@@ -176,12 +177,48 @@ ASSET_SCHEMA = [
 # them the only quality signal available for a company we have no golden data
 # for. Used by reconcile.py and by the test suite.
 SUBTOTAL_IDENTITIES: list[tuple[str, list[str]]] = [
-    ("Quick Assets", ["Cash & Cash Equivalents", "Accounts Receivable - Trade", "Other Quick Assets"]),
-    ("Other Current Assets (subtotal)", ["Marketable Securities", "Short-term Loan", "Advance Payments", "Other Current Assets"]),
-    ("Current Assets", ["Quick Assets", "Inventories, Net", "Other Current Assets (subtotal)"]),
-    ("Tangible Assets", ["Land", "Buildings", "Plant & Machinery", "Construction in Progress", "Other Equipment", "Accumulated Depreciation"]),
+    (
+        "Quick Assets",
+        [
+            "Cash & Cash Equivalents",
+            "Accounts Receivable - Trade",
+            "Other Quick Assets",
+        ],
+    ),
+    (
+        "Other Current Assets (subtotal)",
+        [
+            "Marketable Securities",
+            "Short-term Loan",
+            "Advance Payments",
+            "Other Current Assets",
+        ],
+    ),
+    (
+        "Current Assets",
+        ["Quick Assets", "Inventories, Net", "Other Current Assets (subtotal)"],
+    ),
+    (
+        "Tangible Assets",
+        [
+            "Land",
+            "Buildings",
+            "Plant & Machinery",
+            "Construction in Progress",
+            "Other Equipment",
+            "Accumulated Depreciation",
+        ],
+    ),
     ("Financial Assets", ["Investments", "Long-term Loan", "Other Financial Assets"]),
-    ("Fixed Assets", ["Tangible Assets", "Intangible Assets", "Financial Assets", "Other Fixed Assets"]),
+    (
+        "Fixed Assets",
+        [
+            "Tangible Assets",
+            "Intangible Assets",
+            "Financial Assets",
+            "Other Fixed Assets",
+        ],
+    ),
     ("Total Assets", ["Current Assets", "Fixed Assets", "Deferred Charges"]),
 ]
 
@@ -216,7 +253,7 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Other Financial Assets": 937,
         "Other Fixed Assets": 1289,
         "Deferred Charges": 0,
-        "Total Assets": 47344
+        "Total Assets": 47344,
     },
     "2021": {
         "Current Assets": 15403,
@@ -245,7 +282,7 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Other Financial Assets": 1255,
         "Other Fixed Assets": 1091,
         "Deferred Charges": 0,
-        "Total Assets": 47072
+        "Total Assets": 47072,
     },
     "2022": {
         "Current Assets": 14688,
@@ -274,7 +311,7 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Other Financial Assets": 1563,
         "Other Fixed Assets": 1741,
         "Deferred Charges": 0,
-        "Total Assets": 46455
+        "Total Assets": 46455,
     },
     "2023": {
         "Current Assets": 16379,
@@ -303,7 +340,7 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Other Financial Assets": 1556,
         "Other Fixed Assets": 5330,
         "Deferred Charges": 0,
-        "Total Assets": 50580
+        "Total Assets": 50580,
     },
     "2024": {
         "Current Assets": 15884,
@@ -332,7 +369,7 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Other Financial Assets": 1531,
         "Other Fixed Assets": 4504,
         "Deferred Charges": 0,
-        "Total Assets": 39868
+        "Total Assets": 39868,
     },
     # FY2025 is a PARTIAL key: only the rows that can be read directly off the
     # printed FY2025 statements (balance sheet page 50, PP&E note page 54,
@@ -369,23 +406,21 @@ LEGACY_UNVERIFIED_REFERENCE_ANSWERS = {
         "Intangible Assets": 7522,
         "Fixed Assets": 21346,
         "Deferred Charges": 0,
-        "Total Assets": 37733
-    }
+        "Total Assets": 37733,
+    },
 }
 
 # The assignment provides one authoritative answer key: 3M FY2022.  Other
 # company/year documents remain unscored until a reviewer approves their
 # source-hash-bound candidate table in the Corpus UI.
-GOLDEN_ANSWERS_STORE = {
-    "2022": LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2022"],
+GOLDEN_ANSWERS_STORE: dict[str, dict[str, float]] = {
+    "2022": {str(item): float(value) for item, value in LEGACY_UNVERIFIED_REFERENCE_ANSWERS["2022"].items()},
 }
 
 # Exact official 3M FY2022 filing supplied with the assignment.  The answer
 # key must never attach to a different PDF merely because its filename or
 # metadata says "3M" and "2022".
-ASSIGNMENT_GOLDEN_SOURCE_SHA256 = (
-    "d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d"
-)
+ASSIGNMENT_GOLDEN_SOURCE_SHA256 = "d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d"
 
 # Independent, source-bound benchmark keys. These are intentionally keyed by
 # exact PDF SHA-256 rather than fiscal year: replacing a report cannot inherit
@@ -394,8 +429,8 @@ ASSIGNMENT_GOLDEN_SOURCE_SHA256 = (
 # deterministic reconciliation). FY2025 is a 22-row partial key because the
 # report does not disclose the five-way Other-assets split needed by the schema.
 # The audit trail and page-level derivations live in
-# research/benchmark/3m_cross_year_gold_audit.md.
-SOURCE_BOUND_GOLDEN_ANSWERS = {
+# the source-bound cross-year fixture audit.
+SOURCE_BOUND_GOLDEN_ANSWERS: dict[str, dict[str, Any]] = {
     "33beb4a185b095d15dcd3259d57bfb46f05953cb0241804bd17417da39000da9": {
         "company": "3M",
         "fiscal_year": "2021",
@@ -473,13 +508,10 @@ SOURCE_BOUND_GOLDEN_ANSWERS.update(_load_external_source_bound_gold())
 # Derived from ASSET_SCHEMA rather than written out again. The previous version
 # repeated all 27 rows by hand, so any edit to a description had to be made in
 # two places or the API and the prompt would disagree about what a row means.
-BENCHMARK_SCHEMA_METADATA = [
+BENCHMARK_SCHEMA_METADATA: list[dict[str, Any]] = [
     {
         **row,
-        "golden_answers": {
-            year: answers.get(row["item"])
-            for year, answers in GOLDEN_ANSWERS_STORE.items()
-        },
+        "golden_answers": {year: answers.get(row["item"]) for year, answers in GOLDEN_ANSWERS_STORE.items()},
     }
     for row in ASSET_SCHEMA
 ]

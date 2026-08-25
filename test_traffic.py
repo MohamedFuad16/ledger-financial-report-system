@@ -3,11 +3,23 @@ import os
 import unittest
 from unittest.mock import patch
 
-import traffic
 import server
+import traffic
 
 
 class TrafficTests(unittest.TestCase):
+    def test_upstash_connector_requires_https(self):
+        with patch.dict(
+            os.environ,
+            {
+                "UPSTASH_REDIS_REST_URL": "file:///tmp/not-a-network-endpoint",
+                "UPSTASH_REDIS_REST_TOKEN": "test-token",
+            },
+            clear=False,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "not configured"):
+                traffic._upstash_endpoint()
+
     def test_record_visit_deduplicates_and_never_serializes_credentials(self):
         payload = {
             "session_id": "test-session-0123456789",
@@ -18,13 +30,20 @@ class TrafficTests(unittest.TestCase):
             "viewport": "1440x900",
             "user_agent": "Test Browser",
         }
-        with patch.dict(os.environ, {
-            "UPSTASH_REDIS_REST_URL": "https://redis.example",
-            "UPSTASH_REDIS_REST_TOKEN": "secret-token",
-            "TRAFFIC_NOTIFY_EMAIL": "owner@example.com",
-        }, clear=False), patch.object(traffic, "_upstash_command", return_value="OK"), patch.object(
-            traffic, "_upstash_pipeline", return_value=[1, "OK", 1, 1]
-        ) as pipeline, patch.object(traffic, "_notify_async") as notify:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "UPSTASH_REDIS_REST_URL": "https://redis.example",
+                    "UPSTASH_REDIS_REST_TOKEN": "secret-token",
+                    "TRAFFIC_NOTIFY_EMAIL": "owner@example.com",
+                },
+                clear=False,
+            ),
+            patch.object(traffic, "_upstash_command", return_value="OK"),
+            patch.object(traffic, "_upstash_pipeline", return_value=[1, "OK", 1, 1]) as pipeline,
+            patch.object(traffic, "_notify_async") as notify,
+        ):
             result = traffic.record_visit(payload, remote_ip="203.0.113.9")
 
         self.assertEqual(result, {"recorded": True, "duplicate": False, "email_queued": True})
@@ -35,22 +54,34 @@ class TrafficTests(unittest.TestCase):
         notify.assert_called_once()
 
     def test_record_visit_ignores_repeat_session(self):
-        with patch.object(traffic, "_upstash_command", return_value=None), patch.object(
-            traffic, "_upstash_pipeline"
-        ) as pipeline:
+        with (
+            patch.object(traffic, "_upstash_command", return_value=None),
+            patch.object(traffic, "_upstash_pipeline") as pipeline,
+        ):
             result = traffic.record_visit({"session_id": "repeat-session-012345"}, remote_ip="198.51.100.7")
 
         self.assertEqual(result, {"recorded": False, "duplicate": True, "email_queued": False})
         pipeline.assert_not_called()
 
     def test_traffic_route_accepts_the_public_application_without_admin_token(self):
-        with patch.dict(os.environ, {
-            "CORS_ALLOWED_ORIGINS": "https://assignment.mohamedfuad.com",
-        }, clear=False), patch.object(server, "record_visit", return_value={
-            "recorded": True,
-            "duplicate": False,
-            "email_queued": True,
-        }) as recorder:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "CORS_ALLOWED_ORIGINS": "https://assignment.mohamedfuad.com",
+                },
+                clear=False,
+            ),
+            patch.object(
+                server,
+                "record_visit",
+                return_value={
+                    "recorded": True,
+                    "duplicate": False,
+                    "email_queued": True,
+                },
+            ) as recorder,
+        ):
             response = server.app.test_client().post(
                 "/api/traffic",
                 headers={"Origin": "https://assignment.mohamedfuad.com"},
@@ -73,10 +104,14 @@ class TrafficTests(unittest.TestCase):
 
     def test_corpus_delete_route_uses_the_public_corpus_contract(self):
         document_id = "a" * 64
-        with patch.object(server, "delete_pinned_document", return_value={
-            "filename": "3M_annual_report_2022.pdf",
-            "file_removed": True,
-        }) as remove:
+        with patch.object(
+            server,
+            "delete_pinned_document",
+            return_value={
+                "filename": "3M_annual_report_2022.pdf",
+                "file_removed": True,
+            },
+        ) as remove:
             response = server.app.test_client().delete(f"/api/corpus/{document_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -89,13 +124,19 @@ class TrafficTests(unittest.TestCase):
             "auto_concurrency": True,
             "firecrawl_api_key": "fc-saved-server-side",
         }
-        with patch.object(server, "current_settings", return_value=current), patch.object(
-            server, "FirecrawlClient"
-        ) as firecrawl, patch.object(server, "save_runtime_settings") as save:
+        with (
+            patch.object(server, "current_settings", return_value=current),
+            patch.object(server, "FirecrawlClient") as firecrawl,
+            patch.object(server, "save_runtime_settings") as save,
+        ):
             firecrawl.return_value.credit_usage.return_value = {"remainingCredits": 9000}
             response = server.app.test_client().post(
                 "/api/runtime-settings",
-                json={"max_concurrency": 7, "auto_concurrency": True, "firecrawl_api_key": ""},
+                json={
+                    "max_concurrency": 7,
+                    "auto_concurrency": True,
+                    "firecrawl_api_key": "",
+                },
             )
 
         self.assertEqual(response.status_code, 200)
@@ -123,11 +164,18 @@ class TrafficTests(unittest.TestCase):
             "viewport": "390x844",
             "user_agent": "Test Browser",
         }
-        with patch.dict(os.environ, {
-            "TRAFFIC_NOTIFY_EMAIL": "owner@example.com",
-            "TRAFFIC_FROM_EMAIL": "owner@example.com",
-            "AWS_REGION": "ap-northeast-1",
-        }, clear=False), patch.object(traffic, "_ses_client") as ses_client:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "TRAFFIC_NOTIFY_EMAIL": "owner@example.com",
+                    "TRAFFIC_FROM_EMAIL": "owner@example.com",
+                    "AWS_REGION": "ap-northeast-1",
+                },
+                clear=False,
+            ),
+            patch.object(traffic, "_ses_client") as ses_client,
+        ):
             self.assertTrue(traffic._email_visit(event))
 
         content = ses_client.return_value.send_email.call_args.kwargs["Content"]["Simple"]
@@ -139,9 +187,16 @@ class TrafficTests(unittest.TestCase):
         self.assertIn("&lt;unsafe&gt;", html_body)
 
     def test_traffic_route_rejects_an_unapproved_origin(self):
-        with patch.dict(os.environ, {
-            "CORS_ALLOWED_ORIGINS": "https://assignment.mohamedfuad.com",
-        }, clear=False), patch.object(server, "record_visit") as recorder:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "CORS_ALLOWED_ORIGINS": "https://assignment.mohamedfuad.com",
+                },
+                clear=False,
+            ),
+            patch.object(server, "record_visit") as recorder,
+        ):
             response = server.app.test_client().post(
                 "/api/traffic",
                 headers={"Origin": "https://untrusted.example"},

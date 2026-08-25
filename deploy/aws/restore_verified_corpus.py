@@ -12,11 +12,10 @@ import csv
 import hashlib
 import json
 import os
-import shutil
 import sys
 import tarfile
 import unicodedata
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -48,9 +47,8 @@ def _manifest_member(archive: tarfile.TarFile) -> tarfile.TarInfo:
     matches = [
         member
         for member in archive.getmembers()
-        if member.isfile() and PurePosixPath(member.name).as_posix().endswith(
-            "corpus_dataset/corpus_manifest.json"
-        )
+        if member.isfile()
+        and PurePosixPath(member.name).as_posix().endswith("corpus_dataset/corpus_manifest.json")
     ]
     if len(matches) != 1:
         raise ValueError(f"Expected one corpus manifest in backup, found {len(matches)}.")
@@ -80,9 +78,7 @@ def _pdf_member(archive: tarfile.TarFile, document: dict[str, Any]) -> tarfile.T
     return next(iter(unique.values()))
 
 
-def _audited_document(
-    document: dict[str, Any], allowed_companies: set[str]
-) -> bool:
+def _audited_document(document: dict[str, Any], allowed_companies: set[str]) -> bool:
     source_hash = str(document.get("sha256") or "")
     company = normalized_identity(document.get("company"))
     year = str(document.get("fiscal_year") or "")
@@ -120,11 +116,13 @@ def restore_verified_corpus(
         archived = json.load(manifest_stream)
         for document in archived.get("documents", []):
             if not isinstance(document, dict) or not _audited_document(document, allowed_companies):
-                skipped.append({
-                    "company": document.get("company") if isinstance(document, dict) else None,
-                    "fiscal_year": document.get("fiscal_year") if isinstance(document, dict) else None,
-                    "reason": "not an exact Bakuraku-client or assignment gold source",
-                })
+                skipped.append(
+                    {
+                        "company": document.get("company") if isinstance(document, dict) else None,
+                        "fiscal_year": document.get("fiscal_year") if isinstance(document, dict) else None,
+                        "reason": "not an exact Bakuraku-client or assignment gold source",
+                    }
+                )
                 continue
             member = _pdf_member(archive, document)
             source = archive.extractfile(member)
@@ -147,12 +145,14 @@ def restore_verified_corpus(
                 temporary.write_bytes(payload)
                 os.chmod(temporary, 0o640)
                 temporary.replace(target)
-            restored.append({
-                **document,
-                "local_path": str(target),
-                "size_bytes": len(payload),
-                "verification": None,
-            })
+            restored.append(
+                {
+                    **document,
+                    "local_path": str(target),
+                    "size_bytes": len(payload),
+                    "verification": None,
+                }
+            )
 
     merged = {
         (
@@ -174,7 +174,7 @@ def restore_verified_corpus(
     )
     output = {
         "version": max(1, int(existing.get("version") or 1)),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "documents": documents,
     }
     if not dry_run:

@@ -54,7 +54,10 @@ def main() -> int:
             # under the legacy Unicode slug; reconstruct that location.
             legacy_slug = re.sub(r"[^\w-]+", "_", str(document["company"]), flags=re.UNICODE).strip("_")
             legacy_path = (
-                PROJECT_ROOT / "corpus_dataset" / legacy_slug / str(document["fiscal_year"])
+                PROJECT_ROOT
+                / "corpus_dataset"
+                / legacy_slug
+                / str(document["fiscal_year"])
                 / f"{legacy_slug}_{kind}_{document['fiscal_year']}.pdf"
             )
             if legacy_path.is_file():
@@ -63,7 +66,9 @@ def main() -> int:
                 # File was moved in an earlier run; only the manifest lagged.
                 old_path = new_path
             else:
-                raise SystemExit(f"Missing source file for {document['company']} FY{document['fiscal_year']}: {old_path}")
+                raise SystemExit(
+                    f"Missing source file for {document['company']} FY{document['fiscal_year']}: {old_path}"
+                )
         if old_path != new_path:
             new_path.parent.mkdir(parents=True, exist_ok=True)
             old_path.replace(new_path)
@@ -77,7 +82,9 @@ def main() -> int:
             elif isinstance(value, dict):
                 for inner_key, inner_value in list(value.items()):
                     if isinstance(inner_value, str) and old_rel.rsplit("/", 1)[0] in inner_value:
-                        value[inner_key] = inner_value.replace(old_rel.rsplit("/", 1)[0], new_rel.rsplit("/", 1)[0])
+                        value[inner_key] = inner_value.replace(
+                            old_rel.rsplit("/", 1)[0], new_rel.rsplit("/", 1)[0]
+                        )
         document["company_slug"] = slug
         document["local_path"] = new_rel
         document["filename"] = new_name

@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import threading
 import unicodedata
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -20,18 +21,16 @@ from pypdf import PdfReader
 from intelligent_scan import select_evidence_pages
 
 # Characters that carry no information but do consume tokens and confuse models.
-_INVISIBLE = dict.fromkeys(
-    map(ord, "\u200b\u200c\u200d\ufeff\u00ad"), None
-)
+_INVISIBLE = dict.fromkeys(map(ord, "\u200b\u200c\u200d\ufeff\u00ad"), None)
 
 _REPLACEMENTS = {
-    "\u00a0": " ",   # non-breaking space (3M's 2020 report is full of these)
-    "\u2007": " ",   # figure space
-    "\u202f": " ",   # narrow no-break space
-    "\u2009": " ",   # thin space
-    "\u2212": "-",   # unicode minus
-    "\u2013": "-",   # en dash
-    "\u2014": "-",   # em dash
+    "\u00a0": " ",  # non-breaking space (3M's 2020 report is full of these)
+    "\u2007": " ",  # figure space
+    "\u202f": " ",  # narrow no-break space
+    "\u2009": " ",  # thin space
+    "\u2212": "-",  # unicode minus
+    "\u2013": "-",  # en dash
+    "\u2014": "-",  # em dash
     "\u2018": "'",
     "\u2019": "'",
     "\u201c": '"',
@@ -119,9 +118,22 @@ def page_is_unreadable(text: str) -> bool:
 
 # Outline entries worth showing the model: the ones that lead to the numbers.
 _FINANCIAL_HINTS = (
-    "balance sheet", "financial position", "statement of", "consolidated",
-    "notes to", "note ", "property", "plant", "equipment", "asset", "inventor",
-    "goodwill", "intangible", "receivable", "supplemental", "financial statements",
+    "balance sheet",
+    "financial position",
+    "statement of",
+    "consolidated",
+    "notes to",
+    "note ",
+    "property",
+    "plant",
+    "equipment",
+    "asset",
+    "inventor",
+    "goodwill",
+    "intangible",
+    "receivable",
+    "supplemental",
+    "financial statements",
 )
 
 
@@ -187,8 +199,12 @@ class ExtractedText:
         return max(1, self.char_count // 4)
 
 
-def _finalize(pages: list[tuple[int, str]], page_count: int, label: str,
-              diagnostics: dict | None = None) -> ExtractedText:
+def _finalize(
+    pages: list[tuple[int, str]],
+    page_count: int,
+    label: str,
+    diagnostics: dict | None = None,
+) -> ExtractedText:
     garbled = [no for no, body in pages if page_is_unreadable(body)]
     empty = [no for no, body in pages if body.strip() == "" and no not in set(garbled)]
     warnings: list[str] = []
@@ -256,7 +272,7 @@ def extract_with_pypdf(pdf_path: Path) -> ExtractedText:
         if title:
             diagnostics["title"] = str(title)[:120]
         entries = []
-        for item in (reader.outline or []):
+        for item in reader.outline or []:
             if isinstance(item, dict) and item.get("/Title"):
                 try:
                     entries.append((item["/Title"], reader.get_destination_page_number(item) + 1))
@@ -287,7 +303,8 @@ def extract_with_pypdf_ocr(pdf_path: Path, *, ocr_policy: str = "force") -> Extr
     ]
     policy = str(ocr_policy or "adaptive").lower()
     targets = [
-        page_no for page_no, body in native_pages
+        page_no
+        for page_no, body in native_pages
         if policy == "force" or not body.strip() or page_is_unreadable(body)
     ]
     recovered: dict[int, str] = {}
@@ -345,9 +362,7 @@ def extract_with_pymupdf4llm(pdf_path: Path) -> ExtractedText:
     # Recent PyMuPDF4LLM releases can enable OCR automatically on pages whose
     # text detector is empty. The no-OCR arm is strict, so keep
     # both OCR switches disabled here.
-    chunks = pymupdf4llm.to_markdown(
-        str(pdf_path), page_chunks=True, use_ocr=False, force_ocr=False
-    )
+    chunks = pymupdf4llm.to_markdown(str(pdf_path), page_chunks=True, use_ocr=False, force_ocr=False)
     pages: list[tuple[int, str]] = []
     for index, chunk in enumerate(chunks, start=1):
         if isinstance(chunk, dict):
@@ -482,7 +497,10 @@ def extract_with_docling(pdf_path: Path, *, ocr_policy: str = "off") -> Extracte
 
     # Docling's differentiator is a typed document graph: it knows what is a
     # table, where it sits, and how it is shaped.
-    diagnostics: dict = {"source": "Docling", "ocr_policy": str(ocr_policy or "off").lower()}
+    diagnostics: dict = {
+        "source": "Docling",
+        "ocr_policy": str(ocr_policy or "off").lower(),
+    }
     try:
         table_pages, shapes = [], []
         for table in getattr(document, "tables", []) or []:
@@ -491,7 +509,10 @@ def extract_with_docling(pdf_path: Path, *, ocr_policy: str = "off") -> Extracte
             if page_no:
                 table_pages.append(int(page_no))
             data = getattr(table, "data", None)
-            rows, cols = getattr(data, "num_rows", None), getattr(data, "num_cols", None)
+            rows, cols = (
+                getattr(data, "num_rows", None),
+                getattr(data, "num_cols", None),
+            )
             if page_no and rows and cols:
                 shapes.append(f"p{page_no}: {rows}x{cols}")
         if table_pages:
@@ -514,6 +535,15 @@ def extract_with_docling(pdf_path: Path, *, ocr_policy: str = "off") -> Extracte
     return _finalize(pages, page_count, "Docling conversion", diagnostics)
 
 
+def _inspector_pages(result: Any) -> list[Any]:
+    """Normalize both legacy iterable results and current `.pages` results."""
+    pages = getattr(result, "pages", None)
+    if pages is not None:
+        return list(pages)
+    if isinstance(result, Iterable) and not isinstance(result, (str, bytes, dict)):
+        return list(result)
+    return []
+
 
 def _canonical_inspector_pages(raw_pages, document):
     """Map inspector page objects onto the real ``1..page_count`` inventory.
@@ -527,7 +557,11 @@ def _canonical_inspector_pages(raw_pages, document):
     """
     total = int(document.page_count)
     by_page: dict[int, Any] = {}
-    anomalies: dict[str, list[int]] = {"duplicate_pages": [], "out_of_range_pages": [], "missing_pages": []}
+    anomalies: dict[str, list[int]] = {
+        "duplicate_pages": [],
+        "out_of_range_pages": [],
+        "missing_pages": [],
+    }
     for fallback, page in enumerate(raw_pages, start=1):
         zero_based = getattr(page, "page", None)
         one_based = getattr(page, "page_number", None)
@@ -562,7 +596,7 @@ def extract_with_pdf_inspector(pdf_path: Path) -> ExtractedText:
         raise RuntimeError("pdf-inspector is not installed. Run: pip install pdf-inspector") from exc
 
     pages_result = pdf_inspector.extract_pages_markdown(str(pdf_path))
-    raw_pages = getattr(pages_result, "pages", pages_result)
+    raw_pages = _inspector_pages(pages_result)
 
     pages: list[tuple[int, str]] = []
     for index, page in enumerate(raw_pages, start=1):
@@ -601,9 +635,11 @@ def extract_with_pdf_inspector(pdf_path: Path) -> ExtractedText:
             diagnostics["has_encoding_issues"] = bool(report.has_encoding_issues)
         if getattr(report, "is_complex_layout", None) is not None:
             diagnostics["complex_layout"] = bool(report.is_complex_layout)
-        for attr, key in (("pages_with_tables", "pages_with_tables"),
-                          ("pages_with_columns", "pages_with_multiple_columns"),
-                          ("pages_needing_ocr", "pages_needing_ocr")):
+        for attr, key in (
+            ("pages_with_tables", "pages_with_tables"),
+            ("pages_with_columns", "pages_with_multiple_columns"),
+            ("pages_needing_ocr", "pages_needing_ocr"),
+        ):
             values = getattr(report, attr, None) or []
             if values:
                 diagnostics[key] = _compress_pages(list(values))
@@ -713,18 +749,25 @@ def _assemble_ocr_rows(result) -> str:
     txts = getattr(result, "txts", None)
     if boxes is None or txts is None or len(boxes) != len(txts):
         return ""
-    cells = []
-    for box, text in zip(boxes, txts):
+    cells: list[dict[str, Any]] = []
+    for box, text in zip(boxes, txts, strict=True):
         if not str(text).strip():
             continue
         ys = [float(point[1]) for point in box]
         xs = [float(point[0]) for point in box]
-        cells.append({"x": min(xs), "top": min(ys), "bottom": max(ys),
-                      "middle": (min(ys) + max(ys)) / 2, "text": str(text).strip()})
+        cells.append(
+            {
+                "x": min(xs),
+                "top": min(ys),
+                "bottom": max(ys),
+                "middle": (min(ys) + max(ys)) / 2,
+                "text": str(text).strip(),
+            }
+        )
     if not cells:
         return ""
     cells.sort(key=lambda cell: (cell["middle"], cell["x"]))
-    rows: list[list[dict]] = []
+    rows: list[list[dict[str, Any]]] = []
     for cell in cells:
         current = rows[-1] if rows else None
         if current is not None:
@@ -767,7 +810,7 @@ def extract_with_pdf_inspector_ocr(
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"pdf-inspector page classification failed ({exc}).") from exc
 
-    raw_pages = list(getattr(result, "pages", result) or [])
+    raw_pages = _inspector_pages(result)
     pages: list[tuple[int, str]] = []
     page_provenance: list[dict[str, Any]] = []
     ocr_pages: list[int] = []
@@ -784,9 +827,13 @@ def extract_with_pdf_inspector_ocr(
             fallback_accepted = False
             if not native_markdown.strip() and ("text_based" in document_type or page is None):
                 recovered = _native_text_fallback(document, page_no)
-                if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
-                    not bool(getattr(classification, "has_encoding_issues", False))
-                    or not page_is_unreadable(recovered)
+                if (
+                    recovered.strip()
+                    and garble_ratio(recovered) < GARBLE_THRESHOLD
+                    and (
+                        not bool(getattr(classification, "has_encoding_issues", False))
+                        or not page_is_unreadable(recovered)
+                    )
                 ):
                     native_markdown = recovered
                     fallback_pages.append(page_no)
@@ -817,13 +864,15 @@ def extract_with_pdf_inspector_ocr(
                     else "pdf_inspector_native_rust"
                 )
             pages.append((page_no, markdown))
-            page_provenance.append({
-                "page": page_no,
-                "classification_decision": "ocr_needed" if classifier_decision else "text_page",
-                "source": source,
-                "render_dpi": 200 if use_ocr else None,
-                "ocr_model": "PP-OCRv6 ONNX" if use_ocr else None,
-            })
+            page_provenance.append(
+                {
+                    "page": page_no,
+                    "classification_decision": "ocr_needed" if classifier_decision else "text_page",
+                    "source": source,
+                    "render_dpi": 200 if use_ocr else None,
+                    "ocr_model": "PP-OCRv6 ONNX" if use_ocr else None,
+                }
+            )
 
     diagnostics = {
         "source": "pdf-inspector native Rust + local RapidOCR",
@@ -866,13 +915,15 @@ def extract_with_intelligent_scanning_gate(
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"pdf-inspector page extraction failed ({exc}).") from exc
 
-    raw_pages = list(getattr(result, "pages", result) or [])
+    raw_pages = _inspector_pages(result)
     aggregate_ocr_pages = {
-        int(page) for page in (getattr(result, "pages_needing_ocr", None) or [])
+        int(page)
+        for page in (getattr(result, "pages_needing_ocr", None) or [])
         if isinstance(page, int) and not isinstance(page, bool) and page >= 1
     }
     aggregate_ocr_pages.update(
-        int(page) for page in (getattr(classification, "pages_needing_ocr", None) or [])
+        int(page)
+        for page in (getattr(classification, "pages_needing_ocr", None) or [])
         if isinstance(page, int) and not isinstance(page, bool) and page >= 1
     )
     ocr_reasons: dict[int, list[str]] = {}
@@ -893,15 +944,17 @@ def extract_with_intelligent_scanning_gate(
             native_markdown = normalize_text(
                 str(getattr(page, "markdown", None) or getattr(page, "text", "") or "")
             )
-            inspector_needs_ocr = bool(
-                getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages
-            )
+            inspector_needs_ocr = bool(getattr(page, "needs_ocr", False) or page_no in aggregate_ocr_pages)
             fallback_accepted = False
             if not native_markdown.strip() and ("text_based" in document_type or page is None):
                 recovered = _native_text_fallback(document, page_no)
-                if recovered.strip() and garble_ratio(recovered) < GARBLE_THRESHOLD and (
-                    not bool(getattr(classification, "has_encoding_issues", False))
-                    or not page_is_unreadable(recovered)
+                if (
+                    recovered.strip()
+                    and garble_ratio(recovered) < GARBLE_THRESHOLD
+                    and (
+                        not bool(getattr(classification, "has_encoding_issues", False))
+                        or not page_is_unreadable(recovered)
+                    )
                 ):
                     native_markdown = recovered
                     fallback_pages.append(page_no)
@@ -931,14 +984,16 @@ def extract_with_intelligent_scanning_gate(
                     else "pdf_inspector_native_rust"
                 )
             unified_pages.append((page_no, markdown))
-            page_provenance.append({
-                "page": page_no,
-                "needs_ocr": needs_ocr,
-                "ocr_reasons": ocr_reasons.get(page_no, []),
-                "source": source,
-                "inspector_omitted": page is None,
-                "render_dpi": 200 if needs_ocr else None,
-            })
+            page_provenance.append(
+                {
+                    "page": page_no,
+                    "needs_ocr": needs_ocr,
+                    "ocr_reasons": ocr_reasons.get(page_no, []),
+                    "source": source,
+                    "inspector_omitted": page is None,
+                    "render_dpi": 200 if needs_ocr else None,
+                }
+            )
 
     table_pages = list(getattr(result, "pages_with_tables", None) or [])
     column_pages = list(getattr(result, "pages_with_columns", None) or [])
@@ -973,8 +1028,8 @@ def extract_with_intelligent_scanning_gate(
     # When the gate retained every readable candidate page, the packet IS the
     # complete readable report: absence from it is absence from the report,
     # and the prompt + retry logic must not treat it as an excerpt.
-    diagnostics["complete_document_packet"] = (
-        len(selected_pages) == int(gate.get("candidate_page_count") or 0)
+    diagnostics["complete_document_packet"] = len(selected_pages) == int(
+        gate.get("candidate_page_count") or 0
     )
     extracted = _finalize(
         selected_pages,
@@ -1000,7 +1055,7 @@ class Strategy:
     run_prefix: str
     label: str
     extraction_note: str
-    extract: object
+    extract: Callable[..., ExtractedText]
     parser: str
     experiment: str
     ocr_enabled: bool = False
@@ -1170,9 +1225,7 @@ def get_strategy(key: str | None) -> Strategy:
     if not normalized:
         return STRATEGIES[DEFAULT_STRATEGY]
     if normalized not in STRATEGIES:
-        raise ValueError(
-            f"Unknown strategy {key!r}. Choose one of: {', '.join(STRATEGIES)}"
-        )
+        raise ValueError(f"Unknown strategy {key!r}. Choose one of: {', '.join(STRATEGIES)}")
     return STRATEGIES[normalized]
 
 
@@ -1189,7 +1242,12 @@ def estimate_pdf_load(pdf_path: Path) -> dict[str, object]:
     with pymupdf.open(str(pdf_path)) as doc:
         page_count = len(doc)
         if page_count == 0:
-            return {"pages": 0, "approx_tokens": 0, "sampled_pages": 0, "estimated": True}
+            return {
+                "pages": 0,
+                "approx_tokens": 0,
+                "sampled_pages": 0,
+                "estimated": True,
+            }
 
         # Sample across the document: annual reports are front-loaded with
         # graphics and back-loaded with dense financial tables.

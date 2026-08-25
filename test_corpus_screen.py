@@ -1,6 +1,11 @@
 import unittest
 
-from corpus.screen import _balance_sheet_page, _statement_currency, _statement_years, _year_mentions
+from corpus.screen import (
+    _balance_sheet_page,
+    _statement_currency,
+    _statement_years,
+    _year_mentions,
+)
 
 
 class JapaneseCorpusScreenTests(unittest.TestCase):

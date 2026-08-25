@@ -15,9 +15,18 @@ from intelligent_scan import score_pages, select_evidence_pages, select_retry_pa
 class IntelligentScanningGateTests(unittest.TestCase):
     def test_financial_table_outranks_governance_boilerplate(self):
         pages = [
-            (1, "# Corporate Governance\nBoard of directors and executive compensation."),
-            (2, "# Consolidated Balance Sheets\n| Assets | 2025 |\n| Cash and cash equivalents | 100 |\n| Total assets | 900 |"),
-            (3, "# Property, Plant and Equipment\nLand buildings machinery construction in progress accumulated depreciation."),
+            (
+                1,
+                "# Corporate Governance\nBoard of directors and executive compensation.",
+            ),
+            (
+                2,
+                "# Consolidated Balance Sheets\n| Assets | 2025 |\n| Cash and cash equivalents | 100 |\n| Total assets | 900 |",
+            ),
+            (
+                3,
+                "# Property, Plant and Equipment\nLand buildings machinery construction in progress accumulated depreciation.",
+            ),
         ]
         ranked = score_pages(pages, pages_with_tables=[2], pages_with_columns=[2])
         self.assertEqual(2, ranked[0]["page"])
@@ -26,7 +35,10 @@ class IntelligentScanningGateTests(unittest.TestCase):
 
     def test_selector_keeps_only_complete_page_units(self):
         pages = [
-            (number, f"# Page {number}\nBalance sheet assets cash receivables inventories {number * 100}")
+            (
+                number,
+                f"# Page {number}\nBalance sheet assets cash receivables inventories {number * 100}",
+            )
             for number in range(1, 9)
         ]
         selected, diagnostics = select_evidence_pages(pages, pages_with_tables=[2, 4, 6])
@@ -50,7 +62,10 @@ class IntelligentScanningGateTests(unittest.TestCase):
     def test_japanese_balance_sheet_outranks_governance(self):
         pages = [
             (1, "コーポレートガバナンス 取締役 役員の状況"),
-            (2, "連結貸借対照表 資産の部 流動資産 現金及び預金 売掛金 固定資産 資産合計"),
+            (
+                2,
+                "連結貸借対照表 資産の部 流動資産 現金及び預金 売掛金 固定資産 資産合計",
+            ),
             (3, "事業の状況 従業員 株主総会"),
         ]
         ranked = score_pages(pages, pages_with_tables=[2])
@@ -61,7 +76,10 @@ class IntelligentScanningGateTests(unittest.TestCase):
     def test_japanese_loan_maturity_table_is_critical_evidence(self):
         pages = [
             (1, "連結貸借対照表 資産の部 現金及び預金 資産合計"),
-            (2, "金融商品関係 金銭債権の連結決算日後の償還予定額 １年以内 長期貸付金 2,156"),
+            (
+                2,
+                "金融商品関係 金銭債権の連結決算日後の償還予定額 １年以内 長期貸付金 2,156",
+            ),
             (3, "事業の状況"),
         ]
         ranked = score_pages(pages, pages_with_tables=[1, 2])
@@ -73,11 +91,17 @@ class IntelligentScanningGateTests(unittest.TestCase):
 class RetryPageSelectionTests(unittest.TestCase):
     def test_retry_excludes_sent_pages_caps_at_three_and_targets_missing_terms(self):
         pages = [
-            (1, "# Consolidated Balance Sheets\n| Cash | 100 |\n| Total assets | 900 |"),
+            (
+                1,
+                "# Consolidated Balance Sheets\n| Cash | 100 |\n| Total assets | 900 |",
+            ),
             (2, "# Corporate Governance\nBoard of directors."),
             (3, "# Note 5. Inventories\nInventories raw materials finished goods 120"),
             (4, "# Note 7. Receivables\nAccounts receivable trade allowance 300"),
-            (5, "# Note 9. Property\nLand buildings machinery accumulated depreciation"),
+            (
+                5,
+                "# Note 9. Property\nLand buildings machinery accumulated depreciation",
+            ),
             (6, "# Officers\nExecutive compensation shareholder proposal"),
         ]
         selected, diagnostics = select_retry_pages(
@@ -93,7 +117,10 @@ class RetryPageSelectionTests(unittest.TestCase):
         self.assertIn(3, chosen)
         self.assertIn(4, chosen)
         self.assertEqual(chosen, sorted(chosen))
-        self.assertEqual(diagnostics["retry_pages"], [item["page"] for item in diagnostics["retry_scores"]])
+        self.assertEqual(
+            diagnostics["retry_pages"],
+            [item["page"] for item in diagnostics["retry_scores"]],
+        )
 
     def test_retry_reports_when_every_page_was_already_sent(self):
         selected, diagnostics = select_retry_pages(
@@ -168,16 +195,20 @@ class StrategyThreeExtractionTests(unittest.TestCase):
             "投資その他の資産 投資有価証券 敷金及び保証金 繰延税金資産 25",
         ]
         pages = [
-            types.SimpleNamespace(page=index, markdown="", needs_ocr=True)
-            for index in range(len(native))
+            types.SimpleNamespace(page=index, markdown="", needs_ocr=True) for index in range(len(native))
         ]
         extracted_pages = types.SimpleNamespace(
-            pages=pages, pages_needing_ocr=[1, 2, 3, 4],
-            ocr_reasons_by_page=[], pages_with_tables=[2, 3, 4],
-            pages_with_columns=[], is_complex=False,
+            pages=pages,
+            pages_needing_ocr=[1, 2, 3, 4],
+            ocr_reasons_by_page=[],
+            pages_with_tables=[2, 3, 4],
+            pages_with_columns=[],
+            is_complex=False,
         )
         classification = types.SimpleNamespace(
-            pdf_type="text_based", confidence=0.99, pages_needing_ocr=[],
+            pdf_type="text_based",
+            confidence=0.99,
+            pages_needing_ocr=[],
             has_encoding_issues=False,
         )
         inspector = types.SimpleNamespace(
@@ -186,11 +217,13 @@ class StrategyThreeExtractionTests(unittest.TestCase):
         )
         rendered: list[int] = []
         pymupdf = types.SimpleNamespace(
-            Matrix=lambda x, y: (x, y), open=lambda _path: _TextDocument(rendered, native)
+            Matrix=lambda x, y: (x, y),
+            open=lambda _path: _TextDocument(rendered, native),
         )
-        with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction, "_local_ocr_markdown"
-        ) as ocr:
+        with (
+            patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}),
+            patch.object(extraction, "_local_ocr_markdown") as ocr,
+        ):
             result = extraction.extract_with_intelligent_scanning_gate(Path("report.pdf"))
 
         ocr.assert_not_called()
@@ -203,9 +236,21 @@ class StrategyThreeExtractionTests(unittest.TestCase):
         pages = [
             types.SimpleNamespace(page=0, markdown="# Cover\nAnnual report", needs_ocr=False),
             types.SimpleNamespace(page=1, markdown="", needs_ocr=True),
-            types.SimpleNamespace(page=2, markdown="# Consolidated Balance Sheets\n| Total assets | 900 |", needs_ocr=False),
-            types.SimpleNamespace(page=3, markdown="# Property Plant and Equipment\nLand buildings machinery depreciation", needs_ocr=False),
-            types.SimpleNamespace(page=4, markdown="# Notes\nCash receivables inventory other current assets", needs_ocr=False),
+            types.SimpleNamespace(
+                page=2,
+                markdown="# Consolidated Balance Sheets\n| Total assets | 900 |",
+                needs_ocr=False,
+            ),
+            types.SimpleNamespace(
+                page=3,
+                markdown="# Property Plant and Equipment\nLand buildings machinery depreciation",
+                needs_ocr=False,
+            ),
+            types.SimpleNamespace(
+                page=4,
+                markdown="# Notes\nCash receivables inventory other current assets",
+                needs_ocr=False,
+            ),
             types.SimpleNamespace(page=5, markdown="# Governance\nBoard of directors", needs_ocr=False),
         ]
         extracted_pages = types.SimpleNamespace(
@@ -232,12 +277,17 @@ class StrategyThreeExtractionTests(unittest.TestCase):
             def __init__(self, x: float, y: float) -> None:
                 self.x, self.y = x, y
 
-        pymupdf = types.SimpleNamespace(Matrix=Matrix, open=lambda _path: _Document(rendered, page_count=len(pages)))
-        with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction,
-            "_local_ocr_markdown",
-            return_value="# Intangible Assets\nGoodwill and intangible assets 400",
-        ) as ocr:
+        pymupdf = types.SimpleNamespace(
+            Matrix=Matrix, open=lambda _path: _Document(rendered, page_count=len(pages))
+        )
+        with (
+            patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}),
+            patch.object(
+                extraction,
+                "_local_ocr_markdown",
+                return_value="# Intangible Assets\nGoodwill and intangible assets 400",
+            ) as ocr,
+        ):
             result = extraction.extract_with_intelligent_scanning_gate(
                 Path("report.pdf"),
             )

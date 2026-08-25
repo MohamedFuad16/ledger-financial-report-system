@@ -1,10 +1,9 @@
 """
 Adaptive concurrency and rate-limit handling.
 
-Z.AI does not publish fixed RPM/TPM numbers: its usage policy says limits are
-adjusted dynamically by plan tier and load
-(https://docs.z.ai/devpack/usage-policy). So this module does not hardcode a
-limit. It:
+Some OpenAI-compatible gateways do not publish fixed RPM/TPM numbers, and
+limits can change dynamically by plan tier and load. This module therefore
+does not hardcode a limit. It:
 
   1. reads any rate-limit headers the provider actually returns and records them,
   2. caps in-flight requests with a semaphore whose size can shrink and grow,
@@ -23,19 +22,32 @@ import re
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 # Header names different gateways use for the same information.
 _LIMIT_HEADERS = {
-    "requests_limit": ("x-ratelimit-limit-requests", "x-ratelimit-limit", "ratelimit-limit"),
-    "requests_remaining": ("x-ratelimit-remaining-requests", "x-ratelimit-remaining", "ratelimit-remaining"),
+    "requests_limit": (
+        "x-ratelimit-limit-requests",
+        "x-ratelimit-limit",
+        "ratelimit-limit",
+    ),
+    "requests_remaining": (
+        "x-ratelimit-remaining-requests",
+        "x-ratelimit-remaining",
+        "ratelimit-remaining",
+    ),
     "tokens_limit": ("x-ratelimit-limit-tokens",),
     "tokens_remaining": ("x-ratelimit-remaining-tokens",),
-    "reset_seconds": ("x-ratelimit-reset-requests", "x-ratelimit-reset", "ratelimit-reset", "retry-after"),
+    "reset_seconds": (
+        "x-ratelimit-reset-requests",
+        "x-ratelimit-reset",
+        "ratelimit-reset",
+        "retry-after",
+    ),
 }
 
 
-def _parse_duration(value: str) -> Optional[float]:
+def _parse_duration(value: str) -> float | None:
     """Parse "30", "30s", "1m30s", "500ms" into seconds."""
     text = str(value).strip().lower()
     if not text:
@@ -61,8 +73,8 @@ class RateLimitState:
     permitted_concurrency: int = 6
     observed_headers: dict[str, Any] = field(default_factory=dict)
     throttle_events: int = 0
-    last_throttle_at: Optional[float] = None
-    last_retry_after: Optional[float] = None
+    last_throttle_at: float | None = None
+    last_retry_after: float | None = None
     consecutive_ok: int = 0
 
     def snapshot(self) -> dict[str, Any]:
@@ -73,7 +85,7 @@ class RateLimitState:
             "throttle_events": self.throttle_events,
             "last_throttle_at": self.last_throttle_at,
             "last_retry_after": self.last_retry_after,
-            "source": "measured from provider responses; Z.AI does not publish fixed RPM/TPM",
+            "source": "measured from provider responses; no fixed provider limit configured",
         }
 
 
@@ -136,7 +148,7 @@ class AdaptiveLimiter:
                 self.state.consecutive_ok = 0
                 self._condition.notify_all()
 
-    def note_throttled(self, retry_after: Optional[float] = None) -> float:
+    def note_throttled(self, retry_after: float | None = None) -> float:
         """
         A 429. Halve the permitted concurrency, pause new starts, and return how
         long the caller should sleep before retrying.
@@ -178,7 +190,7 @@ class AdaptiveLimiter:
 LIMITER = AdaptiveLimiter()
 
 
-def retry_after_seconds(headers: Any, body: Any) -> Optional[float]:
+def retry_after_seconds(headers: Any, body: Any) -> float | None:
     """Extract a retry delay from a 429 response, if it carries one."""
     if headers:
         lowered = {str(k).lower(): v for k, v in dict(headers).items()}
@@ -218,7 +230,15 @@ def estimate_batch_plan(
         # Large whole-report prompts need more headroom per request. This is a
         # scheduling heuristic, not an invented provider limit; 429 feedback
         # below remains authoritative and shrinks the live gate immediately.
-        load_ceiling = 2 if average_tokens >= 180_000 else 3 if average_tokens >= 120_000 else 4 if average_tokens >= 80_000 else concurrency
+        load_ceiling = (
+            2
+            if average_tokens >= 180_000
+            else 3
+            if average_tokens >= 120_000
+            else 4
+            if average_tokens >= 80_000
+            else concurrency
+        )
         recommended = max(1, min(recommended, load_ceiling))
         if recommended < min(concurrency, len(files)):
             advisories.append(
@@ -245,9 +265,7 @@ def estimate_batch_plan(
             pass
     if len(files) > recommended:
         waves = -(-len(files) // recommended)
-        advisories.append(
-            f"{len(files)} files at concurrency {recommended} runs as {waves} wave(s)."
-        )
+        advisories.append(f"{len(files)} files at concurrency {recommended} runs as {waves} wave(s).")
 
     return {
         "files": files,

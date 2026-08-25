@@ -1,16 +1,16 @@
-import csv
-import io
 import json
 import os
 import queue
 import re
 import shutil
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from numbers import Real
 from pathlib import Path
+from typing import Any
 
 from flask import Flask, Response, jsonify, request, send_file, stream_with_context
 
@@ -29,31 +29,35 @@ from corpus.manifest import (
 from corpus.service import build_corpus
 from extraction import STRATEGIES, estimate_pdf_load
 from models import CANONICAL_ITEMS, SchemaValidationError
-from ratelimit import LIMITER, estimate_batch_plan
 from pipeline import (
+    BENCHMARK_WORKSPACE_ID,
     RUNS_DIR,
     apply_confidence_gate,
     compute_metrics,
     derive_identity_values,
-    find_run_dir,
-    iter_run_dirs,
     ensure_dirs,
     evidence_table,
-    BENCHMARK_WORKSPACE_ID,
+    find_run_dir,
     invalidate_run_summaries,
+    iter_run_dirs,
     list_runs,
     load_prediction,
-    result_table,
     report_identity,
+    result_table,
     run_pipeline,
-    safe_filename,
     save_upload,
 )
-from reconcile import reconcile
-from providers import PROVIDERS, REASONING_EFFORTS, get_provider
 from prompts import SYSTEM_PROMPT
+from providers import PROVIDERS, REASONING_EFFORTS, get_provider
+from ratelimit import LIMITER, estimate_batch_plan
+from reconcile import reconcile
 from schema import BENCHMARK_SCHEMA_METADATA, GOLDEN_ANSWERS_STORE
-from settings import current_settings, load_local_env, save_runtime_settings, save_verified_settings
+from settings import (
+    current_settings,
+    load_local_env,
+    save_runtime_settings,
+    save_verified_settings,
+)
 from traffic import record_visit
 
 app = Flask(__name__, static_folder="frontend/dist", static_url_path="")
@@ -69,6 +73,9 @@ ACTIVE_PROMPT = SYSTEM_PROMPT
 # browser uploads each file once, not again for the actual run.
 STAGED: dict[str, dict] = {}
 STAGED_LOCK = threading.Lock()
+STAGED_TTL_SECONDS = 2 * 60 * 60
+MAX_STAGED_FILES_PER_WORKSPACE = 50
+MAX_STAGED_BYTES_PER_WORKSPACE = 512 * 1024 * 1024
 CORPUS_JOBS: dict[str, dict] = {}
 CORPUS_JOBS_LOCK = threading.RLock()
 CORPUS_JOBS_ROOT = RUNS_DIR / "_corpus_jobs"
@@ -96,12 +103,65 @@ def _allowed_origin(origin: str) -> str | None:
 
 # --- Utility Functions ---
 
+
 def mask_key(key: str) -> str:
     if not key:
         return "Not configured"
-    if len(key) <= 8:
-        return "•" * 8
-    return f"{key[:4]}…{key[-4:]}"
+    return "Configured"
+
+
+def safe_client_error(exc: Exception, fallback: str = "The operation failed.") -> str:
+    """Return a bounded error message without credentials or host-local paths."""
+    message = str(exc).strip()
+    if not message:
+        return fallback
+
+    settings = current_settings()
+    for secret_name in ("api_key", "firecrawl_api_key"):
+        secret = str(settings.get(secret_name) or "")
+        if secret:
+            message = message.replace(secret, "[redacted]")
+    message = re.sub(r"(?i)bearer\s+\S+", "Bearer [redacted]", message)
+    message = re.sub(
+        r"(?i)(api[-_ ]?key|token|authorization|password)\s*[:=]\s*[^\s,;]+",
+        r"\1=[redacted]",
+        message,
+    )
+    message = re.sub(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b", "[redacted]", message)
+    message = re.sub(r"(?:/Users|/home|/var|/tmp|/opt)/[^\s,:;]+", "[local path]", message)
+    return message[:500] or fallback
+
+
+def request_json_object() -> dict | None:
+    """Return a JSON object, rejecting valid JSON arrays/scalars at the boundary."""
+    payload = request.get_json(silent=True)
+    return payload if isinstance(payload, dict) else None
+
+
+def _discard_staged_file(record: dict) -> None:
+    if not record.get("temporary_upload"):
+        return
+    path = Path(str(record.get("path") or ""))
+    if path.is_file():
+        shutil.rmtree(path.parent, ignore_errors=True)
+
+
+def _prune_staged() -> None:
+    cutoff = time.time() - STAGED_TTL_SECONDS
+    expired: list[dict] = []
+    with STAGED_LOCK:
+        for upload_id, record in list(STAGED.items()):
+            staged_at = record.get("staged_at")
+            if staged_at is not None and float(staged_at) < cutoff:
+                expired.append(STAGED.pop(upload_id))
+    for record in expired:
+        _discard_staged_file(record)
+
+
+def _workspace_stage_usage(workspace_id: str) -> tuple[int, int]:
+    with STAGED_LOCK:
+        records = [record for record in STAGED.values() if _workspace_matches(record, workspace_id)]
+    return len(records), sum(int(record.get("size_bytes") or 0) for record in records)
 
 
 def parse_bool(value, default: bool) -> bool:
@@ -124,14 +184,18 @@ def parse_float(value, default: float) -> float:
 # prompts, corpus records, gold, and stored run history — accepts writes only
 # from the operator's own deployment channel. CORS never blocked direct HTTP,
 # so this is enforced server-side per request.
-PUBLIC_READONLY = os.environ.get("LEDGER_PUBLIC_READONLY", "").strip().lower() in {"1", "true", "yes"}
+PUBLIC_READONLY = os.environ.get("LEDGER_PUBLIC_READONLY", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
 _PUBLIC_WRITE_ALLOWED_PREFIXES = (
-    "/api/extract",          # demo extraction runs (rate-limited)
+    "/api/extract",  # demo extraction runs (rate-limited)
     "/api/extraction/jobs",  # batch demo runs
-    "/api/uploads",          # staging a PDF for a demo run
-    "/api/corpus/stage",     # copying a pinned corpus PDF into a demo run — reads corpus, never mutates it
-    "/api/runs",             # run deletion — workspace-scoped server-side, so a visitor only deletes their own history
-    "/api/traffic",          # anonymous visit telemetry
+    "/api/uploads",  # staging a PDF for a demo run
+    "/api/corpus/stage",  # copying a pinned corpus PDF into a demo run — reads corpus, never mutates it
+    "/api/runs",  # run deletion — workspace-scoped server-side, so a visitor only deletes their own history
+    "/api/traffic",  # anonymous visit telemetry
 )
 
 
@@ -142,10 +206,12 @@ def _enforce_public_readonly():
     path = request.path or ""
     if any(path.startswith(prefix) for prefix in _PUBLIC_WRITE_ALLOWED_PREFIXES):
         return None
-    return jsonify({
-        "error": "This deployment is read-only: settings, prompts, corpus records, "
-                 "golden answers, and stored runs can only be changed by the operator.",
-    }), 403
+    return jsonify(
+        {
+            "error": "This deployment is read-only: settings, prompts, corpus records, "
+            "golden answers, and stored runs can only be changed by the operator.",
+        }
+    ), 403
 
 
 def request_workspace_id() -> str:
@@ -155,7 +221,7 @@ def request_workspace_id() -> str:
 
 
 def _workspace_matches(record: dict | None, workspace_id: str) -> bool:
-    return bool(record) and str(record.get("workspace_id") or "legacy-public") == workspace_id
+    return bool(record) and str((record or {}).get("workspace_id") or "legacy-public") == workspace_id
 
 
 def _workspace_prediction_count(directory: Path, workspace_id: str) -> int:
@@ -183,9 +249,7 @@ def request_run_options(settings: dict) -> dict:
             request.form.get("enable_reasoning"), settings.get("enable_reasoning", True)
         ),
         "reasoning_effort": (request.form.get("reasoning_effort") or "").strip().lower(),
-        "temperature": parse_float(
-            request.form.get("temperature"), settings.get("temperature", 0.0)
-        ),
+        "temperature": parse_float(request.form.get("temperature"), settings.get("temperature", 0.0)),
     }
 
 
@@ -242,7 +306,7 @@ def _corpus_job_dir(job_id: str) -> Path:
 def _write_corpus_job_state(job_id: str, state: dict) -> None:
     job_dir = _corpus_job_dir(job_id)
     job_dir.mkdir(parents=True, exist_ok=True)
-    state["updated_at"] = datetime.now(timezone.utc).isoformat()
+    state["updated_at"] = datetime.now(UTC).isoformat()
     temporary = job_dir / "state.json.tmp"
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(job_dir / "state.json")
@@ -280,8 +344,10 @@ def _read_corpus_job_state(job_id: str) -> dict | None:
         (has_owner_pid and not owner_alive) or legacy_owner_is_gone
     ):
         state["status"] = "interrupted"
-        state["error"] = "The backend restarted before this discovery job completed. Start a new discovery job to continue."
-        state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        state["error"] = (
+            "The backend restarted before this discovery job completed. Start a new discovery job to continue."
+        )
+        state["finished_at"] = datetime.now(UTC).isoformat()
         state["worker_instance_id"] = CORPUS_WORKER_INSTANCE_ID
         _write_corpus_job_state(job_id, state)
     return state
@@ -300,7 +366,7 @@ def _list_corpus_job_states() -> list[dict]:
 def _write_extraction_job_state(job_id: str, state: dict) -> None:
     job_dir = _extraction_job_dir(job_id)
     job_dir.mkdir(parents=True, exist_ok=True)
-    state = {**state, "updated_at": datetime.now(timezone.utc).isoformat()}
+    state = {**state, "updated_at": datetime.now(UTC).isoformat()}
     temporary = job_dir / "state.json.tmp"
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(job_dir / "state.json")
@@ -332,8 +398,10 @@ def _read_extraction_job_state(job_id: str) -> dict | None:
         and not owner_alive
     ):
         state["status"] = "interrupted"
-        state["error"] = "The backend restarted before this extraction job completed. Start a new extraction job to continue."
-        state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        state["error"] = (
+            "The backend restarted before this extraction job completed. Start a new extraction job to continue."
+        )
+        state["finished_at"] = datetime.now(UTC).isoformat()
         _write_extraction_job_state(job_id, state)
     return state
 
@@ -342,7 +410,7 @@ def _append_extraction_event(job_id: str, event: str, data: dict) -> None:
     record = {
         "event": event,
         "data": data,
-        "at": datetime.now(timezone.utc).isoformat(),
+        "at": datetime.now(UTC).isoformat(),
     }
     with EXTRACTION_JOBS_LOCK:
         job_dir = _extraction_job_dir(job_id)
@@ -371,6 +439,7 @@ def _read_extraction_events(job_id: str, after: int = 0) -> tuple[list[dict], in
 
 # --- Routes ---
 
+
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
@@ -378,7 +447,7 @@ def index():
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"ok": True, "service": "ledger-backend", "region": os.environ.get("AWS_REGION", "local")})
+    return jsonify({"ok": True, "service": "ledger-backend"})
 
 
 @app.route("/api/traffic", methods=["POST", "OPTIONS"])
@@ -399,7 +468,7 @@ def track_traffic():
     try:
         result = record_visit(payload, remote_ip=forwarded or request.remote_addr or "")
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": safe_client_error(exc, "Invalid visit event.")}), 400
     except RuntimeError:
         app.logger.warning("Private visit tracking is temporarily unavailable.")
         return jsonify({"ok": False, "recorded": False}), 503
@@ -409,58 +478,72 @@ def track_traffic():
 @app.route("/api/providers", methods=["GET"])
 def get_providers():
     """Everything the settings UI needs to render provider and model choices."""
-    return jsonify({
-        "providers": [
-            {
-                "key": p.key,
-                "label": p.label,
-                "base_url": p.base_url,
-                "default_model": p.default_model,
-                "suggested_models": p.suggested_models,
-                "reasoning_style": p.reasoning_style,
-                "automatic_prompt_caching": p.automatic_prompt_caching,
-                "docs": p.docs,
-            }
-            for p in PROVIDERS.values()
-        ],
-        "reasoning_efforts": REASONING_EFFORTS,
-    })
+    return jsonify(
+        {
+            "providers": [
+                {
+                    "key": p.key,
+                    "label": p.label,
+                    "base_url": p.base_url,
+                    "default_model": p.default_model,
+                    "suggested_models": p.suggested_models,
+                    "reasoning_style": p.reasoning_style,
+                    "automatic_prompt_caching": p.automatic_prompt_caching,
+                    "docs": p.docs,
+                }
+                for p in PROVIDERS.values()
+            ],
+            "reasoning_efforts": REASONING_EFFORTS,
+        }
+    )
 
 
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     settings = current_settings()
     provider = get_provider(settings.get("provider"))
-    return jsonify({
-        "provider": settings.get("provider"),
-        "provider_label": settings.get("provider_label"),
-        "model": settings.get("model") or "",
-        "base_url": settings.get("base_url") or "",
-        "api_key_masked": mask_key(settings.get("api_key") or ""),
-        "has_key": bool(settings.get("api_key")),
-        "reasoning_effort": settings.get("reasoning_effort", "medium"),
-        "reasoning_style": provider.reasoning_style,
-        "prompt_caching": provider.automatic_prompt_caching,
-        "enable_reasoning": settings.get("enable_reasoning", True),
-        "temperature": settings.get("temperature", 0.0),
-        "max_concurrency": settings.get("max_concurrency", 6),
-        "auto_concurrency": settings.get("auto_concurrency", True),
-        "firecrawl_key_masked": mask_key(settings.get("firecrawl_api_key") or ""),
-        "has_firecrawl_key": bool(settings.get("firecrawl_api_key")),
-        "firecrawl_pdf_mode": settings.get("firecrawl_pdf_mode", "auto"),
-        "rate_limit": LIMITER.snapshot(),
-    })
+    return jsonify(
+        {
+            "provider": settings.get("provider"),
+            "provider_label": settings.get("provider_label"),
+            "model": settings.get("model") or "",
+            "base_url": settings.get("base_url") or "",
+            "api_key_masked": mask_key(settings.get("api_key") or ""),
+            "has_key": bool(settings.get("api_key")),
+            "reasoning_effort": settings.get("reasoning_effort", "medium"),
+            "reasoning_style": provider.reasoning_style,
+            "prompt_caching": provider.automatic_prompt_caching,
+            "enable_reasoning": settings.get("enable_reasoning", True),
+            "temperature": settings.get("temperature", 0.0),
+            "max_concurrency": settings.get("max_concurrency", 6),
+            "auto_concurrency": settings.get("auto_concurrency", True),
+            "firecrawl_key_masked": mask_key(settings.get("firecrawl_api_key") or ""),
+            "has_firecrawl_key": bool(settings.get("firecrawl_api_key")),
+            "firecrawl_pdf_mode": settings.get("firecrawl_pdf_mode", "auto"),
+            "rate_limit": LIMITER.snapshot(),
+        }
+    )
 
 
 @app.route("/api/runtime-settings", methods=["POST"])
 def update_runtime_settings():
     """Verify Firecrawl, then atomically save connector and scheduling settings."""
-    data = request.get_json(silent=True) or {}
+    data = request_json_object()
+    if data is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     current = current_settings()
-    max_concurrency = max(1, min(int(parse_float(data.get("max_concurrency"), current.get("max_concurrency", 6))), 20))
+    max_concurrency = max(
+        1,
+        min(
+            int(parse_float(data.get("max_concurrency"), current.get("max_concurrency", 6))),
+            20,
+        ),
+    )
     auto_concurrency = parse_bool(data.get("auto_concurrency"), current.get("auto_concurrency", True))
     firecrawl_api_key = str(data.get("firecrawl_api_key") or "").strip()
-    firecrawl_pdf_mode = str(data.get("firecrawl_pdf_mode") or current.get("firecrawl_pdf_mode") or "auto").strip().lower()
+    firecrawl_pdf_mode = (
+        str(data.get("firecrawl_pdf_mode") or current.get("firecrawl_pdf_mode") or "auto").strip().lower()
+    )
     if firecrawl_pdf_mode not in {"fast", "auto", "ocr"}:
         return jsonify({"error": "Firecrawl PDF mode must be fast, auto, or ocr."}), 400
     candidate_key = firecrawl_api_key or str(current.get("firecrawl_api_key") or "")
@@ -471,7 +554,8 @@ def update_runtime_settings():
         try:
             credit_usage = FirecrawlClient(candidate_key, timeout=20, max_attempts=1).credit_usage()
         except FirecrawlError as exc:
-            return jsonify({"error": f"Firecrawl connection failed: {exc}"}), 400
+            detail = safe_client_error(exc, "Connector verification failed.")
+            return jsonify({"error": f"Firecrawl connection failed: {detail}"}), 400
     save_runtime_settings(
         max_concurrency=max_concurrency,
         auto_concurrency=auto_concurrency,
@@ -480,21 +564,25 @@ def update_runtime_settings():
         firecrawl_pdf_mode=firecrawl_pdf_mode,
     )
     LIMITER.resize(max_concurrency)
-    return jsonify({
-        "ok": True,
-        "max_concurrency": max_concurrency,
-        "auto_concurrency": auto_concurrency,
-        "has_firecrawl_key": bool(current_settings().get("firecrawl_api_key")),
-        "firecrawl_key_masked": mask_key(candidate_key),
-        "firecrawl_credits": credit_usage,
-        "firecrawl_pdf_mode": firecrawl_pdf_mode,
-        "rate_limit": LIMITER.snapshot(),
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "max_concurrency": max_concurrency,
+            "auto_concurrency": auto_concurrency,
+            "has_firecrawl_key": bool(current_settings().get("firecrawl_api_key")),
+            "firecrawl_key_masked": mask_key(candidate_key),
+            "firecrawl_credits": credit_usage,
+            "firecrawl_pdf_mode": firecrawl_pdf_mode,
+            "rate_limit": LIMITER.snapshot(),
+        }
+    )
 
 
 @app.route("/api/settings", methods=["POST"])
 def update_settings():
-    data = request.get_json(silent=True) or {}
+    data = request_json_object()
+    if data is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     provider_key = str(data.get("provider", "")).strip().lower()
     provider = get_provider(provider_key or None)
 
@@ -509,16 +597,13 @@ def update_settings():
         effort = "high" if parse_bool(data.get("enable_reasoning"), True) else "none"
 
     if not api_key:
-        same_destination = (
-            provider.key == saved.get("provider")
-            and base_url.rstrip("/") == str(saved.get("base_url") or "").rstrip("/")
-        )
+        same_destination = provider.key == saved.get("provider") and base_url.rstrip("/") == str(
+            saved.get("base_url") or ""
+        ).rstrip("/")
         if same_destination and saved.get("api_key"):
             api_key = str(saved["api_key"])
         else:
-            return jsonify({
-                "error": "API key is required when changing provider or endpoint."
-            }), 400
+            return jsonify({"error": "API key is required when changing provider or endpoint."}), 400
     if not model:
         return jsonify({"error": "Model ID is required."}), 400
     if not base_url:
@@ -528,21 +613,31 @@ def update_settings():
         ok, message, elapsed = test_api_key(
             api_key=api_key, model=model, base_url=base_url, provider=provider.key
         )
-    except Exception as exc:  # noqa: BLE001 - surfaced to the UI as a 500
-        return jsonify({"error": str(exc)}), 500
+    except Exception:  # noqa: BLE001 - provider details stay in server logs
+        app.logger.exception("Provider credential verification failed")
+        return jsonify({"error": "Provider verification is temporarily unavailable."}), 500
 
     if not ok:
         return jsonify({"error": message}), 400
 
     save_verified_settings(
-        api_key, model, base_url,
+        api_key,
+        model,
+        base_url,
         enable_reasoning=effort != "none",
         temperature=temperature,
         provider=provider.key,
         reasoning_effort=effort,
     )
-    return jsonify({"ok": True, "message": message, "elapsed": elapsed,
-                    "provider": provider.key, "model": model})
+    return jsonify(
+        {
+            "ok": True,
+            "message": message,
+            "elapsed": elapsed,
+            "provider": provider.key,
+            "model": model,
+        }
+    )
 
 
 @app.route("/api/prompt", methods=["GET"])
@@ -553,7 +648,9 @@ def get_prompt():
 @app.route("/api/prompt", methods=["POST"])
 def update_prompt():
     global ACTIVE_PROMPT
-    data = request.get_json(silent=True) or {}
+    data = request_json_object()
+    if data is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     new_prompt = str(data.get("system_prompt", "")).strip()
     if not new_prompt:
         return jsonify({"error": "System prompt cannot be empty."}), 400
@@ -570,19 +667,21 @@ def reset_prompt():
 
 @app.route("/api/strategies", methods=["GET"])
 def get_strategies():
-    return jsonify({
-        "strategies": [
-            {
-                "key": s.key,
-                "label": s.label,
-                "extraction": s.extraction_note,
-                "parser": s.parser,
-                "experiment": s.experiment,
-                "ocr_enabled": s.ocr_enabled,
-            }
-            for s in STRATEGIES.values()
-        ]
-    })
+    return jsonify(
+        {
+            "strategies": [
+                {
+                    "key": s.key,
+                    "label": s.label,
+                    "extraction": s.extraction_note,
+                    "parser": s.parser,
+                    "experiment": s.experiment,
+                    "ocr_enabled": s.ocr_enabled,
+                }
+                for s in STRATEGIES.values()
+            ]
+        }
+    )
 
 
 @app.route("/api/extract", methods=["POST"])
@@ -609,9 +708,10 @@ def extract_pipeline():
         )
         return jsonify(prediction_response(prediction))
     except (GLMError, SchemaValidationError, ValueError, RuntimeError) as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"error": f"Unexpected error: {exc}"}), 500
+        return jsonify({"error": safe_client_error(exc, "Extraction request failed.")}), 400
+    except Exception:  # noqa: BLE001
+        app.logger.exception("Unexpected extraction failure")
+        return jsonify({"error": "Extraction failed unexpectedly."}), 500
 
 
 @app.route("/api/uploads", methods=["POST"])
@@ -629,15 +729,27 @@ def stage_uploads():
 
     settings = current_settings()
     workspace_id = request_workspace_id()
+    _prune_staged()
+    staged_count, staged_bytes = _workspace_stage_usage(workspace_id)
+    if staged_count + len(files) > MAX_STAGED_FILES_PER_WORKSPACE:
+        return jsonify({"error": "A workspace may stage at most 50 PDFs at once."}), 429
     requested_concurrency = settings.get("max_concurrency", 6)
 
     staged = []
     for file in files:
+        path = None
         try:
             path = save_upload(file)
+            if staged_bytes + path.stat().st_size > MAX_STAGED_BYTES_PER_WORKSPACE:
+                shutil.rmtree(path.parent, ignore_errors=True)
+                staged.append({"name": file.filename, "error": "Workspace staging limit exceeded."})
+                continue
             estimate = estimate_pdf_load(path)
-        except Exception as exc:  # noqa: BLE001 - a corrupt PDF must not 500 the batch
-            staged.append({"name": file.filename, "error": f"Could not read PDF: {exc}"})
+        except Exception:  # noqa: BLE001 - a corrupt PDF must not 500 the batch
+            if path is not None:
+                shutil.rmtree(path.parent, ignore_errors=True)
+            app.logger.info("Rejected unreadable staged PDF", exc_info=True)
+            staged.append({"name": file.filename, "error": "Could not read this PDF."})
             continue
 
         upload_id = uuid.uuid4().hex[:12]
@@ -650,10 +762,13 @@ def stage_uploads():
             "approx_tokens": estimate["approx_tokens"],
             "estimated": True,
             "workspace_id": workspace_id,
+            "staged_at": time.time(),
+            "temporary_upload": True,
         }
         with STAGED_LOCK:
             STAGED[upload_id] = record
         staged.append(record)
+        staged_bytes += record["size_bytes"]
 
     usable = [f for f in staged if "error" not in f]
     plan = estimate_batch_plan(usable, requested_concurrency, settings.get("auto_concurrency", True))
@@ -679,21 +794,21 @@ def get_corpus():
         fiscal_year = int(item.get("fiscal_year") or 0)
         output_directory = RUNS_DIR / company / f"FY{fiscal_year}"
         verification = verification_payload(item)
-        documents.append({
-            **item,
-            "verification_status": verification.get("status"),
-            "candidate_extracted": verification.get("candidate_extracted", False),
-            "candidate_count": verification.get("extracted_row_count", 0),
-            "candidate_method": verification.get("candidate_method"),
-            "consensus_summary": verification.get("consensus_summary"),
-            "approved_at": verification.get("approved_at"),
-            "output_directory": str(output_directory),
-            "output_count": _workspace_prediction_count(output_directory, workspace_id),
-        })
-    # Keep the library useful before every research seed has yielded a valid
-    # filing. Stored reports come first; the remaining slots are filled from
-    # the evidence-backed Bakuraku company registry. A seed is never presented
-    # as a downloaded or verified report.
+        documents.append(
+            {
+                **item,
+                "verification_status": verification.get("status"),
+                "candidate_extracted": verification.get("candidate_extracted", False),
+                "candidate_count": verification.get("extracted_row_count", 0),
+                "candidate_method": verification.get("candidate_method"),
+                "consensus_summary": verification.get("consensus_summary"),
+                "approved_at": verification.get("approved_at"),
+                "output_directory": str(output_directory),
+                "output_count": _workspace_prediction_count(output_directory, workspace_id),
+            }
+        )
+    # Only manifest-backed reports belong in the runtime library. Research
+    # prospects are maintenance data, not downloadable corpus entries.
     target_by_company: dict[str, dict] = {}
     for item in documents:
         company = str(item.get("company") or "").strip()
@@ -705,45 +820,40 @@ def get_corpus():
                 "evidence_url": "",
                 "status": "report_stored",
             }
-    customers_path = Path("research/bakuraku/customers.csv")
-    if customers_path.exists():
-        with customers_path.open(encoding="utf-8", newline="") as handle:
-            for row in csv.DictReader(handle):
-                company = str(row.get("company_name") or "").strip()
-                if not company or company in target_by_company:
-                    continue
-                target_by_company[company] = {
-                    "company": company,
-                    "official_url": str(row.get("official_website") or ""),
-                    "country": "JP",
-                    "evidence_url": str(row.get("evidence_url") or ""),
-                    "status": "research_seed",
-                }
-                if len(target_by_company) >= 100:
-                    break
     targets = sorted(
         target_by_company.values(),
         key=lambda item: (
             0 if str(item.get("company") or "").strip().casefold() == "3m" else 1,
-            0 if item.get("status") == "report_stored" else 1,
             str(item.get("company") or "").casefold(),
         ),
-    )[:100]
-    return jsonify({
-        **manifest,
-        "documents": documents,
-        "targets": targets,
-        "summary": {
-            "documents": len(documents),
-            "companies": len(targets),
-            "companies_with_reports": len({item.get("company") for item in documents}),
-            "ok": sum(item.get("screened") == "ok" for item in documents),
-            "review": sum(item.get("screened") == "review" for item in documents),
-            "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
-            "verified": sum(item.get("verification_status") in {"assignment_supplied", "human_verified", "independently_verified"} for item in documents),
-            "human_review_required": sum(item.get("verification_status") == "human_review_required" for item in documents),
-        },
-    })
+    )
+    return jsonify(
+        {
+            **manifest,
+            "documents": documents,
+            "targets": targets,
+            "summary": {
+                "documents": len(documents),
+                "companies": len(targets),
+                "companies_with_reports": len({item.get("company") for item in documents}),
+                "ok": sum(item.get("screened") == "ok" for item in documents),
+                "review": sum(item.get("screened") == "review" for item in documents),
+                "unreadable": sum(item.get("screened") == "unreadable" for item in documents),
+                "verified": sum(
+                    item.get("verification_status")
+                    in {
+                        "assignment_supplied",
+                        "human_verified",
+                        "independently_verified",
+                    }
+                    for item in documents
+                ),
+                "human_review_required": sum(
+                    item.get("verification_status") == "human_review_required" for item in documents
+                ),
+            },
+        }
+    )
 
 
 @app.route("/api/corpus/<document_id>/pdf", methods=["GET"])
@@ -755,7 +865,12 @@ def get_corpus_pdf(document_id):
     path = Path(str(document.get("local_path") or "")).resolve()
     if not path.is_relative_to(CORPUS_ROOT.resolve()) or not path.is_file():
         return jsonify({"error": "The pinned PDF is missing from corpus storage."}), 404
-    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=str(document.get("filename") or path.name))
+    return send_file(
+        path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=str(document.get("filename") or path.name),
+    )
 
 
 @app.route("/api/corpus/<document_id>/pages/<int:page_number>.png", methods=["GET"])
@@ -780,19 +895,20 @@ def get_corpus_pdf_page(document_id, page_number):
     cache_file = CORPUS_ROOT / ".page_cache" / str(document.get("sha256") or "unknown") / f"{page_number}.png"
     if not cache_file.is_file():
         try:
-            import fitz
+            import pymupdf
 
-            with fitz.open(path) as pdf:
+            with pymupdf.open(path) as pdf:
                 if page_number < 1 or page_number > pdf.page_count:
                     return jsonify({"error": "PDF page not found."}), 404
                 page = pdf.load_page(page_number - 1)
-                pixmap = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
+                pixmap = page.get_pixmap(matrix=pymupdf.Matrix(1.7, 1.7), alpha=False)
                 cache_file.parent.mkdir(parents=True, exist_ok=True)
                 temporary = cache_file.with_suffix(".png.tmp")
                 temporary.write_bytes(pixmap.tobytes("png"))
                 temporary.replace(cache_file)
         except (OSError, RuntimeError, ValueError) as exc:
-            return jsonify({"error": f"Could not render the PDF page: {exc}"}), 500
+            app.logger.warning("PDF page rendering failed: %s", safe_client_error(exc))
+            return jsonify({"error": "Could not render the PDF page."}), 500
     response = send_file(cache_file, mimetype="image/png", max_age=86400, conditional=True)
     response.headers["ETag"] = str(document.get("sha256") or "")
     return response
@@ -808,7 +924,9 @@ def corpus_verification(document_id):
     existing = verification_payload(document)
     if existing.get("status") in {"assignment_supplied", "independently_verified"}:
         return jsonify({"error": "This source-audited answer key is immutable."}), 409
-    body = request.get_json(silent=True) or {}
+    body = request_json_object()
+    if body is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     rows = body.get("rows")
     if not isinstance(rows, list):
         return jsonify({"error": "A 27-row review table is required."}), 400
@@ -819,7 +937,7 @@ def corpus_verification(document_id):
     except KeyError:
         return jsonify({"error": "Corpus document not found."}), 404
     except (ValueError, OSError) as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": safe_client_error(exc, "Could not save verification.")}), 400
     return jsonify({"ok": True, **payload})
 
 
@@ -837,15 +955,16 @@ def extract_corpus_verification(document_id):
     existing = verification_payload(document)
     reusable_candidate = str(existing.get("candidate_method") or "").startswith("configured_llm")
     if existing.get("candidate_extracted") and (
-        existing.get("status") in {"assignment_supplied", "human_verified", "independently_verified"} or reusable_candidate
+        existing.get("status") in {"assignment_supplied", "human_verified", "independently_verified"}
+        or reusable_candidate
     ):
         return jsonify({"ok": True, "reused": True, **existing})
 
     settings = current_settings()
     if not settings.get("api_key"):
-        return jsonify({
-            "error": "PDF answer extraction is unavailable until the model API key is configured."
-        }), 400
+        return jsonify(
+            {"error": "PDF answer extraction is unavailable until the model API key is configured."}
+        ), 400
     try:
         prediction = run_pipeline(
             pdf_path=Path(str(document.get("local_path") or "")),
@@ -864,7 +983,8 @@ def extract_corpus_verification(document_id):
         updated = pin_candidate_answers(
             document,
             {
-                "detected_fiscal_year": prediction.get("detected_fiscal_year") or prediction.get("fiscal_year"),
+                "detected_fiscal_year": prediction.get("detected_fiscal_year")
+                or prediction.get("fiscal_year"),
                 "rows": prediction.get("rows") or [],
                 "mode": "semantic_mapping",
                 "metadata": {
@@ -878,7 +998,8 @@ def extract_corpus_verification(document_id):
         )
         payload = verification_payload(updated)
     except (GLMError, SchemaValidationError, RuntimeError, ValueError, OSError) as exc:
-        return jsonify({"error": f"Could not extract review answers from the PDF: {exc}"}), 502
+        detail = safe_client_error(exc, "Review extraction failed.")
+        return jsonify({"error": f"Could not extract review answers from the PDF: {detail}"}), 502
     return jsonify({"ok": True, "reused": False, **payload}), 201
 
 
@@ -894,25 +1015,31 @@ def delete_corpus_document(document_id):
         # A deleted document takes its gold with it; drop stale scored summaries.
         invalidate_run_summaries()
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except OSError as exc:
-        return jsonify({"error": f"Could not delete the stored PDF: {exc}"}), 500
+        return jsonify({"error": safe_client_error(exc, "Could not delete the stored PDF.")}), 400
+    except OSError:
+        app.logger.exception("Stored PDF deletion failed")
+        return jsonify({"error": "Could not delete the stored PDF."}), 500
     if deleted is None:
         return jsonify({"error": "Corpus document not found."}), 404
-    return jsonify({
-        "ok": True,
-        "deleted": {
-            "filename": deleted.get("filename"),
-            "file_removed": deleted.get("file_removed", False),
-        },
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "deleted": {
+                "filename": deleted.get("filename"),
+                "file_removed": deleted.get("file_removed", False),
+            },
+        }
+    )
 
 
 @app.route("/api/corpus/stage", methods=["POST"])
 def stage_corpus_documents():
     """Stage durable corpus PDFs through the same extraction contract as uploads."""
-    body = request.get_json(silent=True) or {}
+    body = request_json_object()
+    if body is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     workspace_id = request_workspace_id()
+    _prune_staged()
     document_ids = body.get("document_ids") or []
     if not isinstance(document_ids, list) or not document_ids:
         return jsonify({"error": "Select at least one corpus document."}), 400
@@ -940,7 +1067,12 @@ def stage_corpus_documents():
                 raise ValueError("The pinned PDF is missing from corpus storage.")
             estimate = estimate_pdf_load(path)
         except Exception as exc:  # noqa: BLE001 - report an invalid manifest entry per file
-            staged.append({"name": document.get("filename") or document_id, "error": str(exc)})
+            staged.append(
+                {
+                    "name": document.get("filename") or document_id,
+                    "error": safe_client_error(exc, "Invalid corpus manifest entry."),
+                }
+            )
             continue
 
         upload_id = uuid.uuid4().hex[:12]
@@ -959,13 +1091,19 @@ def stage_corpus_documents():
             "source_pdf_sha256": document.get("sha256"),
             "verification_status": verification_payload(document).get("status"),
             "workspace_id": workspace_id,
+            "staged_at": time.time(),
+            "temporary_upload": False,
         }
         with STAGED_LOCK:
             STAGED[upload_id] = record
         staged.append(record)
 
     usable = [item for item in staged if "error" not in item]
-    plan = estimate_batch_plan(usable, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
+    plan = estimate_batch_plan(
+        usable,
+        settings.get("max_concurrency", 6),
+        settings.get("auto_concurrency", True),
+    )
     advisories = [
         f"{item['name']} has not been human verified; exact accuracy will not be reported."
         for item in usable
@@ -974,20 +1112,11 @@ def stage_corpus_documents():
     return jsonify({"ok": bool(usable), "files": staged, "plan": plan, "advisories": advisories})
 
 
-@app.route("/api/bakuraku/customers", methods=["GET"])
-def get_bakuraku_customers():
-    """Return the evidence-backed customer seed list produced by research."""
-    path = Path("research/bakuraku/customers.csv")
-    if not path.exists():
-        return jsonify({"customers": [], "count": 0})
-    with path.open(encoding="utf-8", newline="") as handle:
-        customers = list(csv.DictReader(handle))
-    return jsonify({"customers": customers, "count": len(customers)})
-
-
 @app.route("/api/corpus/jobs", methods=["POST"])
 def start_corpus_job():
-    data = request.get_json(silent=True) or {}
+    data = request_json_object()
+    if data is None:
+        return jsonify({"error": "A JSON object is required."}), 400
     companies = data.get("companies") or []
     if not isinstance(companies, list) or not companies:
         return jsonify({"error": "Add at least one company."}), 400
@@ -999,14 +1128,22 @@ def start_corpus_job():
             item = {"name": item}
         if not isinstance(item, dict) or not str(item.get("name") or "").strip():
             continue
-        cleaned.append({
-            "name": str(item["name"]).strip(),
-            "official_url": str(item.get("official_url") or "").strip(),
-            "country": str(item.get("country") or "US").strip().upper(),
-        })
+        cleaned.append(
+            {
+                "name": str(item["name"]).strip(),
+                "official_url": str(item.get("official_url") or "").strip(),
+                "country": str(item.get("country") or "US").strip().upper(),
+            }
+        )
     if not cleaned:
         return jsonify({"error": "No valid company names were supplied."}), 400
-    years = sorted({int(year) for year in (data.get("years") or range(2020, 2026)) if str(year).isdigit() and 2020 <= int(year) <= 2025})
+    years = sorted(
+        {
+            int(year)
+            for year in (data.get("years") or range(2020, 2026))
+            if str(year).isdigit() and 2020 <= int(year) <= 2025
+        }
+    )
     if not years:
         return jsonify({"error": "Choose at least one year from 2020 through 2025."}), 400
 
@@ -1020,15 +1157,17 @@ def start_corpus_job():
             None,
         )
     if active:
-        return jsonify({
-            "error": f"Corpus discovery job {active['id']} is already running.",
-            "job_id": active["id"],
-            "status": active["status"],
-        }), 409
+        return jsonify(
+            {
+                "error": f"Corpus discovery job {active['id']} is already running.",
+                "job_id": active["id"],
+                "status": active["status"],
+            }
+        ), 409
 
     job_id = uuid.uuid4().hex[:12]
-    created_at = datetime.now(timezone.utc).isoformat()
-    job = {
+    created_at = datetime.now(UTC).isoformat()
+    job: dict[str, Any] = {
         "id": job_id,
         "status": "queued",
         "created_at": created_at,
@@ -1049,9 +1188,13 @@ def start_corpus_job():
     def run_job() -> None:
         def on_event(event: dict) -> None:
             with CORPUS_JOBS_LOCK:
-                job["events"] = [*job["events"][-199:], {**event, "at": datetime.now(timezone.utc).isoformat()}]
+                job["events"] = [
+                    *job["events"][-199:],
+                    {**event, "at": datetime.now(UTC).isoformat()},
+                ]
                 job["status"] = "running"
                 _write_corpus_job_state(job_id, job)
+
         with CORPUS_JOBS_LOCK:
             job["status"] = "running"
             _write_corpus_job_state(job_id, job)
@@ -1067,14 +1210,14 @@ def start_corpus_job():
         except Exception as exc:  # noqa: BLE001 - background failures are reported to the UI
             with CORPUS_JOBS_LOCK:
                 job["status"] = "failed"
-                job["error"] = str(exc)
-                job["finished_at"] = datetime.now(timezone.utc).isoformat()
+                job["error"] = safe_client_error(exc, "Corpus discovery failed.")
+                job["finished_at"] = datetime.now(UTC).isoformat()
                 _write_corpus_job_state(job_id, job)
         else:
             with CORPUS_JOBS_LOCK:
                 job["status"] = "complete"
                 job["result"] = result
-                job["finished_at"] = datetime.now(timezone.utc).isoformat()
+                job["finished_at"] = datetime.now(UTC).isoformat()
                 _write_corpus_job_state(job_id, job)
 
     threading.Thread(target=run_job, daemon=True, name=f"corpus-{job_id}").start()
@@ -1106,7 +1249,7 @@ def list_extraction_jobs():
     for path in EXTRACTION_JOBS_ROOT.glob("*/state.json"):
         try:
             state = _read_extraction_job_state(path.parent.name)
-            if _workspace_matches(state, workspace_id):
+            if state is not None and _workspace_matches(state, workspace_id):
                 jobs.append(state)
         except (OSError, json.JSONDecodeError):
             continue
@@ -1117,7 +1260,7 @@ def list_extraction_jobs():
 @app.route("/api/extraction/jobs/<job_id>", methods=["GET"])
 def get_extraction_job(job_id):
     state = _read_extraction_job_state(job_id)
-    if not _workspace_matches(state, request_workspace_id()):
+    if state is None or not _workspace_matches(state, request_workspace_id()):
         return jsonify({"error": "Extraction job not found."}), 404
     try:
         after = max(0, int(request.args.get("after", "0")))
@@ -1134,13 +1277,17 @@ def start_extraction_job():
     workspace_id = request_workspace_id()
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400
-    body = request.get_json(silent=True) or {}
+    body = request_json_object()
+    if body is None:
+        return jsonify({"error": "A JSON object is required."}), 400
+    _prune_staged()
     upload_ids = body.get("upload_ids") or []
     if not isinstance(upload_ids, list) or not upload_ids:
         return jsonify({"error": "No staged uploads referenced."}), 400
     with STAGED_LOCK:
         staged_jobs = [
-            STAGED[uid] for uid in upload_ids
+            STAGED[uid]
+            for uid in upload_ids
             if uid in STAGED and _workspace_matches(STAGED[uid], workspace_id)
         ]
     if not staged_jobs:
@@ -1152,7 +1299,12 @@ def start_extraction_job():
     strategy_keys = [str(key).strip().lower() for key in requested if str(key).strip()] or ["s1"]
     unknown = [key for key in strategy_keys if key not in STRATEGIES]
     if unknown:
-        return jsonify({"error": f"Unknown strategy: {', '.join(unknown)}", "available": list(STRATEGIES)}), 400
+        return jsonify(
+            {
+                "error": f"Unknown strategy: {', '.join(unknown)}",
+                "available": list(STRATEGIES),
+            }
+        ), 400
 
     options = {
         "system_prompt": str(body.get("system_prompt") or "").strip() or ACTIVE_PROMPT,
@@ -1161,27 +1313,55 @@ def start_extraction_job():
         "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.0)),
         "reasoning_effort": str(body.get("reasoning_effort") or "").strip().lower(),
     }
-    plan = estimate_batch_plan(staged_jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
+    plan = estimate_batch_plan(
+        staged_jobs,
+        settings.get("max_concurrency", 6),
+        settings.get("auto_concurrency", True),
+    )
     concurrency = plan["recommended_concurrency"]
     job_id = uuid.uuid4().hex[:16]
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     state = {
-        "id": job_id, "status": "queued", "created_at": created_at, "updated_at": created_at,
-        "scope": "s3" if "s3" in strategy_keys else "s2" if any(key.startswith("s2") for key in strategy_keys) else "s1",
-        "strategies": strategy_keys, "files_total": len(staged_jobs),
-        "passes_total": len(staged_jobs) * len(strategy_keys), "succeeded": 0, "failed": 0,
+        "id": job_id,
+        "status": "queued",
+        "created_at": created_at,
+        "updated_at": created_at,
+        "scope": "s3"
+        if "s3" in strategy_keys
+        else "s2"
+        if any(key.startswith("s2") for key in strategy_keys)
+        else "s1",
+        "strategies": strategy_keys,
+        "files_total": len(staged_jobs),
+        "passes_total": len(staged_jobs) * len(strategy_keys),
+        "succeeded": 0,
+        "failed": 0,
         "error": None,
         "worker_pid": os.getpid(),
         "workspace_id": workspace_id,
     }
     with EXTRACTION_JOBS_LOCK:
         _write_extraction_job_state(job_id, state)
-        _append_extraction_event(job_id, "batch_start", {
-            "job_id": job_id, "total": state["passes_total"], "files_total": len(staged_jobs),
-            "concurrency": concurrency,
-            "strategies": [{"key": key, "label": STRATEGIES[key].label} for key in strategy_keys],
-            "files": [{"index": index, "name": item["name"], "pages": item["pages"], "approx_tokens": item["approx_tokens"]} for index, item in enumerate(staged_jobs)],
-        })
+        _append_extraction_event(
+            job_id,
+            "batch_start",
+            {
+                "job_id": job_id,
+                "total": state["passes_total"],
+                "files_total": len(staged_jobs),
+                "concurrency": concurrency,
+                "strategies": [{"key": key, "label": STRATEGIES[key].label} for key in strategy_keys],
+                "files": [
+                    {
+                        "index": index,
+                        "name": item["name"],
+                        "pages": item["pages"],
+                        "approx_tokens": item["approx_tokens"],
+                    }
+                    for index, item in enumerate(staged_jobs)
+                ],
+            },
+        )
 
     def append(event: str, data: dict) -> None:
         _append_extraction_event(job_id, event, data)
@@ -1201,42 +1381,116 @@ def start_extraction_job():
             strategy = STRATEGIES[key]
 
             def on_progress(update: dict) -> None:
-                append("progress", {"index": index, "file": staged["name"], "strategy": key, **update})
+                append(
+                    "progress",
+                    {"index": index, "file": staged["name"], "strategy": key, **update},
+                )
 
-            append("pass_start", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "pages": staged["pages"], "approx_tokens": staged["approx_tokens"]})
+            append(
+                "pass_start",
+                {
+                    "index": index,
+                    "file": staged["name"],
+                    "strategy": key,
+                    "strategy_label": strategy.label,
+                    "pages": staged["pages"],
+                    "approx_tokens": staged["approx_tokens"],
+                },
+            )
             try:
                 job_options = {**options}
                 if staged.get("source") == "corpus":
-                    job_options.update({
-                        "fiscal_year_hint": str(staged.get("fiscal_year") or ""),
-                        "company_hint": str(staged.get("company") or ""),
-                        "output_currency": str(staged.get("currency") or "USD"),
-                    })
-                prediction = run_pipeline(pdf_path=Path(staged["path"]), settings=settings, strategy_key=key, display_name=staged["name"], on_progress=on_progress, workspace_id=workspace_id, **job_options)
+                    job_options.update(
+                        {
+                            "fiscal_year_hint": str(staged.get("fiscal_year") or ""),
+                            "company_hint": str(staged.get("company") or ""),
+                            "output_currency": str(staged.get("currency") or "USD"),
+                        }
+                    )
+                prediction = run_pipeline(
+                    pdf_path=Path(staged["path"]),
+                    settings=settings,
+                    strategy_key=key,
+                    display_name=staged["name"],
+                    on_progress=on_progress,
+                    workspace_id=workspace_id,
+                    system_prompt=str(job_options.get("system_prompt") or ACTIVE_PROMPT),
+                    fiscal_year_hint=str(job_options.get("fiscal_year_hint") or ""),
+                    enable_reasoning=bool(job_options.get("enable_reasoning", True)),
+                    reasoning_effort=str(job_options.get("reasoning_effort") or ""),
+                    temperature=parse_float(job_options.get("temperature"), 0.0),
+                    company_hint=str(job_options.get("company_hint") or ""),
+                    output_currency=str(job_options.get("output_currency") or "USD"),
+                )
                 increment_count("succeeded")
-                append("file_done", {
-                    "index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label,
-                    "input_tokens": prediction["approx_input_tokens"], "consistency": prediction["metrics"].get("consistency"),
-                    "extract_seconds": prediction.get("extract_seconds"), "total_seconds": prediction.get("total_seconds"),
-                    "ok": True, "run_id": prediction["run_id"], "fiscal_year": prediction["fiscal_year"],
-                    "api_elapsed_seconds": prediction["api_elapsed_seconds"], "page_count": prediction["page_count"],
-                    "approx_input_tokens": prediction["approx_input_tokens"], "metrics": prediction["metrics"],
-                    "warnings": prediction["warnings"], "contract_repairs": prediction["contract_repairs"],
-                })
+                append(
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": staged["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "input_tokens": prediction["approx_input_tokens"],
+                        "consistency": prediction["metrics"].get("consistency"),
+                        "extract_seconds": prediction.get("extract_seconds"),
+                        "total_seconds": prediction.get("total_seconds"),
+                        "ok": True,
+                        "run_id": prediction["run_id"],
+                        "fiscal_year": prediction["fiscal_year"],
+                        "api_elapsed_seconds": prediction["api_elapsed_seconds"],
+                        "page_count": prediction["page_count"],
+                        "approx_input_tokens": prediction["approx_input_tokens"],
+                        "metrics": prediction["metrics"],
+                        "warnings": prediction["warnings"],
+                        "contract_repairs": prediction["contract_repairs"],
+                    },
+                )
             except QuotaExhaustedError as exc:
-                quota_hit.setdefault("message", str(exc))
+                error = safe_client_error(exc, "Provider quota exhausted.")
+                quota_hit.setdefault("message", error)
                 increment_count("failed")
-                append("quota_exhausted", {"message": str(exc)})
-                append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "ok": False, "error": str(exc)})
+                append("quota_exhausted", {"message": error})
+                append(
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": staged["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "ok": False,
+                        "error": error,
+                    },
+                )
             except Exception as exc:  # noqa: BLE001
+                error = safe_client_error(exc, "Extraction failed.")
                 increment_count("failed")
-                append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": strategy.label, "ok": False, "error": str(exc)})
+                append(
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": staged["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "ok": False,
+                        "error": error,
+                    },
+                )
 
         def run_file(index: int, staged: dict) -> None:
             for key in strategy_keys:
                 if quota_hit:
                     increment_count("failed")
-                    append("file_done", {"index": index, "file": staged["name"], "strategy": key, "strategy_label": STRATEGIES[key].label, "ok": False, "error": f"Skipped — {quota_hit['message']}"})
+                    append(
+                        "file_done",
+                        {
+                            "index": index,
+                            "file": staged["name"],
+                            "strategy": key,
+                            "strategy_label": STRATEGIES[key].label,
+                            "ok": False,
+                            "error": f"Skipped — {quota_hit['message']}",
+                        },
+                    )
                 else:
                     run_one(index, staged, key)
             append("file_complete", {"index": index, "file": staged["name"]})
@@ -1248,10 +1502,20 @@ def start_extraction_job():
                 for staged in staged_jobs:
                     STAGED.pop(staged["id"], None)
             state.update({"status": "complete", **counts})
-            append("batch_done", {"job_id": job_id, "quota_exhausted": quota_hit.get("message"), "total": state["passes_total"], **counts, "rate_limit": LIMITER.snapshot()})
+            append(
+                "batch_done",
+                {
+                    "job_id": job_id,
+                    "quota_exhausted": quota_hit.get("message"),
+                    "total": state["passes_total"],
+                    **counts,
+                    "rate_limit": LIMITER.snapshot(),
+                },
+            )
         except Exception as exc:  # noqa: BLE001
-            state.update({"status": "failed", "error": str(exc), **counts})
-            append("batch_failed", {"job_id": job_id, "error": str(exc)})
+            error = safe_client_error(exc, "Batch extraction failed.")
+            state.update({"status": "failed", "error": error, **counts})
+            append("batch_failed", {"job_id": job_id, "error": error})
         finally:
             _write_extraction_job_state(job_id, state)
 
@@ -1278,14 +1542,18 @@ def extract_stream():
     if not settings.get("api_key"):
         return jsonify({"error": "API key not configured."}), 400
 
-    body = request.get_json(silent=True) or {}
+    body = request_json_object()
+    if body is None:
+        return jsonify({"error": "A JSON object is required."}), 400
+    _prune_staged()
     upload_ids = body.get("upload_ids") or []
     if not isinstance(upload_ids, list) or not upload_ids:
         return jsonify({"error": "No staged uploads referenced."}), 400
 
     with STAGED_LOCK:
         jobs = [
-            STAGED[uid] for uid in upload_ids
+            STAGED[uid]
+            for uid in upload_ids
             if uid in STAGED and _workspace_matches(STAGED[uid], workspace_id)
         ]
     if not jobs:
@@ -1301,10 +1569,12 @@ def extract_stream():
         strategy_keys = ["s1"]
     unknown = [key for key in strategy_keys if key not in STRATEGIES]
     if unknown:
-        return jsonify({
-            "error": f"Unknown strategy: {', '.join(unknown)}",
-            "available": list(STRATEGIES),
-        }), 400
+        return jsonify(
+            {
+                "error": f"Unknown strategy: {', '.join(unknown)}",
+                "available": list(STRATEGIES),
+            }
+        ), 400
 
     options = {
         "system_prompt": str(body.get("system_prompt") or "").strip() or ACTIVE_PROMPT,
@@ -1313,7 +1583,9 @@ def extract_stream():
         "temperature": parse_float(body.get("temperature"), settings.get("temperature", 0.0)),
         "reasoning_effort": str(body.get("reasoning_effort") or "").strip().lower(),
     }
-    plan = estimate_batch_plan(jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))
+    plan = estimate_batch_plan(
+        jobs, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True)
+    )
     concurrency = plan["recommended_concurrency"]
 
     events: queue.Queue = queue.Queue()
@@ -1332,11 +1604,19 @@ def extract_stream():
         """
         for key in strategy_keys:
             if quota_hit:
-                events.put(("file_done", {
-                    "index": index, "file": job["name"], "strategy": key,
-                    "strategy_label": STRATEGIES[key].label, "ok": False,
-                    "error": f"Skipped — {quota_hit['message']}",
-                }))
+                events.put(
+                    (
+                        "file_done",
+                        {
+                            "index": index,
+                            "file": job["name"],
+                            "strategy": key,
+                            "strategy_label": STRATEGIES[key].label,
+                            "ok": False,
+                            "error": f"Skipped — {quota_hit['message']}",
+                        },
+                    )
+                )
                 continue
             _run_one(index, job, key)
         events.put(("file_complete", {"index": index, "file": job["name"]}))
@@ -1345,20 +1625,36 @@ def extract_stream():
         strategy = STRATEGIES[key]
 
         def on_progress(update: dict) -> None:
-            events.put(("progress", {"index": index, "file": job["name"],
-                                     "strategy": key, **update}))
+            events.put(
+                (
+                    "progress",
+                    {"index": index, "file": job["name"], "strategy": key, **update},
+                )
+            )
 
-        events.put(("pass_start", {"index": index, "file": job["name"], "strategy": key,
-                                   "strategy_label": strategy.label, "pages": job["pages"],
-                                   "approx_tokens": job["approx_tokens"]}))
+        events.put(
+            (
+                "pass_start",
+                {
+                    "index": index,
+                    "file": job["name"],
+                    "strategy": key,
+                    "strategy_label": strategy.label,
+                    "pages": job["pages"],
+                    "approx_tokens": job["approx_tokens"],
+                },
+            )
+        )
         try:
             job_options = {**options}
             if job.get("source") == "corpus":
-                job_options.update({
-                    "fiscal_year_hint": str(job.get("fiscal_year") or ""),
-                    "company_hint": str(job.get("company") or ""),
-                    "output_currency": str(job.get("currency") or "USD"),
-                })
+                job_options.update(
+                    {
+                        "fiscal_year_hint": str(job.get("fiscal_year") or ""),
+                        "company_hint": str(job.get("company") or ""),
+                        "output_currency": str(job.get("currency") or "USD"),
+                    }
+                )
             prediction = run_pipeline(
                 pdf_path=Path(job["path"]),
                 settings=settings,
@@ -1366,41 +1662,72 @@ def extract_stream():
                 display_name=job["name"],
                 on_progress=on_progress,
                 workspace_id=workspace_id,
-                **job_options,
+                system_prompt=str(job_options.get("system_prompt") or ACTIVE_PROMPT),
+                fiscal_year_hint=str(job_options.get("fiscal_year_hint") or ""),
+                enable_reasoning=bool(job_options.get("enable_reasoning", True)),
+                reasoning_effort=str(job_options.get("reasoning_effort") or ""),
+                temperature=parse_float(job_options.get("temperature"), 0.0),
+                company_hint=str(job_options.get("company_hint") or ""),
+                output_currency=str(job_options.get("output_currency") or "USD"),
             )
-            events.put(("file_done", {
-                "index": index,
-                "file": job["name"],
-                "strategy": key,
-                "strategy_label": strategy.label,
-                "input_tokens": prediction["approx_input_tokens"],
-                "consistency": prediction["metrics"].get("consistency"),
-                "extract_seconds": prediction.get("extract_seconds"),
-                "total_seconds": prediction.get("total_seconds"),
-                "ok": True,
-                "run_id": prediction["run_id"],
-                "fiscal_year": prediction["fiscal_year"],
-                "api_elapsed_seconds": prediction["api_elapsed_seconds"],
-                "page_count": prediction["page_count"],
-                "approx_input_tokens": prediction["approx_input_tokens"],
-                "metrics": prediction["metrics"],
-                "warnings": prediction["warnings"],
-                "contract_repairs": prediction["contract_repairs"],
-            }))
+            events.put(
+                (
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": job["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "input_tokens": prediction["approx_input_tokens"],
+                        "consistency": prediction["metrics"].get("consistency"),
+                        "extract_seconds": prediction.get("extract_seconds"),
+                        "total_seconds": prediction.get("total_seconds"),
+                        "ok": True,
+                        "run_id": prediction["run_id"],
+                        "fiscal_year": prediction["fiscal_year"],
+                        "api_elapsed_seconds": prediction["api_elapsed_seconds"],
+                        "page_count": prediction["page_count"],
+                        "approx_input_tokens": prediction["approx_input_tokens"],
+                        "metrics": prediction["metrics"],
+                        "warnings": prediction["warnings"],
+                        "contract_repairs": prediction["contract_repairs"],
+                    },
+                )
+            )
         except QuotaExhaustedError as exc:
             # Nothing else will succeed until the window resets; stop scheduling
             # work rather than failing every remaining unit one by one.
-            quota_hit.setdefault("message", str(exc))
-            events.put(("quota_exhausted", {"message": str(exc)}))
-            events.put(("file_done", {
-                "index": index, "file": job["name"], "strategy": key,
-                "strategy_label": strategy.label, "ok": False, "error": str(exc),
-            }))
+            error = safe_client_error(exc, "Provider quota exhausted.")
+            quota_hit.setdefault("message", error)
+            events.put(("quota_exhausted", {"message": error}))
+            events.put(
+                (
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": job["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "ok": False,
+                        "error": error,
+                    },
+                )
+            )
         except Exception as exc:  # noqa: BLE001 - one bad pass must not kill the run
-            events.put(("file_done", {
-                "index": index, "file": job["name"], "strategy": key,
-                "strategy_label": strategy.label, "ok": False, "error": str(exc),
-            }))
+            error = safe_client_error(exc, "Extraction failed.")
+            events.put(
+                (
+                    "file_done",
+                    {
+                        "index": index,
+                        "file": job["name"],
+                        "strategy": key,
+                        "strategy_label": strategy.label,
+                        "ok": False,
+                        "error": error,
+                    },
+                )
+            )
 
     def run_all() -> None:
         # The pool bounds how many files are in flight; the adaptive limiter
@@ -1416,14 +1743,24 @@ def extract_stream():
 
     @stream_with_context
     def generate():
-        yield _sse("batch_start", {
-            "total": len(jobs) * len(strategy_keys),
-            "files_total": len(jobs),
-            "concurrency": concurrency,
-            "strategies": [{"key": k, "label": STRATEGIES[k].label} for k in strategy_keys],
-            "files": [{"index": i, "name": j["name"], "pages": j["pages"],
-                       "approx_tokens": j["approx_tokens"]} for i, j in enumerate(jobs)],
-        })
+        yield _sse(
+            "batch_start",
+            {
+                "total": len(jobs) * len(strategy_keys),
+                "files_total": len(jobs),
+                "concurrency": concurrency,
+                "strategies": [{"key": k, "label": STRATEGIES[k].label} for k in strategy_keys],
+                "files": [
+                    {
+                        "index": i,
+                        "name": j["name"],
+                        "pages": j["pages"],
+                        "approx_tokens": j["approx_tokens"],
+                    }
+                    for i, j in enumerate(jobs)
+                ],
+            },
+        )
         succeeded = 0
         failed = 0
         while True:
@@ -1438,18 +1775,25 @@ def extract_stream():
                 succeeded += 1 if payload.get("ok") else 0
                 failed += 0 if payload.get("ok") else 1
             yield _sse(kind, payload)
-        yield _sse("batch_done", {
-            "quota_exhausted": quota_hit.get("message"),
-            "total": len(jobs) * len(strategy_keys),
-            "succeeded": succeeded,
-            "failed": failed,
-            "rate_limit": LIMITER.snapshot(),
-        })
+        yield _sse(
+            "batch_done",
+            {
+                "quota_exhausted": quota_hit.get("message"),
+                "total": len(jobs) * len(strategy_keys),
+                "succeeded": succeeded,
+                "failed": failed,
+                "rate_limit": LIMITER.snapshot(),
+            },
+        )
 
     return Response(
         generate(),
         mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
 
 
@@ -1471,12 +1815,20 @@ def batch_extract():
     for _filename, path in saved:
         estimates.append(estimate_pdf_load(path))
     plan_files = [{"name": saved[index][0], **estimate} for index, estimate in enumerate(estimates)]
-    concurrency = estimate_batch_plan(plan_files, settings.get("max_concurrency", 6), settings.get("auto_concurrency", True))["recommended_concurrency"]
+    concurrency = estimate_batch_plan(
+        plan_files,
+        settings.get("max_concurrency", 6),
+        settings.get("auto_concurrency", True),
+    )["recommended_concurrency"]
 
     def process_single(filename: str, pdf_path):
         try:
             prediction = run_pipeline(
-                pdf_path=pdf_path, settings=settings, display_name=filename, workspace_id=workspace_id, **options
+                pdf_path=pdf_path,
+                settings=settings,
+                display_name=filename,
+                workspace_id=workspace_id,
+                **options,
             )
             return {
                 "ok": True,
@@ -1488,18 +1840,28 @@ def batch_extract():
                 "warnings": prediction["warnings"],
             }
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "filename": filename, "error": str(exc)}
+            return {
+                "ok": False,
+                "filename": filename,
+                "error": safe_client_error(exc, "Extraction failed."),
+            }
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         results = list(executor.map(lambda item: process_single(*item), saved))
 
     succeeded = sum(1 for r in results if r.get("ok"))
-    return jsonify({
-        "ok": True,
-        "results": results,
-        "summary": {"total": len(results), "succeeded": succeeded, "failed": len(results) - succeeded},
-        "rate_limit": LIMITER.snapshot(),
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "results": results,
+            "summary": {
+                "total": len(results),
+                "succeeded": succeeded,
+                "failed": len(results) - succeeded,
+            },
+            "rate_limit": LIMITER.snapshot(),
+        }
+    )
 
 
 @app.route("/api/runs", methods=["GET"])
@@ -1523,19 +1885,23 @@ def get_benchmark_runs():
         if verification_payload(document).get("status")
         in {"assignment_supplied", "human_verified", "independently_verified"}
     }
-    return jsonify({
-        "runs": [
-            run for run in list_runs(BENCHMARK_WORKSPACE_ID)
-            if str(run.get("source_pdf_sha256") or "") in verified_hashes
-        ]
-    })
+    return jsonify(
+        {
+            "runs": [
+                run
+                for run in list_runs(BENCHMARK_WORKSPACE_ID)
+                if str(run.get("source_pdf_sha256") or "") in verified_hashes
+            ]
+        }
+    )
 
 
 @app.route("/api/runs/all", methods=["DELETE"])
 def delete_all_runs():
     workspace_id = request_workspace_id()
     owned = [
-        directory for directory in iter_run_dirs()
+        directory
+        for directory in iter_run_dirs()
         if _workspace_matches(load_prediction(directory.name), workspace_id)
     ]
     count = len(owned)
@@ -1548,7 +1914,7 @@ def delete_all_runs():
 @app.route("/api/runs/<run_id>", methods=["GET"])
 def get_run(run_id):
     prediction = load_prediction(run_id)
-    if not _workspace_matches(prediction, request_workspace_id()):
+    if prediction is None or not _workspace_matches(prediction, request_workspace_id()):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     return jsonify(prediction_response(prediction))
 
@@ -1557,13 +1923,18 @@ def get_run(run_id):
 def delete_run(run_id):
     target_dir = find_run_dir(run_id)
     prediction = load_prediction(run_id)
-    if target_dir is None or not target_dir.is_dir() or not _workspace_matches(prediction, request_workspace_id()):
+    if (
+        target_dir is None
+        or not target_dir.is_dir()
+        or not _workspace_matches(prediction, request_workspace_id())
+    ):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     try:
         shutil.rmtree(target_dir)
         invalidate_run_summaries(target_dir)
-    except OSError as exc:
-        return jsonify({"error": f"Failed to delete run: {exc}"}), 500
+    except OSError:
+        app.logger.exception("Run deletion failed")
+        return jsonify({"error": "Failed to delete run."}), 500
     return jsonify({"ok": True, "message": f"Run '{run_id}' deleted successfully."})
 
 
@@ -1571,10 +1942,15 @@ def delete_run(run_id):
 def get_schema():
     # FY2022 is the only assignment-supplied answer key. Candidate and
     # human-approved keys are reviewed per PDF SHA through the corpus API.
-    return jsonify([
-        {**row, "golden_answers": {"2022": row.get("golden_answers", {}).get("2022")}}
-        for row in BENCHMARK_SCHEMA_METADATA
-    ])
+    return jsonify(
+        [
+            {
+                **row,
+                "golden_answers": {"2022": row.get("golden_answers", {}).get("2022")},
+            }
+            for row in BENCHMARK_SCHEMA_METADATA
+        ]
+    )
 
 
 @app.route("/api/golden_answers", methods=["GET"])
@@ -1585,7 +1961,11 @@ def get_golden_answers():
 @app.route("/api/golden_answers/<fiscal_year>", methods=["POST"])
 def save_golden_answers(fiscal_year):
     if str(fiscal_year) != "2022":
-        return jsonify({"error": "Only the assignment-supplied FY2022 key is exposed here. Review other reports through the corpus verification workflow."}), 409
+        return jsonify(
+            {
+                "error": "Only the assignment-supplied FY2022 key is exposed here. Review other reports through the corpus verification workflow."
+            }
+        ), 409
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "Invalid payload format. Expected an object of item -> number."}), 400
@@ -1610,20 +1990,22 @@ def save_golden_answers(fiscal_year):
 def evaluate_run(run_id):
     """Re-score a stored run, optionally against a different fiscal year."""
     prediction = load_prediction(run_id)
-    if not _workspace_matches(prediction, request_workspace_id()):
+    if prediction is None or not _workspace_matches(prediction, request_workspace_id()):
         return jsonify({"error": f"Run '{run_id}' not found."}), 404
     fiscal_year = request.args.get("fiscal_year") or prediction.get("fiscal_year", "")
-    return jsonify({
-        "run_id": prediction.get("run_id", run_id),
-        "fiscal_year": fiscal_year,
-        "metrics": compute_metrics(
-            apply_confidence_gate(derive_identity_values(prediction.get("rows", []))[0]),
-            fiscal_year,
-            prediction.get("company"),
-            prediction.get("source_pdf_sha256"),
-            prediction.get("currency", "USD"),
-        ),
-    })
+    return jsonify(
+        {
+            "run_id": prediction.get("run_id", run_id),
+            "fiscal_year": fiscal_year,
+            "metrics": compute_metrics(
+                apply_confidence_gate(derive_identity_values(prediction.get("rows", []))[0]),
+                fiscal_year,
+                prediction.get("company"),
+                prediction.get("source_pdf_sha256"),
+                prediction.get("currency", "USD"),
+            ),
+        }
+    )
 
 
 @app.after_request
@@ -1632,6 +2014,14 @@ def no_store(response):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+        "img-src 'self' data: blob:; connect-src 'self' https:; "
+        "font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    )
     origin = _allowed_origin(request.headers.get("Origin", ""))
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
@@ -1668,10 +2058,8 @@ def _free_port(preferred: int = 5000) -> int:
 
 
 if __name__ == "__main__":
-    import os
-
     port = int(os.getenv("PORT") or _free_port())
     if port != 5000:
-        print(f"  port 5000 is in use (macOS AirPlay Receiver commonly holds it)")
+        print("  port 5000 is in use (macOS AirPlay Receiver commonly holds it)")
     print(f"  Financial Report System -> http://127.0.0.1:{port}")
-    app.run(debug=True, port=port)
+    app.run(debug=parse_bool(os.getenv("FLASK_DEBUG"), False), port=port)

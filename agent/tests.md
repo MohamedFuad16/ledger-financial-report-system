@@ -14,18 +14,13 @@
 ## Commands
 
 ```bash
-.venv/bin/python test_contract.py
-.venv/bin/python test_traffic.py
-.venv/bin/python test_corpus_manifest.py
-.venv/bin/python test_corpus_review.py
-.venv/bin/python test_workspace_isolation.py
-cd frontend && npm test -- --run && npm run build
+scripts/verify_project.sh
 ```
 
 ## Current baseline
 
-The full extraction contract, 86 backend `unittest` checks, 25 Vitest checks, and the production
-TypeScript/Vite build passed on 2026-08-23. The batch regression proves two different-company
+The standalone extraction contract, 118 backend `unittest` checks, 31 Vitest checks, Ruff,
+mypy, TypeScript and the production Vite build passed on 2026-08-26. The batch regression proves two different-company
 PDFs stay visible together as separate running/queued cards, and the arithmetic regression proves
 one null identity term is derived without mutating the model response or consulting gold. The newest browser pass covers the active Strategy 3
 desktop execution page plus the Japanese dark-theme
@@ -33,5 +28,6 @@ extracted-answer review at desktop and 390×844 plus the two-strategy-only dashb
 embedded pinned PDF, 27 prefilled rows, responsive scrolling, immutable assignment
 values, cleaned navigation/dashboard scope, and zero console warnings.
 Automated review tests cover extraction-before-input, correction, confirmation,
-approval, retry, consensus artifacts and anonymous-workspace run isolation. No
+approval, retry, consensus artifacts, anonymous-workspace run isolation, PDF magic-byte rejection,
+staging expiry, non-object JSON rejection, key-fragment exclusion and browser security headers. No
 paid model or Firecrawl extraction was launched during this verification.

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from .client import FirecrawlClient
 from .discover import discover_company_reports
 from .fetch import fetch_report
-
 
 Progress = Callable[[dict[str, Any]], None]
 
@@ -32,9 +32,14 @@ def build_corpus(
     emit = on_event or (lambda _event: None)
     client = FirecrawlClient(
         api_key or os.getenv("FIRECRAWL_API_KEY", ""),
-        on_retry=lambda attempt, delay, error: emit({
-            "type": "retry", "attempt": attempt, "delay": round(delay, 1), "message": error,
-        }),
+        on_retry=lambda attempt, delay, error: emit(
+            {
+                "type": "retry",
+                "attempt": attempt,
+                "delay": round(delay, 1),
+                "message": error,
+            }
+        ),
     )
     candidate_groups: list[list[dict[str, Any]]] = []
     missing: list[dict[str, Any]] = []
@@ -57,8 +62,20 @@ def build_corpus(
             if choices:
                 candidate_groups.append([choice.as_dict() for choice in choices[:5]])
             else:
-                missing.append({"company": name, "year": year, "reason": "No report URL discovered."})
-        emit({"type": "discovered", "company": name, "reports": sum(bool(value) for value in discovered.values())})
+                missing.append(
+                    {
+                        "company": name,
+                        "year": year,
+                        "reason": "No report URL discovered.",
+                    }
+                )
+        emit(
+            {
+                "type": "discovered",
+                "company": name,
+                "reports": sum(bool(value) for value in discovered.values()),
+            }
+        )
 
     downloaded: list[dict[str, Any]] = []
     failed: list[dict[str, Any]] = list(missing)
@@ -79,10 +96,25 @@ def build_corpus(
             try:
                 document = future.result()
             except Exception as exc:
-                failed.append({"company": candidate["company"], "year": candidate["year"], "reason": str(exc), "url": candidate["url"]})
+                failed.append(
+                    {
+                        "company": candidate["company"],
+                        "year": candidate["year"],
+                        "reason": str(exc),
+                        "url": candidate["url"],
+                    }
+                )
                 emit({"type": "failed", **failed[-1]})
             else:
-                emit({"type": "downloaded", "company": document["company"], "year": document["fiscal_year"], "screened": document["screened"], "path": document["local_path"]})
+                emit(
+                    {
+                        "type": "downloaded",
+                        "company": document["company"],
+                        "year": document["fiscal_year"],
+                        "screened": document["screened"],
+                        "path": document["local_path"],
+                    }
+                )
                 downloaded.append(document)
 
     return {

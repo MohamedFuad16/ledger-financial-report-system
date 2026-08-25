@@ -12,14 +12,29 @@ class DeploymentManifestTests(unittest.TestCase):
         deployed = {
             "version": 1,
             "documents": [
-                {"company": "3M", "company_slug": "3M", "fiscal_year": 2022, "sha256": "new-seed"},
-                {"company": "New", "company_slug": "New", "fiscal_year": 2022, "sha256": "new-report"},
+                {
+                    "company": "3M",
+                    "company_slug": "3M",
+                    "fiscal_year": 2022,
+                    "sha256": "new-seed",
+                },
+                {
+                    "company": "New",
+                    "company_slug": "New",
+                    "fiscal_year": 2022,
+                    "sha256": "new-report",
+                },
             ],
         }
         live = {
             "version": 1,
             "documents": [
-                {"company": "3M", "company_slug": "3M", "fiscal_year": 2021, "sha256": "live-old-year"},
+                {
+                    "company": "3M",
+                    "company_slug": "3M",
+                    "fiscal_year": 2021,
+                    "sha256": "live-old-year",
+                },
                 {
                     "company": "3M",
                     "company_slug": "3M",
@@ -31,10 +46,7 @@ class DeploymentManifestTests(unittest.TestCase):
         }
 
         merged = merge_manifests(live, deployed)
-        by_identity = {
-            (item["company_slug"], item["fiscal_year"]): item
-            for item in merged["documents"]
-        }
+        by_identity = {(item["company_slug"], item["fiscal_year"]): item for item in merged["documents"]}
 
         self.assertEqual(3, len(by_identity))
         self.assertEqual("live-old-year", by_identity[("3M", 2021)]["sha256"])

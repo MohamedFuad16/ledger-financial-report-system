@@ -1,7 +1,0 @@
----
-description: Read the project agent knowledge base first.
-alwaysApply: true
----
-
-Read `agent/agent.md` first and follow its routing table. Keep `agent/state.md`,
-`agent/decisions.md`, and `agent/graph/` current after changes.

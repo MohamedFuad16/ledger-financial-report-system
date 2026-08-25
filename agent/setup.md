@@ -13,8 +13,9 @@ Project type: Python Flask API plus browser frontend.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cd frontend && npm install && npm test -- --run && npm run build && cd ..
-.venv/bin/python test_contract.py
+pip install -r requirements-dev.txt
+npm --prefix frontend ci
+scripts/verify_project.sh
 .venv/bin/python server.py
 ```
 

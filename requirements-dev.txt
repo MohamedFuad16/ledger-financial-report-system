@@ -1,0 +1,7 @@
+# Development-only verification tools. Runtime dependencies remain in requirements.txt.
+pytest==8.4.2
+pytest-cov==7.0.0
+ruff==0.14.2
+mypy==1.18.2
+pip-audit==2.9.0
+bandit==1.9.4

@@ -1,0 +1,83 @@
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"deploy/aws/restore_verified_corpus.py" = ["E402"]
+"test_*.py" = ["B", "C4", "SIM"]
+"test_contract.py" = ["E402", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+files = [
+    "api_client.py",
+    "corpus",
+    "extraction.py",
+    "intelligent_scan.py",
+    "models.py",
+    "normalize.py",
+    "pipeline.py",
+    "prompts.py",
+    "providers.py",
+    "ratelimit.py",
+    "reconcile.py",
+    "schema.py",
+    "server.py",
+    "settings.py",
+    "traffic.py",
+]
+check_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = [
+    "boto3.*",
+    "botocore.*",
+    "docling.*",
+    "dotenv",
+    "flask",
+    "pdf_inspector.*",
+    "pydantic",
+    "pydantic.*",
+    "pymupdf.*",
+    "pymupdf4llm.*",
+    "pypdf",
+    "rapidocr.*",
+    "requests",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
+addopts = "-q --strict-config"
+filterwarnings = [
+    "ignore:builtin type Swig.*:DeprecationWarning",
+    "ignore:The `fitz` API is deprecated.*:DeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = [
+    "api_client",
+    "corpus",
+    "extraction",
+    "intelligent_scan",
+    "models",
+    "normalize",
+    "pipeline",
+    "providers",
+    "ratelimit",
+    "reconcile",
+    "schema",
+    "server",
+    "settings",
+    "traffic",
+]

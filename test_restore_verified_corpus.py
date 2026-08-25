@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import io
 import hashlib
+import io
 import json
 import tarfile
 import tempfile
@@ -31,7 +31,12 @@ class RestoreVerifiedCorpusTests(unittest.TestCase):
                 "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,
                 "screened": "ok",
             }
-            invalid = {**document, "company": "Random Control", "company_slug": "Random", "fiscal_year": 2023}
+            invalid = {
+                **document,
+                "company": "Random Control",
+                "company_slug": "Random",
+                "fiscal_year": 2023,
+            }
             manifest = json.dumps({"version": 1, "documents": [document, invalid]}).encode()
             with tarfile.open(archive_path, "w:gz") as archive:
                 manifest_info = tarfile.TarInfo("corpus_dataset/corpus_manifest.json")
@@ -56,16 +61,23 @@ class RestoreVerifiedCorpusTests(unittest.TestCase):
             registry.write_text("company_name\nBakuraku Client\n", encoding="utf-8")
             corpus_root = root / "corpus"
             corpus_root.mkdir()
-            (corpus_root / "corpus_manifest.json").write_text(json.dumps({
-                "version": 1,
-                "documents": [{
-                    "company": "3M",
-                    "company_slug": "3M",
-                    "fiscal_year": 2022,
-                    "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,
-                    "currency": "USD",
-                }],
-            }), encoding="utf-8")
+            (corpus_root / "corpus_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "documents": [
+                            {
+                                "company": "3M",
+                                "company_slug": "3M",
+                                "fiscal_year": 2022,
+                                "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,
+                                "currency": "USD",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
             client_bytes = b"%PDF-client"
             client_hash = hashlib.sha256(client_bytes).hexdigest()
             control_bytes = b"%PDF-control"
@@ -93,7 +105,10 @@ class RestoreVerifiedCorpusTests(unittest.TestCase):
                 manifest_info = tarfile.TarInfo("corpus_dataset/corpus_manifest.json")
                 manifest_info.size = len(manifest)
                 archive.addfile(manifest_info, io.BytesIO(manifest))
-                for document, payload in ((control, control_bytes), (client, client_bytes)):
+                for document, payload in (
+                    (control, control_bytes),
+                    (client, client_bytes),
+                ):
                     pdf_info = tarfile.TarInfo(document["local_path"])
                     pdf_info.size = len(payload)
                     archive.addfile(pdf_info, io.BytesIO(payload))

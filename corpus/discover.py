@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, asdict
-from typing import Iterable
-from urllib.parse import urlparse
 import unicodedata
+from collections.abc import Iterable
+from contextlib import suppress
+from dataclasses import asdict, dataclass
+from urllib.parse import urlparse
 
 from .client import FirecrawlClient
-
 
 REPORT_WORDS = re.compile(
     r"annual[-_\s]?report|form[-_\s]?10[-_\s]?k|10-k|"
@@ -79,25 +79,19 @@ def _primary_report_year(item: dict, requested_years: Iterable[int]) -> int | No
     requested = {int(year) for year in requested_years}
     for key in ("title", "url", "description"):
         value = str(item.get(key) or "")
-        matches = {
-            int(year)
-            for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", value)
-        }
+        matches = {int(year) for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", value)}
         if matches:
             primary = max(matches)
             return primary if primary in requested else None
     return None
 
 
-def _found_candidate_years(
-    pool: Iterable[tuple[dict, str]], requested_years: Iterable[int]
-) -> set[int]:
+def _found_candidate_years(pool: Iterable[tuple[dict, str]], requested_years: Iterable[int]) -> set[int]:
     years = sorted({int(year) for year in requested_years})
     return {
         primary
         for item, _discovery in pool
-        if (primary := _primary_report_year(item, years)) is not None
-        and _looks_like_report(item, primary)
+        if (primary := _primary_report_year(item, years)) is not None and _looks_like_report(item, primary)
     }
 
 
@@ -121,9 +115,7 @@ def _matches_domain(url: str, official_domain: str) -> bool:
     return candidate_domain == official_domain or candidate_domain.endswith(f".{official_domain}")
 
 
-def _official_report_library_pages(
-    items: Iterable[dict], official_domain: str
-) -> list[str]:
+def _official_report_library_pages(items: Iterable[dict], official_domain: str) -> list[str]:
     """Return bounded same-site HTML pages likely to contain filing links."""
     pages: list[str] = []
     for item in items:
@@ -144,8 +136,7 @@ def _official_report_library_pages(
 
 def _normalized_identity(value: str) -> str:
     return "".join(
-        character for character in unicodedata.normalize("NFKC", value).casefold()
-        if character.isalnum()
+        character for character in unicodedata.normalize("NFKC", value).casefold() if character.isalnum()
     )
 
 
@@ -154,9 +145,7 @@ def _trusted_public_filing(item: dict, company: str) -> bool:
     if domain not in PUBLIC_FILING_DOMAINS:
         return False
     identity = _normalized_identity(company)
-    result_text = _normalized_identity(
-        " ".join(str(item.get(key) or "") for key in ("title", "description"))
-    )
+    result_text = _normalized_identity(" ".join(str(item.get(key) or "") for key in ("title", "description")))
     return bool(identity and identity in result_text)
 
 
@@ -177,11 +166,9 @@ def discover_company_reports(
     map_search = "有価証券報告書 統合報告書 annual report" if is_japanese else "annual report 10-k"
 
     if official_url:
-        try:
+        with suppress(Exception):
             pool.extend((item, "map") for item in client.map(official_url, search=map_search))
-        except Exception:
-            # Search below is the supported fallback for thin/blocked maps.
-            pass
+        # Search below is the supported fallback for thin or blocked maps.
 
     found_years = _found_candidate_years(pool, years)
     if official_url and found_years != set(years):
@@ -193,9 +180,7 @@ def discover_company_reports(
             # Follow only a few same-domain report-library pages so broad
             # discovery stays bounded and does not become a general crawler.
             for library_url in _official_report_library_pages(page_items, official_domain):
-                pool.extend(
-                    (item, "library_page") for item in client.scrape_links(library_url)
-                )
+                pool.extend((item, "library_page") for item in client.scrape_links(library_url))
         except Exception:
             # Some IR pages block a full scrape while still exposing a sitemap.
             pass
@@ -243,34 +228,32 @@ def discover_company_reports(
         # the requested fiscal year.  Map results are different: Firecrawl
         # reached them by following the supplied official site, which commonly
         # delegates filings to a disclosure/CDN host.
-        if (
-            discovery in {"search", "deep_search"}
-            and not matches_official
-            and not trusted_public_filing
-        ):
+        if discovery in {"search", "deep_search"} and not matches_official and not trusted_public_filing:
             continue
         primary_year = _primary_report_year(item, years)
         for year in years:
             if year != primary_year or not _looks_like_report(item, year) or (year, url) in seen:
                 continue
             seen.add((year, url))
-            output[year].append(ReportCandidate(
-                company=company,
-                year=year,
-                url=url,
-                title=str(item.get("title") or ""),
-                description=str(item.get("description") or ""),
-                discovery=discovery,
-                official_domain=official_domain,
-                source_verified=bool(
-                    trusted_public_filing
-                    or (
-                        official_domain
-                        and (matches_official or discovery in {"map", "page", "library_page"})
-                    )
-                ),
-                score=_score(item, year, official_domain),
-            ))
+            output[year].append(
+                ReportCandidate(
+                    company=company,
+                    year=year,
+                    url=url,
+                    title=str(item.get("title") or ""),
+                    description=str(item.get("description") or ""),
+                    discovery=discovery,
+                    official_domain=official_domain,
+                    source_verified=bool(
+                        trusted_public_filing
+                        or (
+                            official_domain
+                            and (matches_official or discovery in {"map", "page", "library_page"})
+                        )
+                    ),
+                    score=_score(item, year, official_domain),
+                )
+            )
     for candidates in output.values():
         candidates.sort(key=lambda candidate: (-candidate.score, candidate.url))
     return output

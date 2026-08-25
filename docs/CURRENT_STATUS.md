@@ -1,24 +1,13 @@
 # Ledger: current system status
 
-Last verified: 22 August 2026
+Last verified: 26 August 2026
 
-> **Addendum (24 August 2026):** the published benchmark is the from-scratch
-> standard-routing Gemini 3.7 Flash (medium effort) sweep over all 306 arms:
-> Strategy 3 scores 98.3% mean exact accuracy (85/102 perfect, no 0% arms) on
-> ~7.9k input tokens per report and is the fastest arm end-to-end on the
-> matched cohort (35.6s vs 37.8s OCR-enabled vs 39.8s No-OCR). GLM-5.3
-> thinking/non-thinking sweeps populate the dashboard's alternate sources.
-> The sparse-total verification now also covers zero-stuffed answers and
-> one-page documents in every strategy.
->
-> **Addendum (23 August 2026):** the corpus now holds 99 SHA-pinned, gold-backed
-> reports across 38 companies (year expansion acquired manually from EDINET
-> indexes; no Firecrawl credits spent). All stored answers were independently
-> re-verified against source pages; ambiguous rows are explicitly unscorable.
-> Strategy 3 gained a bounded evidence-retry loop, the public corpus page shows
-> provenance instead of discovery controls, and Settings merged the GLM
-> endpoints behind one toggle with wired OpenRouter models
-> (`google/gemini-3.7-flash` default, `openai/gpt-5-mini`).
+> **Current benchmark:** the cloud corpus contains 81 SHA-pinned documents
+> across 35 companies. Gemini 3.7 Flash Strategy 3 completed all 81 documents
+> and scored 99.16% document-macro exact accuracy and 99.16% row-micro accuracy
+> (1,181/1,191). Seventy-four documents were perfect; seven documents contained
+> ten scored row mismatches. Dataset PDFs and the manifest live on persistent
+> cloud storage and are not tracked in Git.
 
 ## What is running
 
@@ -37,7 +26,7 @@ Flask + Gunicorn (Tokyo EC2)
   ├─ PyPDF / PyMuPDF4LLM / pdf-inspector / Docling
   ├─ prompt construction and provider calls
   ├─ contract normalization, validation and scoring
-  ├─ disk-backed PDFs, manifests and run artifacts
+  ├─ cloud-persistent PDFs, manifests and run artifacts
   └─ private visit telemetry through Upstash + AWS SES
 ```
 
@@ -154,7 +143,7 @@ Crawling never starts a Strategy 1/2 model extraction. A screened recrawl atomic
 
 The corpus worker is deterministic Python orchestration running in the EC2 Gunicorn service. Firecrawl supplies link discovery only. Ledger spaces all credit-consuming Firecrawl calls through one cross-process gate (12.5 seconds by default), honors account-wide `Retry-After`, and adds bounded jittered retry backoff. For documents without a candidate artifact, the Review action runs the configured LLM semantic mapping before rendering editable inputs; failures stay in a retry state instead of falling back to manual transcription. The worker itself uses ordinary HTTPS download, PyPDF screening, hashing and atomic filesystem writes; it is not an autonomous LLM agent.
 
-Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live separately on EBS and remain available.
+Corpus job state is atomically snapshotted under `runs/_corpus_jobs/<job-id>/state.json`. The Report corpus page lists and rehydrates the newest active or recent job, so route changes and browser reloads no longer own or erase progress. The thread continues independently on the backend. A service restart cannot resume an in-flight Python thread, but the preserved state is marked `interrupted` instead of disappearing, and a new job can be started. Canonical PDFs and the manifest live outside the Git checkout on persistent cloud storage selected by `LEDGER_CORPUS_ROOT` and remain available across code deployments.
 
 ### Verified corpus smoke tests
 
@@ -202,9 +191,8 @@ The Japanese cohort is evaluated in M JPY with no foreign-exchange conversion. C
 - Strategy 1, Strategy 2 and Strategy 3 are active; Strategy 3 is one finalized pdf-inspector pass rather than a parser bake-off.
 - Strategy 1 is intentionally no-OCR; Strategy 2 provides compulsory or page-adaptive OCR.
 - File-backed state is tied to one EC2 instance and is not horizontally shared.
-- The public deployment runs in read-only control-plane mode (`LEDGER_PUBLIC_READONLY=1`): reads and demo extractions are open; settings, prompts, corpus records, golden answers and run deletion return 403 to unauthenticated callers. Full per-user authentication remains future work.
+- The public deployment runs in read-only control-plane mode (`LEDGER_PUBLIC_READONLY=1`): reads and demo extractions are open; settings, prompts, corpus records and golden answers return 403. Workspace-scoped deletion remains available only for the anonymous workspace's own run history. Full user authentication and a distributed spend quota remain future work.
 - Golden-answer accuracy is available only for fiscal years with a maintained key; reconciliation remains available for every company.
-- All 99 corpus documents are gold-backed and SHA-256-bound (101 independently verified, 1 assignment-supplied); rows a source does not disclose or that cannot be proven are explicitly unscorable rather than guessed.
+- All 81 corpus documents are gold-backed and SHA-256-bound; the assignment-supplied 3M FY2022 key is isolated from independently reviewed source-bound fixtures. Rows a source does not disclose or that cannot be proven are explicitly unscorable rather than guessed.
 - Strategy 2 is an end-to-end OCR-parser capability bake-off, not a pure OCR-only causal ablation, because different parsers use different OCR engines and routing behavior. A future shared OCR-normalized control would isolate the OCR-engine effect.
 - Final accuracy can include deterministic normalization and one contract-repair call. Benchmark reporting should therefore add first-pass validity, repair rate, raw accuracy, confidence calibration, extra model calls, latency and cost.
-- Bulk crawling 112 customers does not imply 112 usable annual-report issuers. Many Bakuraku customers are private, and Japanese filings need a currency-aware benchmark contract before model extraction.

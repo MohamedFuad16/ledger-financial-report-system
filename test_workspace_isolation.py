@@ -34,16 +34,25 @@ class WorkspaceIsolationTests(unittest.TestCase):
         manifest = {
             "documents": [
                 {"sha256": "verified", "verification": {"status": "human_verified"}},
-                {"sha256": "draft", "verification": {"status": "human_review_required"}},
+                {
+                    "sha256": "draft",
+                    "verification": {"status": "human_review_required"},
+                },
             ]
         }
         summaries = [
             {"run_id": "safe", "source_pdf_sha256": "verified"},
             {"run_id": "private", "source_pdf_sha256": "draft"},
         ]
-        with patch.object(server, "load_manifest", return_value=manifest), patch.object(
-            server, "verification_payload", side_effect=lambda document: document["verification"]
-        ), patch.object(server, "list_runs", return_value=summaries) as list_runs:
+        with (
+            patch.object(server, "load_manifest", return_value=manifest),
+            patch.object(
+                server,
+                "verification_payload",
+                side_effect=lambda document: document["verification"],
+            ),
+            patch.object(server, "list_runs", return_value=summaries) as list_runs,
+        ):
             response = server.app.test_client().get("/api/benchmark-runs")
 
         self.assertEqual(200, response.status_code)
@@ -62,9 +71,11 @@ class WorkspaceIsolationTests(unittest.TestCase):
         def prediction(run_id: str):
             return {"workspace_id": "ws_browser_123456" if run_id == "owned" else "ws_someone_else"}
 
-        with patch.object(server, "iter_run_dirs", return_value=iter([owned, other])), patch.object(
-            server, "load_prediction", side_effect=prediction
-        ), patch.object(server.shutil, "rmtree") as remove:
+        with (
+            patch.object(server, "iter_run_dirs", return_value=iter([owned, other])),
+            patch.object(server, "load_prediction", side_effect=prediction),
+            patch.object(server.shutil, "rmtree") as remove,
+        ):
             response = server.app.test_client().delete(
                 "/api/runs/all",
                 headers={"X-Ledger-Workspace": "ws_browser_123456"},

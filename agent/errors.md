@@ -1,5 +1,20 @@
 # Errors, gotchas & known issues
 
+## Browser upload staging retained invalid or unbounded files (resolved)
+- Symptom: non-PDF bytes could be written before parser validation, failed estimates left files behind, and in-memory staged records had no expiry or workspace storage ceiling.
+- Resolution: validate filename and `%PDF-` magic before persistence; cap each PDF at 128 MB and each workspace at 50 files/512 MB; delete failed staging immediately; expire temporary uploads after two hours without deleting corpus-owned PDFs; cover the lifecycle with regressions.
+- First seen: 2026-08-26
+
+## API trust-boundary and response hardening drift (resolved)
+- Symptom: valid JSON arrays/scalars could reach object-only handlers, credential status exposed key prefixes/suffixes, Flask debug mode was enabled in direct startup, Upstash accepted an operator-supplied non-HTTPS URL, and browser security headers were incomplete.
+- Resolution: centralize JSON-object validation; report only Configured/Not configured; default debug off; require an HTTPS Upstash endpoint and use `requests`; add CSP, frame denial, `nosniff`, and no-referrer headers; add direct regressions.
+- First seen: 2026-08-26
+
+## Parent repository had no enforceable quality gate (resolved)
+- Symptom: Ruff reported 54 baseline findings, 58 files needed formatting, mypy was absent, and test-count documentation was stale.
+- Resolution: add `pyproject.toml`, pinned development tools and `scripts/verify_project.sh`; format the tree; resolve Ruff and mypy findings; update the verified baseline to 121 Python and 31 frontend tests.
+- First seen: 2026-08-26
+
 ## A multi-report extraction displayed only one active report (resolved)
 - Symptom: Selecting two corpus PDFs showed only the currently active PDF in the live pipeline, then showed the second only after the first disappeared; an interim result therefore read `1 of 2 reports` with no visible queued report.
 - Cause: `ExecutionPipeline` grouped files by company and rendered only one `activeFile` from one `currentGroup`, despite the durable `batch_start` event already containing every selected PDF.

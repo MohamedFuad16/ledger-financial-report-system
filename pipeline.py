@@ -9,22 +9,27 @@ assembly, same Pydantic validation, same prediction.json layout.
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import re
 import shutil
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, cast
 
 from api_client import GLMError, parse_assistant_json, response_usage, run_extraction
 from extraction import STRATEGIES, get_strategy
-from models import EXPECTED_ROW_COUNT, SchemaValidationError, rows_as_dicts, validate_extraction
+from models import (
+    EXPECTED_ROW_COUNT,
+    SchemaValidationError,
+    rows_as_dicts,
+    validate_extraction,
+)
 from normalize import normalize_payload
-from reconcile import derive_identity_values, reconcile, reconciliation_summary
 from prompts import build_evidence_retry_prompt, build_user_prompt
+from reconcile import derive_identity_values, reconcile, reconciliation_summary
 from schema import (
     ASSET_SCHEMA,
     ASSIGNMENT_GOLDEN_SOURCE_SHA256,
@@ -35,6 +40,7 @@ from schema import (
 
 UPLOAD_DIR = Path("uploads")
 RUNS_DIR = Path("runs")
+MAX_SINGLE_PDF_BYTES = 128 * 1024 * 1024
 
 # The workspace the corpus evaluation runner stamps on its runs. The published
 # benchmark feed serves only this workspace, so a visitor's demo extraction on
@@ -102,7 +108,7 @@ def _unique_stamp() -> str:
     with _name_lock:
         _name_counter += 1
         counter = _name_counter
-    return f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}_{counter:03d}"
+    return f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{counter:03d}"
 
 
 # Runs are filed as runs/<strategy>/FY<year>/<run_id>/. The fiscal year is only
@@ -155,14 +161,14 @@ def file_run(
     return target
 
 
-def find_run_dir(run_id: str) -> Optional[Path]:
+def find_run_dir(run_id: str) -> Path | None:
     """Locate a run anywhere in the tree by its id."""
     safe = safe_filename(run_id)
     if not RUNS_DIR.exists():
         return None
     direct = RUNS_DIR / safe
     if direct.is_dir():
-        return direct                      # pre-migration layout
+        return direct  # pre-migration layout
     for candidate in RUNS_DIR.rglob(safe):
         if candidate.is_dir():
             return candidate
@@ -195,12 +201,32 @@ def store_pdf(source: Path | str, original_name: str | None = None) -> Path:
 
 def save_upload(file_storage) -> Path:
     """Persist a browser upload under ``uploads/company/year/timestamp``."""
+    filename = str(getattr(file_storage, "filename", "") or "").strip()
+    if not filename.lower().endswith(".pdf"):
+        raise ValueError("Only PDF files are accepted.")
+
+    stream = file_storage.stream
+    position = stream.tell()
+    header = stream.read(1024)
+    stream.seek(position)
+    if b"%PDF-" not in header:
+        raise ValueError("The uploaded file is not a valid PDF.")
+
     ensure_dirs()
     stamp = _unique_stamp()
-    company, year, canonical = report_identity(file_storage.filename)
+    company, year, canonical = report_identity(filename)
     target = UPLOAD_DIR / company / year / stamp / canonical
     target.parent.mkdir(parents=True, exist_ok=True)
-    file_storage.save(target)
+    try:
+        file_storage.save(target)
+        size = target.stat().st_size
+        if size <= 0:
+            raise ValueError("The uploaded PDF is empty.")
+        if size > MAX_SINGLE_PDF_BYTES:
+            raise ValueError("A single PDF may not exceed 128 MB.")
+    except Exception:
+        shutil.rmtree(target.parent, ignore_errors=True)
+        raise
     return target
 
 
@@ -260,14 +286,17 @@ def merge_retry_rows(
             replaced.append(item)
             take = True
         if take:
-            merged.append({
-                **row,
-                "answer_m_usd": candidate_value,
-                "confidence": candidate.get("confidence"),
-                "source_page": candidate.get("source_page"),
-                "source_label": candidate.get("source_label"),
-                "evidence": ("[evidence retry] " + str(candidate.get("evidence") or "")).strip(),
-            })
+            assert candidate is not None
+            merged.append(
+                {
+                    **row,
+                    "answer_m_usd": candidate_value,
+                    "confidence": candidate.get("confidence"),
+                    "source_page": candidate.get("source_page"),
+                    "source_label": candidate.get("source_label"),
+                    "evidence": ("[evidence retry] " + str(candidate.get("evidence") or "")).strip(),
+                }
+            )
         else:
             merged.append(row)
     return merged, recovered, replaced
@@ -325,7 +354,7 @@ def compute_metrics(
         and normalized_currency == "USD"
         and source_pdf_sha256 == ASSIGNMENT_GOLDEN_SOURCE_SHA256
     ):
-        golden = GOLDEN_ANSWERS_STORE["2022"]
+        golden = {str(item): float(value) for item, value in GOLDEN_ANSWERS_STORE["2022"].items()}
         gold_status = "assignment_supplied"
         gold_company = "3M"
         gold_value_quantum = 1.0
@@ -342,10 +371,8 @@ def compute_metrics(
             # gold. Only the output currency must agree, because values in a
             # different display currency are not comparable numbers.
             if audited_currency == normalized_currency:
-                golden = {
-                    str(item): float(value)
-                    for item, value in dict(audited.get("answers") or {}).items()
-                }
+                audited_answers = cast(dict[str, Any], audited.get("answers") or {})
+                golden = {str(item): float(value) for item, value in audited_answers.items()}
                 gold_status = str(audited.get("status") or "independently_verified")
                 gold_company = str(audited.get("company") or company or "")
                 gold_value_quantum = float(audited.get("source_value_quantum") or 1.0)
@@ -372,7 +399,7 @@ def compute_metrics(
                 if item.get("answer_m_usd") is not None
             }
             gold_status = "human_verified"
-            gold_company = str(company or document.get("company") or "")
+            gold_company = str(company or (document or {}).get("company") or "")
             gold_value_quantum = float((verification or {}).get("source_value_quantum") or 0.0)
 
     exact = 0
@@ -401,11 +428,11 @@ def compute_metrics(
         if accepted:
             accepted_filled += 1
 
-        expected = golden.get(row.get("item"))
+        expected = golden.get(str(row.get("item") or ""))
         if expected is None:
             continue
         compared += 1
-        if not has_value:
+        if value is None:
             continue
         committed += 1
         try:
@@ -479,7 +506,7 @@ def run_pipeline(
     enable_reasoning: bool = True,
     temperature: float = 0.0,
     reasoning_effort: str = "",
-    display_name: Optional[str] = None,
+    display_name: str | None = None,
     company_hint: str = "",
     output_currency: str = "USD",
     workspace_id: str = "legacy-public",
@@ -498,12 +525,20 @@ def run_pipeline(
 
     try:
         return _run_pipeline_inner(
-            strategy=strategy, run_dir=run_dir, pdf_path=pdf_path, settings=settings,
-            system_prompt=system_prompt, fiscal_year_hint=fiscal_year_hint,
-            enable_reasoning=enable_reasoning, temperature=temperature,
+            strategy=strategy,
+            run_dir=run_dir,
+            pdf_path=pdf_path,
+            settings=settings,
+            system_prompt=system_prompt,
+            fiscal_year_hint=fiscal_year_hint,
+            enable_reasoning=enable_reasoning,
+            temperature=temperature,
             reasoning_effort=reasoning_effort,
-            display_name=display_name, company_hint=company_hint,
-            output_currency=output_currency, workspace_id=workspace_id, on_progress=on_progress,
+            display_name=display_name,
+            company_hint=company_hint,
+            output_currency=output_currency,
+            workspace_id=workspace_id,
+            on_progress=on_progress,
         )
     except Exception:
         # A run that failed before writing anything leaves an empty directory
@@ -531,7 +566,7 @@ def _run_pipeline_inner(
     enable_reasoning: bool,
     temperature: float,
     reasoning_effort: str,
-    display_name: Optional[str],
+    display_name: str | None,
     company_hint: str,
     output_currency: str,
     workspace_id: str,
@@ -557,14 +592,14 @@ def _run_pipeline_inner(
     ocr_enabled = bool(getattr(strategy, "ocr_enabled", False))
     ocr_policy = str(getattr(strategy, "ocr_policy", "off")) if ocr_enabled else "off"
     extracted = (
-        strategy(pdf_path, ocr_policy=ocr_policy, ocr_context=settings)
-        if ocr_enabled
-        else strategy(pdf_path)
+        strategy(pdf_path, ocr_policy=ocr_policy, ocr_context=settings) if ocr_enabled else strategy(pdf_path)
     )
     extract_seconds = round(time.perf_counter() - extract_started, 2)
     if not extracted.text.strip() or extracted.readable_pages == 0:
-        detail = extracted.warnings[-1] if extracted.warnings else (
-            "No readable text could be extracted from the PDF."
+        detail = (
+            extracted.warnings[-1]
+            if extracted.warnings
+            else ("No readable text could be extracted from the PDF.")
         )
         raise RuntimeError(detail)
     selected_page_count = extracted.diagnostics.get("selected_page_count")
@@ -599,8 +634,8 @@ def _run_pipeline_inner(
 
     progress("api", f"Waiting on {settings['model']}")
     effective_effort = (
-        reasoning_effort or settings.get("reasoning_effort", "") or "medium"
-    ) if enable_reasoning else "none"
+        (reasoning_effort or settings.get("reasoning_effort", "") or "medium") if enable_reasoning else "none"
+    )
     raw_response, elapsed = run_extraction(
         api_key=settings["api_key"],
         model=settings["model"],
@@ -677,7 +712,9 @@ def _run_pipeline_inner(
             messages=repair_messages,
             artifact_suffix="_repair_1",
             on_retry=lambda attempt, delay: progress(
-                "validate", f"Rate limited during repair — retry {attempt} in {delay:.0f}s", throttled=True
+                "validate",
+                f"Rate limited during repair — retry {attempt} in {delay:.0f}s",
+                throttled=True,
             ),
         )
         elapsed += repair_elapsed
@@ -713,10 +750,12 @@ def _run_pipeline_inner(
                 if total_item in failed_identity_names:
                     participants.extend([total_item, *parts])
             seen: set[str] = set()
-            failed_identity_items = [
-                item for item in participants
-                if item not in seen and not seen.add(item) and item not in set(missing_items)
-            ]
+            missing_set = set(missing_items)
+            failed_identity_items = []
+            for item in participants:
+                if item not in seen and item not in missing_set:
+                    seen.add(item)
+                    failed_identity_items.append(item)
     # A packet that already contains every readable page decides absence and
     # zeros on its own — nulls there are answers, not evidence gaps, so only a
     # failed deterministic identity (a misread) justifies the second call.
@@ -735,24 +774,26 @@ def _run_pipeline_inner(
     # every schema row with 0.0 on a one-page gazette must not bypass the
     # sparse-total verification the way a 27-zero response otherwise would.
     answered_row_count = sum(
-        1 for row in rows
+        1
+        for row in rows
         if row.get("answer_m_usd") is not None and float(row.get("answer_m_usd") or 0.0) != 0.0
     )
     total_assets_answered = any(
-        str(row.get("item")) == "Total Assets" and row.get("answer_m_usd") is not None
-        for row in rows
+        str(row.get("item")) == "Total Assets" and row.get("answer_m_usd") is not None for row in rows
     )
     verification_mode = (
-        complete_packet
-        and not failed_identity_items
-        and total_assets_answered
-        and answered_row_count <= 3
+        complete_packet and not failed_identity_items and total_assets_answered and answered_row_count <= 3
     )
     if verification_mode:
         # The both-sides verification derives the printed section totals on
         # the way to the total, so a misassigned section (a neighboring
         # column or company read into the wrong row) is correctable too.
-        retry_items = ["Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges"]
+        retry_items = [
+            "Total Assets",
+            "Current Assets",
+            "Fixed Assets",
+            "Deferred Charges",
+        ]
     elif complete_packet:
         retry_items = failed_identity_items
     else:
@@ -788,9 +829,7 @@ def _run_pipeline_inner(
                 ),
             )
             retry_prompt = build_evidence_retry_prompt(
-                additional_pages_text="\n\n".join(
-                    f"[page {page}]\n{text}" for page, text in retry_pages
-                ),
+                additional_pages_text="\n\n".join(f"[page {page}]\n{text}" for page, text in retry_pages),
                 missing_items=retry_items,
                 detected_fiscal_year=result.detected_fiscal_year or "",
                 output_currency=output_currency,
@@ -799,9 +838,7 @@ def _run_pipeline_inner(
                 # the complete readable report — so the second look re-reads it
                 # alongside any additional pages.
                 original_packet_text=(
-                    extracted.text
-                    if (failed_identity_items or verification_mode or not retry_pages)
-                    else ""
+                    extracted.text if (failed_identity_items or verification_mode or not retry_pages) else ""
                 ),
                 verification_note=(
                     (
@@ -831,7 +868,7 @@ def _run_pipeline_inner(
                     enable_reasoning=enable_reasoning,
                     temperature=temperature,
                     provider=settings.get("provider", ""),
-            session_id=run_dir.name,
+                    session_id=run_dir.name,
                     reasoning_effort=effective_effort,
                     artifact_suffix="_evidence_retry_1",
                     on_retry=lambda attempt, delay: progress(
@@ -844,8 +881,14 @@ def _run_pipeline_inner(
                 retry_time_accounted = retry_elapsed
                 retry_result, _ = parse_and_validate(retry_response)
                 replaceable_items = (
-                    ["Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges"]
-                    if verification_mode else failed_identity_items
+                    [
+                        "Total Assets",
+                        "Current Assets",
+                        "Fixed Assets",
+                        "Deferred Charges",
+                    ]
+                    if verification_mode
+                    else failed_identity_items
                 )
                 merged_rows, recovered, replaced = merge_retry_rows(
                     rows, rows_as_dicts(retry_result), missing_items, replaceable_items
@@ -856,10 +899,10 @@ def _run_pipeline_inner(
                     # verification mode nothing reconciles either way, so the
                     # both-sides re-derivation is accepted as the answer.
                     trial = reconcile(merged_rows, value_quantum=source_value_quantum)
-                    improves = (
-                        int(trial.get("failed") or 0) < int(pre_reconciliation.get("failed") or 0)
-                        and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
-                    )
+                    assert pre_reconciliation is not None
+                    improves = int(trial.get("failed") or 0) < int(
+                        pre_reconciliation.get("failed") or 0
+                    ) and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
                     if not improves:
                         merged_rows, recovered, replaced = merge_retry_rows(
                             rows, rows_as_dicts(retry_result), missing_items, []
@@ -894,7 +937,10 @@ def _run_pipeline_inner(
                 # Add only wall-clock not already booked by a successful API
                 # call earlier in this try-block, so a post-API parsing
                 # failure cannot double-count the provider time.
-                retry_wasted = round(max(0.0, time.perf_counter() - retry_started - retry_time_accounted), 2)
+                retry_wasted = round(
+                    max(0.0, time.perf_counter() - retry_started - retry_time_accounted),
+                    2,
+                )
                 elapsed += retry_wasted
                 evidence_retry = {
                     "attempted": True,
@@ -981,7 +1027,12 @@ def _run_pipeline_inner(
     }
 
     # File the completed run under its strategy and fiscal year.
-    run_dir = file_run(run_dir, strategy.key, fiscal_year, company_hint or display_name or Path(pdf_path).name)
+    run_dir = file_run(
+        run_dir,
+        strategy.key,
+        fiscal_year,
+        company_hint or display_name or Path(pdf_path).name,
+    )
     prediction["run_dir"] = str(run_dir.relative_to(RUNS_DIR))
     (run_dir / "prediction.json").write_text(
         json.dumps(prediction, ensure_ascii=False, indent=2),
@@ -1006,19 +1057,19 @@ def _usage_pots(prediction: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _total_prompt_tokens(prediction: dict[str, Any]) -> Optional[int]:
+def _total_prompt_tokens(prediction: dict[str, Any]) -> int | None:
     values = [pot.get("prompt_tokens") for pot in _usage_pots(prediction)]
     present = [int(value) for value in values if value is not None]
     return sum(present) if present else None
 
 
-def _total_completion_tokens(prediction: dict[str, Any]) -> Optional[int]:
+def _total_completion_tokens(prediction: dict[str, Any]) -> int | None:
     values = [pot.get("completion_tokens") for pot in _usage_pots(prediction)]
     present = [int(value) for value in values if value is not None]
     return sum(present) if present else None
 
 
-def load_prediction(run_id: str) -> Optional[dict[str, Any]]:
+def load_prediction(run_id: str) -> dict[str, Any] | None:
     """Read a stored run by id. Returns None for unknown or unreadable runs."""
     run_dir = find_run_dir(run_id)
     if run_dir is None:
@@ -1071,16 +1122,10 @@ def _summarize_run_dir(directory: Path) -> tuple[str, dict[str, Any]] | None:
     # metrics were calculated under whatever CONFIDENCE_THRESHOLD was in
     # force at the time, and a history scored under two different rules is
     # not comparable.
-    company = prediction.get("company") or report_identity(
-        prediction.get("pdf_file", ""), fiscal_year
-    )[0]
+    company = prediction.get("company") or report_identity(prediction.get("pdf_file", ""), fiscal_year)[0]
     currency = str(prediction.get("currency") or "USD").strip().upper()
-    metrics = compute_metrics(
-        rows, fiscal_year, company, prediction.get("source_pdf_sha256"), currency
-    )
-    report = reconcile(
-        rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0)
-    )
+    metrics = compute_metrics(rows, fiscal_year, company, prediction.get("source_pdf_sha256"), currency)
+    report = reconcile(rows, value_quantum=float(prediction.get("source_value_quantum") or 0.0))
     metrics["consistency"] = report["consistency"]
     # Accept any registered strategy key. The old whitelist collapsed
     # s2-docling / s2-inspector into plain "s2", which made the parser used
@@ -1105,8 +1150,10 @@ def _summarize_run_dir(directory: Path) -> tuple[str, dict[str, Any]] | None:
         # are used by the revised matched experiment.
         experiment = "legacy_no_ocr"
         parser = {
-            "s1": "pypdf", "s2": "pymupdf",
-            "s2-docling": "docling", "s2-inspector": "inspector",
+            "s1": "pypdf",
+            "s2": "pymupdf",
+            "s2-docling": "docling",
+            "s2-inspector": "inspector",
         }.get(strategy, registered.parser if registered else strategy)
         ocr_enabled = False
         ocr_policy = "off"

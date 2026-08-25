@@ -1,5 +1,5 @@
-import unittest
 import time
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -22,11 +22,13 @@ class _FakeFirecrawl:
     def search(self, query, *, limit, country):
         self.query = query
         self.assertions = (limit, country)
-        return [{
-            "url": "https://example.jp/ir/library/yuho_2024.pdf",
-            "title": "2024年12月期 有価証券報告書",
-            "description": "",
-        }]
+        return [
+            {
+                "url": "https://example.jp/ir/library/yuho_2024.pdf",
+                "title": "2024年12月期 有価証券報告書",
+                "description": "",
+            }
+        ]
 
     def scrape_links(self, _url):
         return []
@@ -81,10 +83,7 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
         client = object.__new__(FirecrawlClient)
         client._post = lambda *_args, **_kwargs: {  # type: ignore[method-assign]
             "data": {
-                "markdown": (
-                    "2025年\n[統合報告書]"
-                    "(https://example.jp/reports/report2025(印刷推奨).pdf)"
-                ),
+                "markdown": ("2025年\n[統合報告書](https://example.jp/reports/report2025(印刷推奨).pdf)"),
                 "links": [],
             },
         }
@@ -127,30 +126,40 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_unrelated_search_result_is_rejected(self):
         class UnrelatedSearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://unrelated.example/filings/annual_report_2024.pdf",
-                    "title": "2024 Annual Report",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://unrelated.example/filings/annual_report_2024.pdf",
+                        "title": "2024 Annual Report",
+                        "description": "",
+                    }
+                ]
 
         reports = discover_company_reports(
-            UnrelatedSearch(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2024],
+            UnrelatedSearch(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual([], reports[2024])
 
     def test_missing_official_url_does_not_trust_arbitrary_search_results(self):
         class UnrelatedSearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://unrelated.example/annual_report_2024.pdf",
-                    "title": "2024 Annual Report",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://unrelated.example/annual_report_2024.pdf",
+                        "title": "2024 Annual Report",
+                        "description": "",
+                    }
+                ]
 
         reports = discover_company_reports(
-            UnrelatedSearch(), company="若原義敬税理士事務所",
-            official_url="", country="JP", years=[2024],
+            UnrelatedSearch(),
+            company="若原義敬税理士事務所",
+            official_url="",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual([], reports[2024])
 
@@ -165,8 +174,9 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             garbled_pages=[],
             warnings=[],
         )
-        with TemporaryDirectory() as directory, patch(
-            "corpus.screen.extract_with_pypdf", return_value=extracted
+        with (
+            TemporaryDirectory() as directory,
+            patch("corpus.screen.extract_with_pypdf", return_value=extracted),
         ):
             verdict = screen_pdf(
                 Path(directory) / "candidate.pdf",
@@ -188,8 +198,9 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             garbled_pages=[],
             warnings=[],
         )
-        with TemporaryDirectory() as directory, patch(
-            "corpus.screen.extract_with_pypdf", return_value=extracted
+        with (
+            TemporaryDirectory() as directory,
+            patch("corpus.screen.extract_with_pypdf", return_value=extracted),
         ):
             verdict = screen_pdf(
                 Path(directory) / "candidate.pdf",
@@ -204,15 +215,20 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_exact_issuer_edinet_search_result_is_trusted(self):
         class EdinetSearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TEST.pdf",
-                    "title": "Example株式会社 有価証券報告書 2024年12月期",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100TEST.pdf",
+                        "title": "Example株式会社 有価証券報告書 2024年12月期",
+                        "description": "",
+                    }
+                ]
 
         reports = discover_company_reports(
-            EdinetSearch(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2024],
+            EdinetSearch(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual(1, len(reports[2024]))
         self.assertTrue(reports[2024][0].source_verified)
@@ -220,33 +236,43 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_parent_company_edinet_result_is_rejected(self):
         class ParentEdinetSearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100PARENT.pdf",
-                    "title": "Parent Holdings株式会社 有価証券報告書 2024年12月期",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100PARENT.pdf",
+                        "title": "Parent Holdings株式会社 有価証券報告書 2024年12月期",
+                        "description": "",
+                    }
+                ]
 
         reports = discover_company_reports(
-            ParentEdinetSearch(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2024],
+            ParentEdinetSearch(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual([], reports[2024])
 
     def test_official_map_may_delegate_pdf_to_verified_cdn(self):
         class CdnMap(_FakeFirecrawl):
             def map(self, _url, *, search):
-                return [{
-                    "url": "https://disclosure-cdn.example/yuho_2024.pdf",
-                    "title": "2024年12月期 有価証券報告書",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://disclosure-cdn.example/yuho_2024.pdf",
+                        "title": "2024年12月期 有価証券報告書",
+                        "description": "",
+                    }
+                ]
 
             def search(self, query, *, limit, country):
                 raise AssertionError("map candidate should satisfy the requested year")
 
         reports = discover_company_reports(
-            CdnMap(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2024],
+            CdnMap(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual(1, len(reports[2024]))
         self.assertEqual("map", reports[2024][0].discovery)
@@ -255,18 +281,23 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_official_page_anchor_can_verify_a_disclosure_cdn(self):
         class PageLinks(_FakeFirecrawl):
             def scrape_links(self, _url):
-                return [{
-                    "url": "https://data.cdn.example/report_20250328.pdf",
-                    "title": "2024年12月期 有価証券報告書",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://data.cdn.example/report_20250328.pdf",
+                        "title": "2024年12月期 有価証券報告書",
+                        "description": "",
+                    }
+                ]
 
             def search(self, query, *, limit, country):
                 raise AssertionError("official page anchor should satisfy the year")
 
         reports = discover_company_reports(
-            PageLinks(), company="Example株式会社",
-            official_url="https://example.jp/ir/library/", country="JP", years=[2024],
+            PageLinks(),
+            company="Example株式会社",
+            official_url="https://example.jp/ir/library/",
+            country="JP",
+            years=[2024],
         )
         self.assertEqual(1, len(reports[2024]))
         self.assertEqual("page", reports[2024][0].discovery)
@@ -281,29 +312,34 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             def scrape_links(self, url):
                 self.scraped.append(url)
                 if url == "https://example.jp/":
-                    return [{
-                        "url": "https://example.jp/ir/securities/",
-                        "title": "有価証券報告書",
+                    return [
+                        {
+                            "url": "https://example.jp/ir/securities/",
+                            "title": "有価証券報告書",
+                            "description": "",
+                        }
+                    ]
+                return [
+                    {
+                        "url": "https://disclosure-cdn.example/S100TEST.pdf",
+                        "title": "2024年12月期 有価証券報告書",
                         "description": "",
-                    }]
-                return [{
-                    "url": "https://disclosure-cdn.example/S100TEST.pdf",
-                    "title": "2024年12月期 有価証券報告書",
-                    "description": "",
-                }]
+                    }
+                ]
 
             def search(self, query, *, limit, country):
                 raise AssertionError("the official securities library should satisfy the year")
 
         client = LibraryLinks()
         reports = discover_company_reports(
-            client, company="Example株式会社", official_url="https://example.jp/",
-            country="JP", years=[2024],
+            client,
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2024],
         )
 
-        self.assertEqual(
-            ["https://example.jp/", "https://example.jp/ir/securities/"], client.scraped
-        )
+        self.assertEqual(["https://example.jp/", "https://example.jp/ir/securities/"], client.scraped)
         self.assertEqual(1, len(reports[2024]))
         self.assertEqual("library_page", reports[2024][0].discovery)
         self.assertTrue(reports[2024][0].source_verified)
@@ -311,11 +347,13 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_year_stamped_official_pdf_without_report_language_is_rejected(self):
         class NewsRelease(_FakeFirecrawl):
             def map(self, _url, *, search):
-                return [{
-                    "url": "https://example.jp/news/release_2022.pdf",
-                    "title": "2022 新サービスのお知らせ",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://example.jp/news/release_2022.pdf",
+                        "title": "2022 新サービスのお知らせ",
+                        "description": "",
+                    }
+                ]
 
             def scrape_links(self, _url):
                 return []
@@ -324,53 +362,71 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
                 return []
 
         reports = discover_company_reports(
-            NewsRelease(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2022],
+            NewsRelease(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2022],
         )
         self.assertEqual([], reports[2022])
 
     def test_quarterly_filing_is_not_an_annual_report(self):
         class QuarterlySearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://example.jp/ir/2022_q1.pdf",
-                    "title": "2022年3月期 第1四半期決算短信",
-                    "description": "有価証券報告書ライブラリ",
-                }]
+                return [
+                    {
+                        "url": "https://example.jp/ir/2022_q1.pdf",
+                        "title": "2022年3月期 第1四半期決算短信",
+                        "description": "有価証券報告書ライブラリ",
+                    }
+                ]
 
         reports = discover_company_reports(
-            QuarterlySearch(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2022],
+            QuarterlySearch(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2022],
         )
         self.assertEqual([], reports[2022])
 
     def test_spaced_japanese_quarterly_title_is_rejected(self):
         class SpacedQuarterlySearch(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://example.jp/ir/105_hanki1.pdf",
-                    "title": "四 半 期 報 告 書 2022",
-                    "description": "有価証券報告書ライブラリ",
-                }]
+                return [
+                    {
+                        "url": "https://example.jp/ir/105_hanki1.pdf",
+                        "title": "四 半 期 報 告 書 2022",
+                        "description": "有価証券報告書ライブラリ",
+                    }
+                ]
 
         reports = discover_company_reports(
-            SpacedQuarterlySearch(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2022],
+            SpacedQuarterlySearch(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2022],
         )
         self.assertEqual([], reports[2022])
 
     def test_one_result_is_assigned_to_only_its_primary_year(self):
         class ComparativeSnippet(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://example.jp/ir/annual_report.pdf",
-                    "title": "2022年3月期 有価証券報告書",
-                    "description": "2021年との比較情報",
-                }]
+                return [
+                    {
+                        "url": "https://example.jp/ir/annual_report.pdf",
+                        "title": "2022年3月期 有価証券報告書",
+                        "description": "2021年との比較情報",
+                    }
+                ]
 
         reports = discover_company_reports(
-            ComparativeSnippet(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2021, 2022],
+            ComparativeSnippet(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2021, 2022],
         )
         self.assertEqual([], reports[2021])
         self.assertEqual(1, len(reports[2022]))
@@ -384,23 +440,31 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             def search(self, query, *, limit, country):
                 self.queries.append(query)
                 if query == '"Example株式会社" 有価証券報告書 filetype:pdf':
-                    return [{
-                        "url": "https://example.jp/ir/report_2022.pdf",
-                        "title": "2022年3月期 有価証券報告書",
-                        "description": "2021年比較",
-                    }]
-                if 'FY2021' in query:
-                    return [{
-                        "url": "https://example.jp/ir/report_2021.pdf",
-                        "title": "2021 Annual Report",
-                        "description": "",
-                    }]
+                    return [
+                        {
+                            "url": "https://example.jp/ir/report_2022.pdf",
+                            "title": "2022年3月期 有価証券報告書",
+                            "description": "2021年比較",
+                        }
+                    ]
+                if "FY2021" in query:
+                    return [
+                        {
+                            "url": "https://example.jp/ir/report_2021.pdf",
+                            "title": "2021 Annual Report",
+                            "description": "",
+                        }
+                    ]
                 return []
 
         client = ComparativeDeep()
         reports = discover_company_reports(
-            client, company="Example株式会社", official_url="https://example.jp/",
-            country="JP", years=[2021, 2022], deep_search=True,
+            client,
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2021, 2022],
+            deep_search=True,
         )
         self.assertEqual(1, len(reports[2021]))
         self.assertEqual(1, len(reports[2022]))
@@ -408,15 +472,20 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_future_reporting_period_is_not_relabelled_as_requested_year(self):
         class FuturePeriod(_FakeFirecrawl):
             def search(self, query, *, limit, country):
-                return [{
-                    "url": "https://example.jp/ir/annual_report.pdf",
-                    "title": "有価証券報告書 第62期 (2025/04/01-2026/03/31)",
-                    "description": "",
-                }]
+                return [
+                    {
+                        "url": "https://example.jp/ir/annual_report.pdf",
+                        "title": "有価証券報告書 第62期 (2025/04/01-2026/03/31)",
+                        "description": "",
+                    }
+                ]
 
         reports = discover_company_reports(
-            FuturePeriod(), company="Example株式会社",
-            official_url="https://example.jp/", country="JP", years=[2025],
+            FuturePeriod(),
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2025],
         )
         self.assertEqual([], reports[2025])
 
@@ -429,17 +498,23 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             def search(self, query, *, limit, country):
                 self.queries.append((query, limit, country))
                 if "FY2023" in query:
-                    return [{
-                        "url": "https://example.jp/ir/annual_report_2023.pdf",
-                        "title": "2023 Annual Report",
-                        "description": "Example株式会社",
-                    }]
+                    return [
+                        {
+                            "url": "https://example.jp/ir/annual_report_2023.pdf",
+                            "title": "2023 Annual Report",
+                            "description": "Example株式会社",
+                        }
+                    ]
                 return []
 
         client = DeepSearch()
         reports = discover_company_reports(
-            client, company="Example株式会社", official_url="https://example.jp/",
-            country="JP", years=[2023], deep_search=True,
+            client,
+            company="Example株式会社",
+            official_url="https://example.jp/",
+            country="JP",
+            years=[2023],
+            deep_search=True,
         )
 
         self.assertEqual(3, len(client.queries))

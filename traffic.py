@@ -9,16 +9,15 @@ import logging
 import os
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import boto3
+import requests
 from botocore.config import Config
 from botocore.exceptions import ClientError
-
 
 LOGGER = logging.getLogger(__name__)
 UPSTASH_TIMEOUT_SECONDS = 5
@@ -34,24 +33,30 @@ def _clean(value: Any, *, limit: int = MAX_FIELD_LENGTH) -> str:
     return " ".join(str(value or "").split())[:limit]
 
 
-def _upstash_command(command: list[Any]) -> Any:
+def _upstash_endpoint(*, pipeline: bool = False) -> tuple[str, str]:
     url = os.environ.get("UPSTASH_REDIS_REST_URL", "").strip().rstrip("/")
     token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "").strip()
-    if not url or not token:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname or not token:
         raise RuntimeError("Upstash visit tracking is not configured.")
-    http_request = Request(
-        url,
-        data=json.dumps(command, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
+    return (f"{url}/pipeline" if pipeline else url), token
+
+
+def _upstash_command(command: list[Any]) -> Any:
+    url, token = _upstash_endpoint()
     try:
-        with urlopen(http_request, timeout=UPSTASH_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError) as exc:
+        response = requests.post(
+            url,
+            json=command,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=UPSTASH_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
         raise RuntimeError("Upstash visit tracking is temporarily unavailable.") from exc
     if payload.get("error"):
         raise RuntimeError("Upstash rejected the visit event.")
@@ -59,23 +64,20 @@ def _upstash_command(command: list[Any]) -> Any:
 
 
 def _upstash_pipeline(commands: list[list[Any]]) -> list[Any]:
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "").strip().rstrip("/")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "").strip()
-    if not url or not token:
-        raise RuntimeError("Upstash visit tracking is not configured.")
-    http_request = Request(
-        f"{url}/pipeline",
-        data=json.dumps(commands, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
+    url, token = _upstash_endpoint(pipeline=True)
     try:
-        with urlopen(http_request, timeout=UPSTASH_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError) as exc:
+        response = requests.post(
+            url,
+            json=commands,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=UPSTASH_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
         raise RuntimeError("Upstash visit tracking is temporarily unavailable.") from exc
     if not isinstance(payload, list) or any(item.get("error") for item in payload):
         raise RuntimeError("Upstash rejected the visit event.")
@@ -122,11 +124,11 @@ def _email_visit(event: dict[str, str]) -> bool:
     )
     rows = "".join(
         "<tr>"
-        f"<th style=\"padding:12px 16px;text-align:left;color:#667085;font-size:12px;font-weight:600;"
-        "border-bottom:1px solid #e7ebf2;vertical-align:top;white-space:nowrap\">"
+        f'<th style="padding:12px 16px;text-align:left;color:#667085;font-size:12px;font-weight:600;'
+        'border-bottom:1px solid #e7ebf2;vertical-align:top;white-space:nowrap">'
         f"{html.escape(label)}</th>"
-        f"<td style=\"padding:12px 16px;color:#111827;font-size:13px;line-height:1.55;"
-        "border-bottom:1px solid #e7ebf2;word-break:break-word\">"
+        f'<td style="padding:12px 16px;color:#111827;font-size:13px;line-height:1.55;'
+        'border-bottom:1px solid #e7ebf2;word-break:break-word">'
         f"{html.escape(value)}</td>"
         "</tr>"
         for label, value in fields
@@ -158,13 +160,15 @@ def _email_visit(event: dict[str, str]) -> bool:
         _ses_client(region).send_email(
             FromEmailAddress=sender,
             Destination={"ToAddresses": [recipient]},
-            Content={"Simple": {
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Text": {"Data": body, "Charset": "UTF-8"},
-                    "Html": {"Data": html_body, "Charset": "UTF-8"},
-                },
-            }},
+            Content={
+                "Simple": {
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Text": {"Data": body, "Charset": "UTF-8"},
+                        "Html": {"Data": html_body, "Charset": "UTF-8"},
+                    },
+                }
+            },
         )
     except ClientError as exc:
         error_code = exc.response.get("Error", {}).get("Code", "Unknown")
@@ -184,19 +188,21 @@ def record_visit(payload: dict[str, Any], *, remote_ip: str) -> dict[str, Any]:
         raise ValueError("A valid browser session id is required.")
 
     ip = _clean(remote_ip, limit=80)
-    session_digest = hashlib.sha256(f"{session_id}|{ip}".encode("utf-8")).hexdigest()
-    first_seen = _upstash_command([
-        "SET",
-        f"ledger:traffic:session:{session_digest}",
-        "1",
-        "EX",
-        SESSION_TTL_SECONDS,
-        "NX",
-    ])
+    session_digest = hashlib.sha256(f"{session_id}|{ip}".encode()).hexdigest()
+    first_seen = _upstash_command(
+        [
+            "SET",
+            f"ledger:traffic:session:{session_digest}",
+            "1",
+            "EX",
+            SESSION_TTL_SECONDS,
+            "NX",
+        ]
+    )
     if first_seen is None:
         return {"recorded": False, "duplicate": True, "email_queued": False}
 
-    accessed_at = datetime.now(timezone.utc).isoformat()
+    accessed_at = datetime.now(UTC).isoformat()
     event = {
         "event_id": uuid.uuid4().hex,
         "accessed_at": accessed_at,
@@ -209,12 +215,14 @@ def record_visit(payload: dict[str, Any], *, remote_ip: str) -> dict[str, Any]:
         "user_agent": _clean(payload.get("user_agent")),
     }
     day_key = accessed_at[:10]
-    _upstash_pipeline([
-        ["LPUSH", "ledger:traffic:visits", json.dumps(event, ensure_ascii=False)],
-        ["LTRIM", "ledger:traffic:visits", 0, VISIT_RETENTION - 1],
-        ["INCR", "ledger:traffic:count"],
-        ["HINCRBY", "ledger:traffic:daily", day_key, 1],
-    ])
+    _upstash_pipeline(
+        [
+            ["LPUSH", "ledger:traffic:visits", json.dumps(event, ensure_ascii=False)],
+            ["LTRIM", "ledger:traffic:visits", 0, VISIT_RETENTION - 1],
+            ["INCR", "ledger:traffic:count"],
+            ["HINCRBY", "ledger:traffic:daily", day_key, 1],
+        ]
+    )
     email_queued = bool(os.environ.get("TRAFFIC_NOTIFY_EMAIL", "").strip())
     if email_queued:
         _notify_async(event)

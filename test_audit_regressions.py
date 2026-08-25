@@ -1,11 +1,15 @@
 """Regression tests for the 2026-08-24 backend audit fixes."""
+
+import io
 import json
-import math
 import os
+import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
+
+from werkzeug.datastructures import FileStorage
 
 
 class FakePage:
@@ -26,7 +30,13 @@ class FakeDocument:
 class CanonicalInventoryTest(unittest.TestCase):
     def test_missing_duplicate_and_out_of_range_pages_are_quarantined(self):
         from extraction import _canonical_inspector_pages
-        raw = [FakePage(page_number=1), FakePage(page_number=1), FakePage(page_number=3), FakePage(page_number=9)]
+
+        raw = [
+            FakePage(page_number=1),
+            FakePage(page_number=1),
+            FakePage(page_number=3),
+            FakePage(page_number=9),
+        ]
         inventory, anomalies = _canonical_inspector_pages(raw, FakeDocument(4))
         self.assertEqual([number for number, _ in inventory], [1, 2, 3, 4])
         self.assertIsNone(dict(inventory)[2], "an omitted page must appear with no inspector object")
@@ -39,14 +49,16 @@ class CanonicalInventoryTest(unittest.TestCase):
 class FiscalYearAuthorityTest(unittest.TestCase):
     def test_pinned_corpus_year_beats_model_year(self):
         source = Path("pipeline.py").read_text(encoding="utf-8")
-        self.assertIn('fiscal_year = pinned_year or result.detected_fiscal_year', source)
-        self.assertIn('kept the screened corpus year', source)
+        self.assertIn("fiscal_year = pinned_year or result.detected_fiscal_year", source)
+        self.assertIn("kept the screened corpus year", source)
 
 
 class NonFiniteRejectionTest(unittest.TestCase):
     def test_asset_row_rejects_non_finite_answers(self):
-        from models import AssetRow
         from pydantic import ValidationError
+
+        from models import AssetRow
+
         base = {"item": "Total Assets", "confidence": 0.9}
         for bad in (float("nan"), float("inf"), float("-inf")):
             with self.assertRaises(ValidationError):
@@ -56,6 +68,7 @@ class NonFiniteRejectionTest(unittest.TestCase):
 
     def test_approval_normalization_rejects_non_finite(self):
         from corpus import manifest as corpus_manifest
+
         source = Path("corpus/manifest.py").read_text(encoding="utf-8")
         self.assertIn("math.isfinite(normalized_answer)", source)
         self.assertTrue(hasattr(corpus_manifest, "math"))
@@ -64,20 +77,43 @@ class NonFiniteRejectionTest(unittest.TestCase):
 class CorruptArtifactIsolationTest(unittest.TestCase):
     def test_one_corrupt_prediction_does_not_break_list_runs(self):
         import pipeline
+
         with TemporaryDirectory() as tmp:
             runs = Path(tmp) / "runs"
             good = runs / "CompanyA" / "FY2024" / "S1_20260101T000000Z_001"
             good.mkdir(parents=True)
-            (good / "prediction.json").write_text(json.dumps({
-                "run_id": good.name, "strategy": "s1", "experiment": "no_ocr",
-                "rows": [], "company": "CompanyA", "fiscal_year": "2024",
-            }), encoding="utf-8")
+            (good / "prediction.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": good.name,
+                        "strategy": "s1",
+                        "experiment": "no_ocr",
+                        "rows": [],
+                        "company": "CompanyA",
+                        "fiscal_year": "2024",
+                    }
+                ),
+                encoding="utf-8",
+            )
             bad = runs / "CompanyB" / "FY2024" / "S1_20260101T000000Z_002"
             bad.mkdir(parents=True)
-            (bad / "prediction.json").write_text(json.dumps({
-                "run_id": bad.name, "strategy": "s1", "experiment": "no_ocr",
-                "rows": [{"item": "Total Assets", "answer_m_usd": 1, "confidence": "not-a-number"}],
-            }), encoding="utf-8")
+            (bad / "prediction.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": bad.name,
+                        "strategy": "s1",
+                        "experiment": "no_ocr",
+                        "rows": [
+                            {
+                                "item": "Total Assets",
+                                "answer_m_usd": 1,
+                                "confidence": "not-a-number",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
             with mock.patch.object(pipeline, "RUNS_DIR", runs):
                 pipeline._SUMMARY_CACHE.clear()
                 summaries = pipeline.list_runs(None)
@@ -87,17 +123,24 @@ class CorruptArtifactIsolationTest(unittest.TestCase):
 class CacheEvictionTest(unittest.TestCase):
     def test_deleting_a_run_evicts_its_cached_summary(self):
         import pipeline
-        pipeline._SUMMARY_CACHE["/tmp/fake_run/prediction.json"] = (0.0, 0, "legacy-public", {})
-        pipeline.invalidate_run_summaries(Path("/tmp/fake_run"))
-        self.assertNotIn("/tmp/fake_run/prediction.json", pipeline._SUMMARY_CACHE)
+
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "fake_run"
+            cache_key = str(run_dir / "prediction.json")
+            pipeline._SUMMARY_CACHE[cache_key] = (0.0, 0, "legacy-public", {})
+            pipeline.invalidate_run_summaries(run_dir)
+            self.assertNotIn(cache_key, pipeline._SUMMARY_CACHE)
 
 
 class ReadOnlyGateTest(unittest.TestCase):
     def test_mutating_control_plane_is_blocked_when_readonly(self):
-        import importlib, os
+        import importlib
+        import os
+
         os.environ["LEDGER_PUBLIC_READONLY"] = "1"
         try:
             import server as server_module
+
             importlib.reload(server_module)
             client = server_module.app.test_client()
             blocked = client.post("/api/prompt", json={"prompt": "x"})
@@ -124,12 +167,16 @@ class QuotaClassificationTest(unittest.TestCase):
 
     def test_transient_429_is_not_mistaken_for_exhausted_quota(self):
         from api_client import _quota_message
+
         for label, body in {
             "request id containing the quota code": {
                 "error": {"message": "Too Many Requests", "request_id": "req_a1308bf2"}
             },
             "a key name containing 'quota'": {
-                "error": {"message": "Too Many Requests", "metadata": {"quota_reset_at": "later"}}
+                "error": {
+                    "message": "Too Many Requests",
+                    "metadata": {"quota_reset_at": "later"},
+                }
             },
             "'credits' used in marketing prose": {
                 "error": {"message": "Rate limit; upgrade for more credits"}
@@ -141,8 +188,15 @@ class QuotaClassificationTest(unittest.TestCase):
 
     def test_genuine_exhaustion_is_still_detected(self):
         from api_client import _quota_message
-        self.assertEqual(_quota_message({"error": {"message": "usage limit reached"}}), "usage limit reached")
-        self.assertEqual(_quota_message({"error": {"message": "Insufficient balance"}}), "Insufficient balance")
+
+        self.assertEqual(
+            _quota_message({"error": {"message": "usage limit reached"}}),
+            "usage limit reached",
+        )
+        self.assertEqual(
+            _quota_message({"error": {"message": "Insufficient balance"}}),
+            "Insufficient balance",
+        )
         # The numeric code is matched on the code field, not as a substring.
         self.assertEqual(_quota_message({"error": {"code": "1308", "message": "Spent"}}), "Spent")
 
@@ -157,6 +211,7 @@ class CodeFenceTest(unittest.TestCase):
 
     def test_fence_variants_all_yield_the_payload(self):
         from api_client import _strip_code_fence
+
         for label, raw in {
             "payload on the opening fence line": '```json {"a": 1}\n```',
             "conventional multi-line fence": '```json\n{"a": 1}\n```',
@@ -168,6 +223,7 @@ class CodeFenceTest(unittest.TestCase):
 
     def test_closing_fence_glued_to_the_payload(self):
         from api_client import _strip_code_fence
+
         self.assertEqual(_strip_code_fence('```json {"a":1}```'), '{"a":1}')
 
 
@@ -181,10 +237,8 @@ class OversizedNumberTest(unittest.TestCase):
 
     def test_oversized_integer_raises_a_contract_error(self):
         import models
-        rows = [
-            {"item": item, "answer_m_usd": 1.0, "confidence": 0.9}
-            for item in models.CANONICAL_ITEMS
-        ]
+
+        rows = [{"item": item, "answer_m_usd": 1.0, "confidence": 0.9} for item in models.CANONICAL_ITEMS]
         rows[0]["answer_m_usd"] = json.loads("1" + "0" * 400)
         with self.assertRaises(models.SchemaValidationError):
             models.validate_extraction({"detected_fiscal_year": "2022", "rows": rows})
@@ -195,6 +249,7 @@ class ReasoningPrecedenceTest(unittest.TestCase):
 
     def test_current_generation_name_wins_over_legacy(self):
         import settings
+
         with mock.patch.dict(
             os.environ,
             {"GLM_ENABLE_REASONING": "true", "LLM_ENABLE_REASONING": "false"},
@@ -209,17 +264,117 @@ class CacheAccountingTest(unittest.TestCase):
 
     def test_zero_cached_tokens_is_reported_rather_than_omitted(self):
         from providers import cache_usage
+
         usage = {"prompt_tokens": 100, "prompt_tokens_details": {"cached_tokens": 0}}
         self.assertEqual(cache_usage(usage)["cache_hit_rate"], 0.0)
 
     def test_string_token_counts_do_not_raise(self):
         from providers import cache_usage
-        usage = {"prompt_tokens": "100", "prompt_tokens_details": {"cached_tokens": "40"}}
+
+        usage = {
+            "prompt_tokens": "100",
+            "prompt_tokens_details": {"cached_tokens": "40"},
+        }
         self.assertEqual(cache_usage(usage)["cache_hit_rate"], 40.0)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class UploadTrustBoundaryTest(unittest.TestCase):
+    def test_non_pdf_bytes_are_rejected_before_any_file_is_persisted(self):
+        import pipeline
+
+        upload = FileStorage(stream=io.BytesIO(b"not a pdf"), filename="report.pdf")
+        with TemporaryDirectory() as tmp, mock.patch.object(pipeline, "UPLOAD_DIR", Path(tmp)):
+            with self.assertRaisesRegex(ValueError, "not a valid PDF"):
+                pipeline.save_upload(upload)
+            self.assertEqual([], list(Path(tmp).rglob("*")))
+
+    def test_staged_upload_expiry_removes_only_temporary_uploads(self):
+        import server
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            temporary = root / "temporary" / "report.pdf"
+            corpus = root / "corpus" / "report.pdf"
+            temporary.parent.mkdir()
+            corpus.parent.mkdir()
+            temporary.write_bytes(b"%PDF-1.7")
+            corpus.write_bytes(b"%PDF-1.7")
+            expired_at = time.time() - server.STAGED_TTL_SECONDS - 1
+            with mock.patch.dict(
+                server.STAGED,
+                {
+                    "temporary": {
+                        "path": str(temporary),
+                        "staged_at": expired_at,
+                        "temporary_upload": True,
+                    },
+                    "corpus": {
+                        "path": str(corpus),
+                        "staged_at": expired_at,
+                        "temporary_upload": False,
+                    },
+                },
+                clear=True,
+            ):
+                server._prune_staged()
+                self.assertEqual({}, server.STAGED)
+            self.assertFalse(temporary.exists())
+            self.assertTrue(corpus.exists())
+
+
+class ApiTrustBoundaryTest(unittest.TestCase):
+    def test_health_contract_exposes_no_environment_metadata(self):
+        import server
+
+        with mock.patch.dict(os.environ, {"AWS_REGION": "ap-northeast-1"}, clear=False):
+            response = server.app.test_client().get("/api/health")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual({"ok": True, "service": "ledger-backend"}, response.get_json())
+
+    def test_json_endpoints_reject_non_object_payloads(self):
+        import server
+
+        client = server.app.test_client()
+        with mock.patch.object(server, "PUBLIC_READONLY", False):
+            for endpoint in ("/api/settings", "/api/runtime-settings", "/api/prompt"):
+                with self.subTest(endpoint=endpoint):
+                    response = client.post(endpoint, json=["not", "an", "object"])
+                    self.assertEqual(400, response.status_code)
+                    self.assertEqual("A JSON object is required.", response.get_json()["error"])
+
+    def test_responses_include_browser_security_headers(self):
+        import server
+
+        response = server.app.test_client().get("/api/health")
+        self.assertEqual("nosniff", response.headers["X-Content-Type-Options"])
+        self.assertEqual("DENY", response.headers["X-Frame-Options"])
+        self.assertIn("frame-ancestors 'none'", response.headers["Content-Security-Policy"])
+
+    def test_masked_credentials_do_not_reveal_key_fragments(self):
+        import server
+
+        secret = "prefix-private-value-suffix"
+        masked = server.mask_key(secret)
+        self.assertEqual("Configured", masked)
+        self.assertNotIn("prefix", masked)
+        self.assertNotIn("suffix", masked)
+
+    def test_client_errors_redact_credentials_and_local_paths(self):
+        import server
+
+        secret = "TEST_PRIVATE_VALUE_123456"
+        private_path = "/" + "Users/reviewer/private/report.pdf"
+        error = RuntimeError(f"Bearer {secret} failed at {private_path}; api_key={secret}")
+        with mock.patch.object(
+            server,
+            "current_settings",
+            return_value={"api_key": secret, "firecrawl_api_key": ""},
+        ):
+            message = server.safe_client_error(error)
+        self.assertNotIn(secret, message)
+        self.assertNotIn(private_path, message)
+        self.assertIn("[redacted]", message)
+        self.assertIn("[local path]", message)
 
 
 class BenchmarkFeedIsolationTest(unittest.TestCase):
@@ -237,11 +392,22 @@ class BenchmarkFeedIsolationTest(unittest.TestCase):
             def write(run_id, workspace):
                 run = runs / "CompanyA" / "FY2024" / run_id
                 run.mkdir(parents=True)
-                (run / "prediction.json").write_text(json.dumps({
-                    "run_id": run_id, "strategy": "s3", "experiment": "intelligent_scan",
-                    "company": "CompanyA", "fiscal_year": "2024", "currency": "JPY",
-                    "source_pdf_sha256": sha, "rows": rows, "workspace_id": workspace,
-                }), encoding="utf-8")
+                (run / "prediction.json").write_text(
+                    json.dumps(
+                        {
+                            "run_id": run_id,
+                            "strategy": "s3",
+                            "experiment": "intelligent_scan",
+                            "company": "CompanyA",
+                            "fiscal_year": "2024",
+                            "currency": "JPY",
+                            "source_pdf_sha256": sha,
+                            "rows": rows,
+                            "workspace_id": workspace,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
 
             write("S3_20260101T000000Z_001", BENCHMARK_WORKSPACE_ID)
             write("S3_20260101T000000Z_002", "ws_visitor_browser_workspace")
@@ -252,10 +418,18 @@ class BenchmarkFeedIsolationTest(unittest.TestCase):
                 everyone = pipeline.list_runs(None)
 
         self.assertEqual(["S3_20260101T000000Z_001"], [entry["run_id"] for entry in official])
-        self.assertEqual(2, len(everyone), "the visitor run still exists; it is only excluded from the feed")
+        self.assertEqual(
+            2,
+            len(everyone),
+            "the visitor run still exists; it is only excluded from the feed",
+        )
 
     def test_the_feed_endpoint_asks_for_the_benchmark_workspace(self):
         source = Path("server.py").read_text(encoding="utf-8")
         feed = source.split("def get_benchmark_runs")[1].split("@app.route")[0]
         self.assertIn("list_runs(BENCHMARK_WORKSPACE_ID)", feed)
         self.assertNotIn("list_runs(None)", feed)
+
+
+if __name__ == "__main__":
+    unittest.main()

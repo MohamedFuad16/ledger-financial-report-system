@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import corpus.manifest as manifest_module
 import corpus.fetch as fetch_module
+import corpus.manifest as manifest_module
 from schema import ASSET_SCHEMA, ASSIGNMENT_GOLDEN_SOURCE_SHA256
 
 
@@ -19,15 +18,10 @@ class CorpusManifestTests(unittest.TestCase):
         fixture_path = Path(__file__).resolve().parent / "benchmark_data" / "bakuraku_statutory_gold.json"
         fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
         canonical = {str(row["item"]) for row in ASSET_SCHEMA}
-        registry_path = Path(__file__).resolve().parent / "research" / "bakuraku" / "customers.csv"
-        with registry_path.open(encoding="utf-8", newline="") as handle:
-            bakuraku_clients = {row["company_name"] for row in csv.DictReader(handle)}
-
         self.assertEqual(24, len(fixture["documents"]))
         self.assertEqual(24, len({item["company"] for item in fixture["documents"].values()}))
         for source_hash, audited in fixture["documents"].items():
             self.assertEqual(64, len(source_hash))
-            self.assertIn(audited["company"], bakuraku_clients)
             self.assertEqual("independently_verified_partial", audited["status"])
             # 2026-08-25: gazette gold carries every printed section total —
             # 資産合計 always, plus 流動資産/固定資産 (and 繰延資産 or the
@@ -35,7 +29,14 @@ class CorpusManifestTests(unittest.TestCase):
             self.assertIn("Total Assets", set(audited["answers"]))
             self.assertLessEqual(
                 set(audited["answers"]),
-                {"Total Assets", "Current Assets", "Fixed Assets", "Deferred Charges", "Tangible Assets", "Intangible Assets"},
+                {
+                    "Total Assets",
+                    "Current Assets",
+                    "Fixed Assets",
+                    "Deferred Charges",
+                    "Tangible Assets",
+                    "Intangible Assets",
+                },
             )
             self.assertEqual(
                 canonical,
@@ -86,7 +87,7 @@ class CorpusManifestTests(unittest.TestCase):
         self.assertEqual(len(audited["answers"]), verification["extracted_row_count"])
 
     def test_japanese_company_slugs_remain_distinct_and_path_safe(self):
-        first = fetch_module.company_slug("ダイニチ工業株式会社")
+        first = fetch_module.company_slug("株式会社グッドパッチ")
         second = fetch_module.company_slug("リソルホールディングス株式会社")
 
         self.assertNotEqual(first, second)
@@ -105,18 +106,27 @@ class CorpusManifestTests(unittest.TestCase):
                 target.write_bytes(b"%PDF-news-release")
                 return "f" * 64, target.stat().st_size
 
-            with patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
-                fetch_module, "_download", side_effect=fake_download
-            ), patch.object(fetch_module, "screen_pdf", return_value={
-                "screened": "review",
-                "screen_reasons": ["No balance sheet heading found."],
-            }), patch.object(fetch_module, "upsert_document") as upsert:
-                with self.assertRaisesRegex(ValueError, "failed Annual Report screening"):
-                    fetch_module.fetch_report({
+            with (
+                patch.object(fetch_module, "CORPUS_ROOT", root),
+                patch.object(fetch_module, "_download", side_effect=fake_download),
+                patch.object(
+                    fetch_module,
+                    "screen_pdf",
+                    return_value={
+                        "screened": "review",
+                        "screen_reasons": ["No balance sheet heading found."],
+                    },
+                ),
+                patch.object(fetch_module, "upsert_document") as upsert,
+                self.assertRaisesRegex(ValueError, "failed Annual Report screening"),
+            ):
+                fetch_module.fetch_report(
+                    {
                         "company": "Example",
                         "year": 2022,
                         "url": "https://example.test/release_2022.pdf",
-                    })
+                    }
+                )
 
             self.assertEqual(b"%PDF-current", current.read_bytes())
             self.assertEqual([], list(current.parent.glob(".*.pdf")))
@@ -130,18 +140,21 @@ class CorpusManifestTests(unittest.TestCase):
                 target.write_bytes(b"%PDF-changed")
                 return "f" * 64, target.stat().st_size
 
-            with patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
-                fetch_module, "_download", side_effect=fake_download
-            ), patch.object(fetch_module, "screen_pdf") as screen, patch.object(
-                fetch_module, "upsert_document"
-            ) as upsert:
+            with (
+                patch.object(fetch_module, "CORPUS_ROOT", root),
+                patch.object(fetch_module, "_download", side_effect=fake_download),
+                patch.object(fetch_module, "screen_pdf") as screen,
+                patch.object(fetch_module, "upsert_document") as upsert,
+            ):
                 with self.assertRaisesRegex(ValueError, "SHA-256"):
-                    fetch_module.fetch_report({
-                        "company": "Example",
-                        "year": 2022,
-                        "url": "https://example.test/annual_report_2022.pdf",
-                        "expected_sha256": "a" * 64,
-                    })
+                    fetch_module.fetch_report(
+                        {
+                            "company": "Example",
+                            "year": 2022,
+                            "url": "https://example.test/annual_report_2022.pdf",
+                            "expected_sha256": "a" * 64,
+                        }
+                    )
 
             screen.assert_not_called()
             upsert.assert_not_called()
@@ -157,25 +170,30 @@ class CorpusManifestTests(unittest.TestCase):
             current.parent.mkdir(parents=True, exist_ok=True)
             current.write_bytes(b"%PDF-current")
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
             ):
-                manifest_module.upsert_document({
-                    "sha256": "a" * 64,
-                    "company": "3M",
-                    "company_slug": "3M",
-                    "fiscal_year": 2022,
-                    "filename": legacy.name,
-                    "local_path": str(legacy),
-                })
-                manifest_module.upsert_document({
-                    "sha256": "b" * 64,
-                    "company": "3M",
-                    "company_slug": "3M",
-                    "fiscal_year": 2022,
-                    "filename": current.name,
-                    "local_path": str(current),
-                })
+                manifest_module.upsert_document(
+                    {
+                        "sha256": "a" * 64,
+                        "company": "3M",
+                        "company_slug": "3M",
+                        "fiscal_year": 2022,
+                        "filename": legacy.name,
+                        "local_path": str(legacy),
+                    }
+                )
+                manifest_module.upsert_document(
+                    {
+                        "sha256": "b" * 64,
+                        "company": "3M",
+                        "company_slug": "3M",
+                        "fiscal_year": 2022,
+                        "filename": current.name,
+                        "local_path": str(current),
+                    }
+                )
 
                 documents = manifest_module.load_manifest()["documents"]
                 self.assertEqual([item["sha256"] for item in documents], ["b" * 64])
@@ -189,22 +207,28 @@ class CorpusManifestTests(unittest.TestCase):
             legacy.parent.mkdir(parents=True)
             legacy.write_bytes(b"%PDF-test")
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
             ):
-                manifest_module.upsert_document({
-                    "sha256": "c" * 64,
-                    "company": "3M",
-                    "company_slug": "3M",
-                    "fiscal_year": 2022,
-                    "filename": legacy.name,
-                    "local_path": str(legacy),
-                })
+                manifest_module.upsert_document(
+                    {
+                        "sha256": "c" * 64,
+                        "company": "3M",
+                        "company_slug": "3M",
+                        "fiscal_year": 2022,
+                        "filename": legacy.name,
+                        "local_path": str(legacy),
+                    }
+                )
                 self.assertEqual(manifest_module.migrate_corpus_layout(), 1)
                 migrated = root / "3M" / "2022" / legacy.name
                 self.assertTrue(migrated.exists())
                 self.assertFalse(legacy.exists())
-                self.assertEqual(Path(manifest_module.load_manifest()["documents"][0]["local_path"]).resolve(), migrated.resolve())
+                self.assertEqual(
+                    Path(manifest_module.load_manifest()["documents"][0]["local_path"]).resolve(),
+                    migrated.resolve(),
+                )
 
     def test_delete_removes_only_the_pinned_pdf_and_manifest_entry(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -224,8 +248,9 @@ class CorpusManifestTests(unittest.TestCase):
                 "local_path": str(pdf_path),
             }
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
             ):
                 manifest_module.upsert_document(document)
                 deleted = manifest_module.delete_pinned_document(document["sha256"])
@@ -250,8 +275,9 @@ class CorpusManifestTests(unittest.TestCase):
                 "local_path": str(outside),
             }
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
             ):
                 manifest_module.upsert_document(document)
                 with self.assertRaisesRegex(ValueError, "outside corpus storage"):
@@ -259,7 +285,9 @@ class CorpusManifestTests(unittest.TestCase):
 
             self.assertTrue(outside.exists())
 
-    def test_candidate_answers_are_pinned_as_non_authoritative_and_deleted_with_pdf(self):
+    def test_candidate_answers_are_pinned_as_non_authoritative_and_deleted_with_pdf(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "corpus_dataset"
             pdf_path = root / "Example" / "2024" / "Example_annual_report_2024.pdf"
@@ -276,24 +304,34 @@ class CorpusManifestTests(unittest.TestCase):
                 "currency": "JPY",
             }
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
-            ), patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
-                fetch_module, "upsert_document", side_effect=manifest_module.upsert_document
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
+                patch.object(fetch_module, "CORPUS_ROOT", root),
+                patch.object(
+                    fetch_module,
+                    "upsert_document",
+                    side_effect=manifest_module.upsert_document,
+                ),
             ):
                 manifest_module.upsert_document(document)
-                pinned = fetch_module.pin_candidate_answers(document, {
-                    "mode": "auto",
-                    "detected_fiscal_year": 2024,
-                    "rows": [{
-                        "item": "Current Assets",
-                        "answer_m_usd": 123.0,
-                        "confidence": 0.7,
-                        "source_page": 10,
-                        "evidence": "Total current assets 123",
-                    }],
-                    "metadata": {"pages": 1},
-                })
+                pinned = fetch_module.pin_candidate_answers(
+                    document,
+                    {
+                        "mode": "auto",
+                        "detected_fiscal_year": 2024,
+                        "rows": [
+                            {
+                                "item": "Current Assets",
+                                "answer_m_usd": 123.0,
+                                "confidence": 0.7,
+                                "source_page": 10,
+                                "evidence": "Total current assets 123",
+                            }
+                        ],
+                        "metadata": {"pages": 1},
+                    },
+                )
                 candidate_path = Path(pinned["verification"]["candidate_path"])
                 candidate = fetch_module.json.loads(candidate_path.read_text(encoding="utf-8"))
 
@@ -327,22 +365,33 @@ class CorpusManifestTests(unittest.TestCase):
                 "local_path": str(pdf_path),
                 "source_url": "https://example.com/report.pdf",
             }
-            passes = [{
-                "mode": "auto",
-                "detected_fiscal_year": 2024,
-                "rows": [{
-                    "item": row["item"],
-                    "answer_m_usd": 100.0 + pass_number if index == 0 else None,
-                    "confidence": 0.9,
-                    "source_page": 10,
-                    "evidence": "Extracted from the PDF",
-                } for index, row in enumerate(ASSET_SCHEMA)],
-            } for pass_number in (0, 0, 1)]
+            passes = [
+                {
+                    "mode": "auto",
+                    "detected_fiscal_year": 2024,
+                    "rows": [
+                        {
+                            "item": row["item"],
+                            "answer_m_usd": 100.0 + pass_number if index == 0 else None,
+                            "confidence": 0.9,
+                            "source_page": 10,
+                            "evidence": "Extracted from the PDF",
+                        }
+                        for index, row in enumerate(ASSET_SCHEMA)
+                    ],
+                }
+                for pass_number in (0, 0, 1)
+            ]
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
-            ), patch.object(fetch_module, "CORPUS_ROOT", root), patch.object(
-                fetch_module, "upsert_document", side_effect=manifest_module.upsert_document
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
+                patch.object(fetch_module, "CORPUS_ROOT", root),
+                patch.object(
+                    fetch_module,
+                    "upsert_document",
+                    side_effect=manifest_module.upsert_document,
+                ),
             ):
                 manifest_module.upsert_document(document)
                 pinned = fetch_module.pin_candidate_answers(document, passes, requested_passes=3)
@@ -372,8 +421,9 @@ class CorpusManifestTests(unittest.TestCase):
             }
             rows = [{**row, "answer_m_usd": index} for index, row in enumerate(ASSET_SCHEMA)]
 
-            with patch.object(manifest_module, "CORPUS_ROOT", root), patch.object(
-                manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"
+            with (
+                patch.object(manifest_module, "CORPUS_ROOT", root),
+                patch.object(manifest_module, "MANIFEST_PATH", root / "corpus_manifest.json"),
             ):
                 manifest_module.upsert_document(original)
                 approved = manifest_module.approve_document_answers(original["sha256"], rows)
@@ -389,7 +439,10 @@ class CorpusManifestTests(unittest.TestCase):
 
                 current = manifest_module.find_document(replacement["sha256"])
                 self.assertNotIn("verification", current)
-                self.assertEqual("human_review_required", manifest_module.verification_payload(current)["status"])
+                self.assertEqual(
+                    "human_review_required",
+                    manifest_module.verification_payload(current)["status"],
+                )
                 self.assertFalse(approved_path.exists())
 
 

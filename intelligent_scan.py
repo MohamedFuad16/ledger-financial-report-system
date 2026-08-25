@@ -11,65 +11,115 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from schema import ASSET_SCHEMA
-
 
 TOKEN_PATTERN = re.compile(r"[a-z][a-z0-9&-]{1,}|\d+(?:[.,]\d+)*", re.I)
 
 # Accounting language varies substantially across US and international annual
 # reports.  These are navigation terms, never answer aliases or golden values.
 ACCOUNTING_SYNONYMS = (
-    "balance sheet", "statement of financial position", "financial statements",
-    "current assets", "total assets", "cash and cash equivalents",
-    "accounts receivable", "trade receivables", "inventories", "marketable securities",
-    "prepaid expenses", "other current assets", "property plant and equipment",
-    "property, plant and equipment", "pp&e", "land", "buildings", "machinery",
-    "construction in progress", "equipment", "accumulated depreciation",
-    "goodwill", "intangible assets", "investments", "financial assets",
-    "other assets", "operating lease", "right of use assets",
-    "right-of-use assets", "rou assets", "notes to consolidated financial statements",
+    "balance sheet",
+    "statement of financial position",
+    "financial statements",
+    "current assets",
+    "total assets",
+    "cash and cash equivalents",
+    "accounts receivable",
+    "trade receivables",
+    "inventories",
+    "marketable securities",
+    "prepaid expenses",
+    "other current assets",
+    "property plant and equipment",
+    "property, plant and equipment",
+    "pp&e",
+    "land",
+    "buildings",
+    "machinery",
+    "construction in progress",
+    "equipment",
+    "accumulated depreciation",
+    "goodwill",
+    "intangible assets",
+    "investments",
+    "financial assets",
+    "other assets",
+    "operating lease",
+    "right of use assets",
+    "right-of-use assets",
+    "rou assets",
+    "notes to consolidated financial statements",
 )
 
 # EDINET filings use Japanese statement labels. These fixed navigation terms
 # are schema concepts, not company/year/page-specific answers. Japanese text
 # is scored by substring because whitespace tokenization is not reliable.
 JAPANESE_ACCOUNTING_TERMS = (
-    "貸借対照表", "財務諸表", "資産の部", "流動資産", "固定資産", "資産合計",
-    "現金及び預金", "売掛金", "受取手形", "棚卸資産", "商品及び製品", "原材料及び貯蔵品",
-    "有形固定資産", "建物及び構築物", "機械装置", "土地", "建設仮勘定",
-    "減価償却累計額", "無形固定資産", "のれん", "投資その他の資産",
-    "投資有価証券", "敷金及び保証金", "繰延税金資産",
+    "貸借対照表",
+    "財務諸表",
+    "資産の部",
+    "流動資産",
+    "固定資産",
+    "資産合計",
+    "現金及び預金",
+    "売掛金",
+    "受取手形",
+    "棚卸資産",
+    "商品及び製品",
+    "原材料及び貯蔵品",
+    "有形固定資産",
+    "建物及び構築物",
+    "機械装置",
+    "土地",
+    "建設仮勘定",
+    "減価償却累計額",
+    "無形固定資産",
+    "のれん",
+    "投資その他の資産",
+    "投資有価証券",
+    "敷金及び保証金",
+    "繰延税金資産",
 )
 
-FINANCIAL_HEADING_PATTERNS = tuple(re.compile(pattern, re.I | re.M) for pattern in (
-    r"^#{1,4}\s+.*(?:balance sheets?|financial position)",
-    r"^#{1,4}\s+.*(?:property,? plant|equipment|intangible|goodwill|inventor|receiv)",
-    r"(?:consolidated\s+)?balance sheets?",
-    r"statements? of financial position",
-    r"notes? to (?:the )?(?:consolidated )?financial statements",
-    r"(?:連結)?貸借対照表",
-    r"(?:連結)?財務諸表",
-    r"資産の部",
-))
+FINANCIAL_HEADING_PATTERNS = tuple(
+    re.compile(pattern, re.I | re.M)
+    for pattern in (
+        r"^#{1,4}\s+.*(?:balance sheets?|financial position)",
+        r"^#{1,4}\s+.*(?:property,? plant|equipment|intangible|goodwill|inventor|receiv)",
+        r"(?:consolidated\s+)?balance sheets?",
+        r"statements? of financial position",
+        r"notes? to (?:the )?(?:consolidated )?financial statements",
+        r"(?:連結)?貸借対照表",
+        r"(?:連結)?財務諸表",
+        r"資産の部",
+    )
+)
 
-REJECT_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
-    r"proxy statement",
-    r"board of directors",
-    r"executive compensation",
-    r"shareholder proposal",
-    r"corporate governance",
-    r"table of contents",
-    r"取締役|役員の状況|コーポレート.?ガバナンス|株主総会|目次",
-))
+REJECT_PATTERNS = tuple(
+    re.compile(pattern, re.I)
+    for pattern in (
+        r"proxy statement",
+        r"board of directors",
+        r"executive compensation",
+        r"shareholder proposal",
+        r"corporate governance",
+        r"table of contents",
+        r"取締役|役員の状況|コーポレート.?ガバナンス|株主総会|目次",
+    )
+)
 
 # Evidence that is easy to lose when issuers move a schema component off the
 # face statement. This is a source-language concept, not an answer or company-
 # specific page number. A bounded bonus keeps a lease note competitive with
 # dense generic financial pages when Other Equipment may include ROU assets.
 CRITICAL_EVIDENCE_PATTERNS = (
-    ("right_of_use_assets", re.compile(r"(?:operating\s+lease\s+)?right[-\s]+of[-\s]+use\s+assets?", re.I)),
+    (
+        "right_of_use_assets",
+        re.compile(r"(?:operating\s+lease\s+)?right[-\s]+of[-\s]+use\s+assets?", re.I),
+    ),
     ("japanese_investment_breakdown", re.compile(r"市場価格のない株式等")),
     ("japanese_accumulated_depreciation", re.compile(r"減価償却累計額")),
     ("japanese_loan_maturity", re.compile(r"金銭債権の連結決算日後の償還予定額")),
@@ -154,9 +204,7 @@ def score_pages(
         numeric_density = numeric_tokens / length
         reject_hits = sum(bool(pattern.search(text)) for pattern in REJECT_PATTERNS)
         standalone_statement = bool(
-            has_consolidated_balance_sheet
-            and "貸借対照表" in text
-            and "連結貸借対照表" not in text
+            has_consolidated_balance_sheet and "貸借対照表" in text and "連結貸借対照表" not in text
         )
         critical_evidence = [name for name, pattern in CRITICAL_EVIDENCE_PATTERNS if pattern.search(text)]
         japanese_term_hits = [term for term in JAPANESE_ACCOUNTING_TERMS if term in text]
@@ -174,22 +222,24 @@ def score_pages(
             - reject_hits * (3.0 if not heading_hits else 1.0)
             - (12.0 if standalone_statement else 0.0)
         )
-        results.append({
-            "page": page_no,
-            "score": round(score, 4),
-            "bm25": round(bm25, 4),
-            "schema_term_hits": len(matched_terms),
-            "matched_terms": sorted(matched_terms)[:24],
-            "financial_heading_hits": heading_hits,
-            "table_signal": table_signal,
-            "column_signal": column_signal,
-            "numeric_density": round(numeric_density, 4),
-            "reject_hits": reject_hits,
-            "standalone_statement_penalty": standalone_statement,
-            "critical_evidence": critical_evidence,
-            "japanese_accounting_hits": japanese_term_hits[:24],
-            "characters": len(text),
-        })
+        results.append(
+            {
+                "page": page_no,
+                "score": round(score, 4),
+                "bm25": round(bm25, 4),
+                "schema_term_hits": len(matched_terms),
+                "matched_terms": sorted(matched_terms)[:24],
+                "financial_heading_hits": heading_hits,
+                "table_signal": table_signal,
+                "column_signal": column_signal,
+                "numeric_density": round(numeric_density, 4),
+                "reject_hits": reject_hits,
+                "standalone_statement_penalty": standalone_statement,
+                "critical_evidence": critical_evidence,
+                "japanese_accounting_hits": japanese_term_hits[:24],
+                "characters": len(text),
+            }
+        )
     return sorted(results, key=lambda item: (-float(item["score"]), int(item["page"])))
 
 
@@ -198,9 +248,21 @@ def score_pages(
 # never company-, year- or answer-specific values.
 JAPANESE_ITEM_TERMS: dict[str, tuple[str, ...]] = {
     "Cash & Cash Equivalents": ("現金及び預金", "現金預金"),
-    "Accounts Receivable - Trade": ("売掛金", "受取手形", "電子記録債権", "契約資産", "完成工事未収入金"),
+    "Accounts Receivable - Trade": (
+        "売掛金",
+        "受取手形",
+        "電子記録債権",
+        "契約資産",
+        "完成工事未収入金",
+    ),
     "Other Quick Assets": ("未収入金", "未収収益"),
-    "Inventories, Net": ("棚卸資産", "商品及び製品", "仕掛品", "原材料及び貯蔵品", "未成工事支出金"),
+    "Inventories, Net": (
+        "棚卸資産",
+        "商品及び製品",
+        "仕掛品",
+        "原材料及び貯蔵品",
+        "未成工事支出金",
+    ),
     "Marketable Securities": ("有価証券",),
     "Short-term Loan": ("短期貸付金", "貸付金", "償還予定"),
     "Advance Payments": ("前渡金", "前払金"),
@@ -208,15 +270,36 @@ JAPANESE_ITEM_TERMS: dict[str, tuple[str, ...]] = {
     "Tangible Assets": ("有形固定資産", "有形固定資産等明細表"),
     "Land": ("土地",),
     "Buildings": ("建物", "構築物", "有形固定資産等明細表", "取得価額"),
-    "Plant & Machinery": ("機械及び装置", "機械装置", "有形固定資産等明細表", "取得価額"),
+    "Plant & Machinery": (
+        "機械及び装置",
+        "機械装置",
+        "有形固定資産等明細表",
+        "取得価額",
+    ),
     "Construction in Progress": ("建設仮勘定",),
-    "Other Equipment": ("工具、器具及び備品", "車両運搬具", "リース資産", "使用権資産", "有形固定資産等明細表"),
+    "Other Equipment": (
+        "工具、器具及び備品",
+        "車両運搬具",
+        "リース資産",
+        "使用権資産",
+        "有形固定資産等明細表",
+    ),
     "Accumulated Depreciation": ("減価償却累計額", "有形固定資産等明細表", "取得価額"),
     "Intangible Assets": ("無形固定資産", "のれん", "ソフトウエア"),
-    "Financial Assets": ("投資その他の資産", "敷金及び保証金", "前払年金費用", "退職給付に係る資産"),
+    "Financial Assets": (
+        "投資その他の資産",
+        "敷金及び保証金",
+        "前払年金費用",
+        "退職給付に係る資産",
+    ),
     "Investments": ("投資有価証券", "関係会社株式", "出資金"),
     "Long-term Loan": ("長期貸付金", "貸付金", "償還予定"),
-    "Other Financial Assets": ("敷金及び保証金", "破産更生債権", "保険積立金", "貸倒引当金"),
+    "Other Financial Assets": (
+        "敷金及び保証金",
+        "破産更生債権",
+        "保険積立金",
+        "貸倒引当金",
+    ),
     "Other Fixed Assets": ("長期前払費用", "繰延税金資産"),
     "Deferred Charges": ("繰延資産", "株式交付費", "社債発行費", "開発費"),
 }
@@ -269,17 +352,17 @@ def select_retry_pages(
         # vocabulary of the specific missing rows must dominate the ranking —
         # otherwise generically dense financial pages always win.
         japanese_hits = sum(1 for term in japanese_targets if term in page_text)
-        rescored.append({
-            **entry,
-            "targeted_term_hits": targeted_hits,
-            "targeted_japanese_hits": japanese_hits,
-            "retry_score": round(
-                float(entry["score"])
-                + min(8.0, targeted_hits * 0.6)
-                + min(36.0, japanese_hits * 12.0),
-                4,
-            ),
-        })
+        rescored.append(
+            {
+                **entry,
+                "targeted_term_hits": targeted_hits,
+                "targeted_japanese_hits": japanese_hits,
+                "retry_score": round(
+                    float(entry["score"]) + min(8.0, targeted_hits * 0.6) + min(36.0, japanese_hits * 12.0),
+                    4,
+                ),
+            }
+        )
     rescored.sort(key=lambda item: (-float(item["retry_score"]), int(item["page"])))
     chosen = rescored[:maximum_pages]
     chosen_numbers = {int(item["page"]) for item in chosen}
@@ -290,7 +373,16 @@ def select_retry_pages(
     return selected, {
         "retry_pages": [int(item["page"]) for item in chosen],
         "retry_scores": [
-            {key: item[key] for key in ("page", "score", "retry_score", "targeted_term_hits", "targeted_japanese_hits")}
+            {
+                key: item[key]
+                for key in (
+                    "page",
+                    "score",
+                    "retry_score",
+                    "targeted_term_hits",
+                    "targeted_japanese_hits",
+                )
+            }
             for item in chosen
         ],
         "reason": None,
@@ -312,7 +404,11 @@ def select_evidence_pages(
         pages_with_columns=pages_with_columns,
     )
     if not ranked:
-        return [], {"selected_pages": [], "ranked_pages": [], "fallback": "no_readable_pages"}
+        return [], {
+            "selected_pages": [],
+            "ranked_pages": [],
+            "fallback": "no_readable_pages",
+        }
 
     upper = min(maximum_pages, len(ranked))
     lower = min(minimum_pages, upper)
@@ -340,7 +436,9 @@ def select_evidence_pages(
         "all_page_scores": ranked,
         "full_markdown_characters": total_chars,
         "selected_markdown_characters": selected_chars,
-        "character_reduction_percent": round((1 - selected_chars / total_chars) * 100, 2) if total_chars else 0.0,
+        "character_reduction_percent": round((1 - selected_chars / total_chars) * 100, 2)
+        if total_chars
+        else 0.0,
         "fallback": None,
     }
     return selected, diagnostics

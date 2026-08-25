@@ -133,7 +133,6 @@ export const api = {
     }),
   corpusJobs: () => jsonRequest<{ jobs: CorpusJob[] }>('/api/corpus/jobs'),
   corpusJob: (id: string) => jsonRequest<CorpusJob>(`/api/corpus/jobs/${encodeURIComponent(id)}`),
-  bakurakuCustomers: () => jsonRequest<{ count: number; customers: Array<Record<string, string>> }>('/api/bakuraku/customers'),
   extractionJobs: () => jsonRequest<{ jobs: Array<Omit<ExtractionJob, 'events' | 'next_offset'>> }>('/api/extraction/jobs'),
   extractionJob: (id: string, after = 0) => jsonRequest<ExtractionJob>(`/api/extraction/jobs/${encodeURIComponent(id)}?after=${Math.max(0, after)}`),
   startExtractionJob: (body: Record<string, unknown>) =>

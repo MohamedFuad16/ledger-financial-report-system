@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import math
-import fcntl
+import os
 import threading
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from schema import (
     ASSET_SCHEMA,
@@ -18,10 +19,11 @@ from schema import (
     SOURCE_BOUND_GOLDEN_ANSWERS,
 )
 
-
-CORPUS_ROOT = Path("corpus_dataset")
+CORPUS_ROOT = Path(os.environ.get("LEDGER_CORPUS_ROOT", "corpus_dataset")).expanduser()
 MANIFEST_PATH = CORPUS_ROOT / "corpus_manifest.json"
 _LOCK = threading.Lock()
+
+
 @contextmanager
 def _manifest_guard():
     """Serialize manifest mutations across threads and Gunicorn workers."""
@@ -37,7 +39,7 @@ def _manifest_guard():
 
 
 def _write_manifest(manifest: dict[str, Any]) -> None:
-    manifest["updated_at"] = datetime.now(timezone.utc).isoformat()
+    manifest["updated_at"] = datetime.now(UTC).isoformat()
     temporary = MANIFEST_PATH.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(MANIFEST_PATH)
@@ -67,10 +69,12 @@ def _document_owned_paths(document: dict[str, Any]) -> list[Path]:
     raw_paths = [str(document.get("local_path") or "")]
     verification = document.get("verification")
     if isinstance(verification, dict):
-        raw_paths.extend([
-            str(verification.get("candidate_path") or ""),
-            str(verification.get("approved_path") or ""),
-        ])
+        raw_paths.extend(
+            [
+                str(verification.get("candidate_path") or ""),
+                str(verification.get("approved_path") or ""),
+            ]
+        )
         pass_paths = verification.get("candidate_pass_paths")
         if isinstance(pass_paths, list):
             raw_paths.extend(str(path or "") for path in pass_paths)
@@ -123,7 +127,11 @@ def migrate_corpus_layout() -> int:
                 _prune_empty_parents(old_path)
             elif not target.is_file():
                 continue
-            document["local_path"] = str(target.relative_to(Path.cwd().resolve())) if target.is_relative_to(Path.cwd().resolve()) else str(target)
+            document["local_path"] = (
+                str(target.relative_to(Path.cwd().resolve()))
+                if target.is_relative_to(Path.cwd().resolve())
+                else str(target)
+            )
             moved += 1
         if moved:
             _write_manifest(manifest)
@@ -136,7 +144,8 @@ def upsert_document(document: dict[str, Any]) -> dict[str, Any]:
         manifest = load_manifest()
         documents = manifest["documents"]
         superseded = [
-            item for item in documents
+            item
+            for item in documents
             if item.get("sha256") == document.get("sha256")
             or (item.get("company_slug"), item.get("fiscal_year"))
             == (document.get("company_slug"), document.get("fiscal_year"))
@@ -147,16 +156,26 @@ def upsert_document(document: dict[str, Any]) -> dict[str, Any]:
             (item for item in superseded if item.get("sha256") == document.get("sha256")),
             None,
         )
-        if same_source and "verification" not in document and isinstance(same_source.get("verification"), dict):
+        if (
+            same_source
+            and "verification" not in document
+            and isinstance(same_source.get("verification"), dict)
+        ):
             document["verification"] = same_source["verification"]
         documents[:] = [
-            item for item in documents
+            item
+            for item in documents
             if item.get("sha256") != document.get("sha256")
             and (item.get("company_slug"), item.get("fiscal_year"))
             != (document.get("company_slug"), document.get("fiscal_year"))
         ]
         documents.append(document)
-        documents.sort(key=lambda item: (str(item.get("company", "")).lower(), int(item.get("fiscal_year") or 0)))
+        documents.sort(
+            key=lambda item: (
+                str(item.get("company", "")).lower(),
+                int(item.get("fiscal_year") or 0),
+            )
+        )
         _write_manifest(manifest)
 
         # Commit the new manifest first, then remove only a superseded source
@@ -174,7 +193,11 @@ def upsert_document(document: dict[str, Any]) -> dict[str, Any]:
 def find_document(document_id: str) -> dict[str, Any] | None:
     identifier = str(document_id or "").strip()
     return next(
-        (item for item in load_manifest().get("documents", []) if str(item.get("sha256") or "") == identifier),
+        (
+            item
+            for item in load_manifest().get("documents", [])
+            if str(item.get("sha256") or "") == identifier
+        ),
         None,
     )
 
@@ -213,7 +236,13 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
             "extracted_row_count": len(ASSET_SCHEMA),
             "source_sha256": document.get("sha256"),
             "rows": [
-                {**row, "answer_m_usd": answers.get(str(row["item"])), "confidence": 1.0, "source_page": None, "evidence": None}
+                {
+                    **row,
+                    "answer_m_usd": answers.get(str(row["item"])),
+                    "confidence": 1.0,
+                    "source_page": None,
+                    "evidence": None,
+                }
                 for row in ASSET_SCHEMA
             ],
         }
@@ -221,12 +250,10 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
     audited = SOURCE_BOUND_GOLDEN_ANSWERS.get(str(document.get("sha256") or ""))
     if audited:
         document_identity = "".join(
-            character for character in str(document.get("company") or "").casefold()
-            if character.isalnum()
+            character for character in str(document.get("company") or "").casefold() if character.isalnum()
         )
         audited_identity = "".join(
-            character for character in str(audited.get("company") or "").casefold()
-            if character.isalnum()
+            character for character in str(audited.get("company") or "").casefold() if character.isalnum()
         )
         same_source_identity = (
             document_identity == audited_identity
@@ -235,8 +262,8 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
             == str(audited.get("currency") or "USD").upper()
         )
         if same_source_identity:
-            answers = dict(audited.get("answers") or {})
-            citations = dict(audited.get("citations") or {})
+            answers = cast(dict[str, float], audited.get("answers") or {})
+            citations = cast(dict[str, dict[str, Any]], audited.get("citations") or {})
             return {
                 "document_id": document.get("sha256"),
                 "company": document.get("company"),
@@ -266,7 +293,11 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
                 ],
             }
 
-    verification = document.get("verification") if isinstance(document.get("verification"), dict) else {}
+    verification: dict[str, Any] = (
+        cast(dict[str, Any], document.get("verification"))
+        if isinstance(document.get("verification"), dict)
+        else {}
+    )
     status = str(verification.get("status") or "human_review_required")
     artifact = None
     if status == "human_verified":
@@ -276,26 +307,24 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
         status = "human_review_required"
     artifact_rows = (artifact or {}).get("rows") or []
     candidate_extracted = isinstance(artifact_rows, list) and len(artifact_rows) == len(ASSET_SCHEMA)
-    rows_by_item = {
-        str(row.get("item") or ""): row
-        for row in artifact_rows
-        if isinstance(row, dict)
-    }
+    rows_by_item = {str(row.get("item") or ""): row for row in artifact_rows if isinstance(row, dict)}
     rows = []
     for schema_row in ASSET_SCHEMA:
         candidate = rows_by_item.get(str(schema_row["item"]), {})
-        rows.append({
-            **schema_row,
-            "answer_m_usd": candidate.get("answer_m_usd"),
-            "confidence": candidate.get("confidence"),
-            "source_page": candidate.get("source_page"),
-            "evidence": candidate.get("evidence"),
-            "pass_values": candidate.get("pass_values"),
-            "agreement_count": candidate.get("agreement_count"),
-            "successful_passes": candidate.get("successful_passes"),
-            "agreement_ratio": candidate.get("agreement_ratio"),
-            "stability": candidate.get("stability"),
-        })
+        rows.append(
+            {
+                **schema_row,
+                "answer_m_usd": candidate.get("answer_m_usd"),
+                "confidence": candidate.get("confidence"),
+                "source_page": candidate.get("source_page"),
+                "evidence": candidate.get("evidence"),
+                "pass_values": candidate.get("pass_values"),
+                "agreement_count": candidate.get("agreement_count"),
+                "successful_passes": candidate.get("successful_passes"),
+                "agreement_ratio": candidate.get("agreement_ratio"),
+                "stability": candidate.get("stability"),
+            }
+        )
     return {
         "document_id": document.get("sha256"),
         "company": document.get("company"),
@@ -318,13 +347,15 @@ def verification_payload(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def approve_document_answers(document_id: str, rows: list[dict[str, Any]], *, reviewer: str = "human") -> dict[str, Any]:
+def approve_document_answers(
+    document_id: str, rows: list[dict[str, Any]], *, reviewer: str = "human"
+) -> dict[str, Any]:
     """Save an exact 27-row human-approved key bound to the current PDF SHA."""
     expected_items = [str(row["item"]) for row in ASSET_SCHEMA]
     if len(rows) != len(expected_items) or [str(row.get("item") or "") for row in rows] != expected_items:
         raise ValueError("Approval must contain the 27 schema rows in canonical order.")
     normalized_rows = []
-    for schema_row, row in zip(ASSET_SCHEMA, rows):
+    for schema_row, row in zip(ASSET_SCHEMA, rows, strict=True):
         answer = row.get("answer_m_usd")
         if answer is None or answer == "":
             normalized_answer = None
@@ -336,14 +367,18 @@ def approve_document_answers(document_id: str, rows: list[dict[str, Any]], *, re
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{schema_row['item']} must be numeric or blank.") from exc
             if not math.isfinite(normalized_answer):
-                raise ValueError(f"{schema_row['item']} must be a finite number; NaN and infinities are rejected.")
-        normalized_rows.append({
-            **schema_row,
-            "answer_m_usd": normalized_answer,
-            "confidence": row.get("confidence"),
-            "source_page": row.get("source_page"),
-            "evidence": row.get("evidence"),
-        })
+                raise ValueError(
+                    f"{schema_row['item']} must be a finite number; NaN and infinities are rejected."
+                )
+        normalized_rows.append(
+            {
+                **schema_row,
+                "answer_m_usd": normalized_answer,
+                "confidence": row.get("confidence"),
+                "source_page": row.get("source_page"),
+                "evidence": row.get("evidence"),
+            }
+        )
 
     with _manifest_guard():
         manifest = load_manifest()
@@ -356,7 +391,7 @@ def approve_document_answers(document_id: str, rows: list[dict[str, Any]], *, re
         pdf_path = _manifest_owned_path(str(document.get("local_path") or ""))
         if not pdf_path or not pdf_path.is_file():
             raise ValueError("The source PDF is missing from corpus storage.")
-        approved_at = datetime.now(timezone.utc).isoformat()
+        approved_at = datetime.now(UTC).isoformat()
         verification_dir = pdf_path.parent / "verification"
         verification_dir.mkdir(parents=True, exist_ok=True)
         approved_path = verification_dir / "approved_answers.json"
@@ -400,7 +435,10 @@ def delete_pinned_document(document_id: str) -> dict[str, Any] | None:
     with _manifest_guard():
         manifest = load_manifest()
         documents = manifest["documents"]
-        document = next((item for item in documents if str(item.get("sha256") or "") == identifier), None)
+        document = next(
+            (item for item in documents if str(item.get("sha256") or "") == identifier),
+            None,
+        )
         if document is None:
             return None
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,11 +25,14 @@ def merge_manifests(live: dict[str, Any], deployed: dict[str, Any]) -> dict[str,
             merged[document_identity(document)] = document
     documents = sorted(
         merged.values(),
-        key=lambda item: (str(item.get("company") or "").casefold(), int(item.get("fiscal_year") or 0)),
+        key=lambda item: (
+            str(item.get("company") or "").casefold(),
+            int(item.get("fiscal_year") or 0),
+        ),
     )
     return {
         "version": max(int(live.get("version") or 1), int(deployed.get("version") or 1)),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "documents": documents,
     }
 

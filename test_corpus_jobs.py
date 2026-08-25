@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import time
 import unittest
-import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,17 +14,21 @@ import server
 
 class CorpusJobPersistenceTests(unittest.TestCase):
     def test_live_job_owned_by_another_gunicorn_process_stays_visible(self):
-        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
-            server, "CORPUS_JOBS_ROOT", Path(temp_dir)
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(server, "CORPUS_JOBS_ROOT", Path(temp_dir)),
         ):
             job_id = "b" * 12
-            server._write_corpus_job_state(job_id, {
-                "id": job_id,
-                "status": "running",
-                "worker_instance_id": "another-gunicorn-process",
-                "worker_pid": os.getpid(),
-                "events": [],
-            })
+            server._write_corpus_job_state(
+                job_id,
+                {
+                    "id": job_id,
+                    "status": "running",
+                    "worker_instance_id": "another-gunicorn-process",
+                    "worker_pid": os.getpid(),
+                    "events": [],
+                },
+            )
 
             state = server._read_corpus_job_state(job_id)
 
@@ -47,17 +51,27 @@ class CorpusJobPersistenceTests(unittest.TestCase):
             on_event({"type": "discovered", "company": "Example"})
             return {"requested": 1, "downloaded": [], "failed": [], "years": years}
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
-            server, "CORPUS_JOBS_ROOT", Path(temp_dir)
-        ), patch.object(server, "current_settings", return_value={
-            "firecrawl_api_key": "test-firecrawl", "max_concurrency": 1,
-        }), patch.object(server, "build_corpus", side_effect=build), patch.dict(
-            server.CORPUS_JOBS, {}, clear=True
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(server, "CORPUS_JOBS_ROOT", Path(temp_dir)),
+            patch.object(
+                server,
+                "current_settings",
+                return_value={
+                    "firecrawl_api_key": "test-firecrawl",
+                    "max_concurrency": 1,
+                },
+            ),
+            patch.object(server, "build_corpus", side_effect=build),
+            patch.dict(server.CORPUS_JOBS, {}, clear=True),
         ):
-            response = server.app.test_client().post("/api/corpus/jobs", json={
-                "companies": [{"name": "Example", "official_url": "https://example.com"}],
-                "years": [2024],
-            })
+            response = server.app.test_client().post(
+                "/api/corpus/jobs",
+                json={
+                    "companies": [{"name": "Example", "official_url": "https://example.com"}],
+                    "years": [2024],
+                },
+            )
             self.assertEqual(202, response.status_code)
             job_id = response.get_json()["job_id"]
             state = None
@@ -76,16 +90,20 @@ class CorpusJobPersistenceTests(unittest.TestCase):
             self.assertEqual("discovered", detail.get_json()["events"][0]["type"])
 
     def test_stale_active_job_is_preserved_as_interrupted(self):
-        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
-            server, "CORPUS_JOBS_ROOT", Path(temp_dir)
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(server, "CORPUS_JOBS_ROOT", Path(temp_dir)),
         ):
             job_id = "c" * 12
-            server._write_corpus_job_state(job_id, {
-                "id": job_id,
-                "status": "running",
-                "worker_instance_id": "an-older-backend-process",
-                "events": [],
-            })
+            server._write_corpus_job_state(
+                job_id,
+                {
+                    "id": job_id,
+                    "status": "running",
+                    "worker_instance_id": "an-older-backend-process",
+                    "events": [],
+                },
+            )
             state = server._read_corpus_job_state(job_id)
             self.assertEqual("interrupted", state["status"])
             self.assertIn("backend restarted", state["error"])

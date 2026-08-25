@@ -4,7 +4,12 @@ from typing import Any
 
 from dotenv import load_dotenv, set_key
 
-from providers import DEFAULT_PROVIDER, REASONING_EFFORTS, get_provider, provider_for_base_url
+from providers import (
+    DEFAULT_PROVIDER,
+    REASONING_EFFORTS,
+    get_provider,
+    provider_for_base_url,
+)
 
 ENV_PATH = Path(".env")
 
@@ -41,7 +46,7 @@ def current_settings() -> dict[str, Any]:
     # LLM_* is the current naming; GLM_* is still read so an existing .env keeps
     # working without being rewritten.
     api_key = os.getenv("LLM_API_KEY") or os.getenv("GLM_API_KEY", "")
-    base_url = os.getenv("LLM_BASE_URL") or os.getenv("GLM_BASE_URL", "")
+    base_url = os.getenv("LLM_BASE_URL") or os.getenv("GLM_BASE_URL", "") or ""
     model = os.getenv("LLM_MODEL") or os.getenv("GLM_MODEL", "")
     provider_key = os.getenv("LLM_PROVIDER", "")
 
@@ -51,7 +56,7 @@ def current_settings() -> dict[str, Any]:
     provider = get_provider(provider_key)
 
     try:
-        temp = float(os.getenv("LLM_TEMPERATURE") or os.getenv("GLM_TEMPERATURE", "0.0"))
+        temp = float(os.getenv("LLM_TEMPERATURE") or os.getenv("GLM_TEMPERATURE", "0.0") or "0.0")
     except ValueError:
         temp = 0.0
 
@@ -60,7 +65,7 @@ def current_settings() -> dict[str, Any]:
         max_concurrency = max(1, min(int(os.getenv("LLM_MAX_CONCURRENCY", "6")), 20))
     except ValueError:
         max_concurrency = 6
-    auto_concurrency = (os.getenv("LLM_AUTO_CONCURRENCY", "true").strip().lower() not in ("false", "0", "no"))
+    auto_concurrency = os.getenv("LLM_AUTO_CONCURRENCY", "true").strip().lower() not in ("false", "0", "no")
     firecrawl_pdf_mode = (os.getenv("FIRECRAWL_PDF_MODE", "auto") or "auto").strip().lower()
     if firecrawl_pdf_mode not in {"fast", "auto", "ocr"}:
         firecrawl_pdf_mode = "auto"

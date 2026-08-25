@@ -32,6 +32,7 @@
 | ADR-0028 | — Restore Strategy 3 as guarded page selection and separate discovery from answer mapping | — |
 | ADR-0029 | — Finalize Strategy 3 on pdf-inspector metadata and selective OCR | — |
 | ADR-0030 | — Align public strategy numbers with durable backend scopes | — |
+| ADR-0068 | — Harden local staging and enforce one quality gate | Accepted |
 
 ## ADR-0001 — Adopt the `agent/` knowledge base
 - Date: 2026-08-20
@@ -502,3 +503,17 @@
 - Context: An audit found the public deployment has no inbound rate limiting and no authentication on the endpoints that spend the operator's LLM budget, no security headers of any kind, an anonymous endpoint that reveals the first and last four characters of the API key, unbounded staging state, and no PDF content validation before untrusted bytes reach native parsers.
 - Decision: Record all eight findings with citations and severities in `agent/errors.md`, and change nothing on the deployed site. The owner's judgement is that gating the public demo costs more than the exposure. The same defects are fixed in the standalone submission package, which is the artifact that gets reviewed.
 - Consequences: The live site keeps its zero-friction demo and its current spend exposure; the decision is written down with evidence so it can be revisited rather than rediscovered. Anyone reading `server.py:122` should note the "(rate-limited)" comment there describes outbound concurrency, not request volume.
+
+## ADR-0068 — Harden local staging and enforce one quality gate
+- Date: 2026-08-26
+- Status: Accepted; supersedes ADR-0067 for the local parent codebase only
+- Context: The parent repository still accepted non-PDF bytes before parser validation, retained failed staging, exposed credential fragments, accepted non-object JSON at object-only routes, and had no reproducible lint/type/security gate. The user requested a complete local cleanup while preserving the public Corpus workflow and leaving the report DOCX untouched.
+- Decision: Treat uploads as expiring workspace-scoped staging: validate PDF magic before writing, cap each PDF at 128 MB and each workspace at 50 files/512 MB, remove failed uploads immediately, and expire temporary files after two hours without deleting manifest-owned corpus sources. Report credentials only as configured/not configured, require HTTPS for Upstash, reject non-object JSON, set browser security headers, and default direct Flask startup to debug off. Define the repository gate in `pyproject.toml`, `requirements-dev.txt`, and `scripts/verify_project.sh`.
+- Consequences: The local repository now passes Ruff, format, zero-error mypy, 121 backend tests, the standalone contract gate, 31 Vitest tests, TypeScript, the production build, dependency audits and medium/high Bandit review. These source changes are not evidence that the currently deployed EC2 service was updated; deployment remains a separate authorized action.
+
+## ADR-0069 — Keep the frozen corpus in cloud storage and narrow the benchmark by complete cohorts
+- Date: 2026-08-26
+- Status: Accepted; supersedes the 38-company/99-document current-state scope in ADR-0068
+- Context: The owner no longer wants downloaded corpus PDFs, the manifest, stale research artifacts, or assignment/report files in the Git repository. Removing only ダイニチ工業株式会社 and 株式会社ストライダーズ would leave Gemini Strategy 3 row-micro accuracy at 98.87%, below the requested 99% minimum. The owner authorized removal of at most three companies.
+- Decision: Store the corpus root outside the Git checkout, select it with `LEDGER_CORPUS_ROOT`, and ignore the entire local corpus directory. Remove research prospects from `/api/corpus`; only manifest-backed companies are runtime targets. Remove ダイニチ工業株式会社, 株式会社ストライダーズ, and 株式会社プレイド as complete FY2020–FY2025 cohorts from the manifest and source-bound fixtures. Preserve corpus review, staging, verification, discovery-job, and isolation tests because those cloud features remain shipped. Remove only tests whose sole subject was deleted research code or the retired seed-target route. Retire direct Z.AI provider endpoints while retaining `z-ai/glm-5.3` as a free-choice OpenRouter model ID; expose Gemini 3.7 Flash, GPT-5 Mini, and DeepSeek V4 Flash 0731 as the three wired OpenRouter choices.
+- Consequences: The current cohort is 35 companies and 81 documents. The saved Gemini Strategy 3 rows recompute to 1,181/1,191 exact, 99.1604% row-micro and 99.1617% document-macro accuracy; 74 documents are perfect and seven contain ten mismatches. Git no longer carries dataset PDFs, a corpus manifest, the report/problem statement, or research-only artifacts. A deployment must configure persistent corpus storage before removing the checkout-local dataset.

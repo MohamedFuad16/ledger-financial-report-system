@@ -26,7 +26,7 @@ class QuotaExhaustedError(GLMError):
     """
     The account's usage allowance is spent, not merely throttled.
 
-    Z.AI returns this as an HTTP 429 like any other rate limit, but retrying is
+    Some gateways return this as an HTTP 429 like any other rate limit, but retrying is
     pointless: nothing succeeds until the window resets. It is raised
     immediately, without retries, so a batch stops instead of grinding every
     remaining file through four useless attempts.
@@ -143,8 +143,11 @@ def _post_json(
         attempt_started = time.perf_counter()
         try:
             body, elapsed, status, headers = _send_once(
-                api_key=api_key, base_url=base_url, payload=payload,
-                timeout=timeout, extra_headers=extra_headers,
+                api_key=api_key,
+                base_url=base_url,
+                payload=payload,
+                timeout=timeout,
+                extra_headers=extra_headers,
             )
         except RequestTimedOut:
             # Congested reasoning endpoints occasionally sit on one request
@@ -273,7 +276,8 @@ def run_extraction(
 
     payload = {
         "model": model,
-        "messages": messages or [
+        "messages": messages
+        or [
             # System first, then user. Both begin with content identical on every
             # request, which is what a prefix cache can reuse.
             {"role": "system", "content": system_prompt},
@@ -302,7 +306,9 @@ def run_extraction(
         "temperature": float(temperature),
         "payload": payload,
     }
-    suffix = artifact_suffix if artifact_suffix.startswith("_") or not artifact_suffix else f"_{artifact_suffix}"
+    suffix = (
+        artifact_suffix if artifact_suffix.startswith("_") or not artifact_suffix else f"_{artifact_suffix}"
+    )
     (run_dir / f"request{suffix}.json").write_text(
         json.dumps(request_record, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -342,9 +348,7 @@ def parse_assistant_json(raw_response: dict[str, Any]) -> dict[str, Any]:
     try:
         content = raw_response["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise GLMError(
-            "Response did not contain choices[0].message.content."
-        ) from exc
+        raise GLMError("Response did not contain choices[0].message.content.") from exc
 
     if isinstance(content, dict):
         return content
@@ -369,8 +373,7 @@ def parse_assistant_json(raw_response: dict[str, Any]) -> dict[str, Any]:
         return salvaged
 
     raise GLMError(
-        "Model output was not valid JSON. The original provider response "
-        "is preserved in raw_response.json."
+        "Model output was not valid JSON. The original provider response is preserved in raw_response.json."
     )
 
 
@@ -389,7 +392,7 @@ def _strip_code_fence(text: str) -> str:
         return text
     lines = text.splitlines()
     opener = _FENCE_OPENER.match(lines[0])
-    head = lines[0][opener.end():] if opener else lines[0]
+    head = lines[0][opener.end() :] if opener else lines[0]
     lines = ([head] if head.strip() else []) + lines[1:]
     if lines and lines[-1].strip().startswith("```"):
         lines = lines[:-1]
@@ -437,7 +440,7 @@ def _balanced_slice(text: str, start: int, opener: str, closer: str) -> Any:
             depth -= 1
             if depth == 0:
                 try:
-                    return json.loads(text[start:index + 1])
+                    return json.loads(text[start : index + 1])
                 except json.JSONDecodeError:
                     return None
     return None

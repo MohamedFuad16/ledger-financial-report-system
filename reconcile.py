@@ -22,7 +22,7 @@ Two properties make this worth having:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from schema import SUBTOTAL_IDENTITIES
 
@@ -30,7 +30,7 @@ from schema import SUBTOTAL_IDENTITIES
 # statement precision was not recorded.
 TOLERANCE = 0.5
 
-_PARTS_BY_TOTAL = {total: parts for total, parts in SUBTOTAL_IDENTITIES}
+_PARTS_BY_TOTAL = dict(SUBTOTAL_IDENTITIES)
 
 
 def derive_identity_values(rows: list[dict]) -> tuple[list[dict], list[dict[str, Any]]]:
@@ -43,11 +43,7 @@ def derive_identity_values(rows: list[dict]) -> tuple[list[dict], list[dict[str,
     outer identity solvable.
     """
     completed = [dict(row) for row in rows]
-    by_item = {
-        str(row.get("item")): row
-        for row in completed
-        if isinstance(row, dict) and row.get("item")
-    }
+    by_item = {str(row.get("item")): row for row in completed if isinstance(row, dict) and row.get("item")}
     derivations: list[dict[str, Any]] = []
 
     changed = True
@@ -62,42 +58,50 @@ def derive_identity_values(rows: list[dict]) -> tuple[list[dict], list[dict[str,
             try:
                 total_value = by_item[total_item].get("answer_m_usd")
                 part_values = [by_item[part].get("answer_m_usd") for part in parts]
+                derived: float
                 if missing_item == total_item:
-                    derived = sum(float(value) for value in part_values)
+                    derived = sum(float(value) for value in part_values if value is not None)
                     operands = parts
                 else:
                     if total_value is None:
                         continue
                     derived = float(total_value) - sum(
                         float(value)
-                        for part, value in zip(parts, part_values)
-                        if part != missing_item
+                        for part, value in zip(parts, part_values, strict=True)
+                        if part != missing_item and value is not None
                     )
-                    operands = [total_item, *[part for part in parts if part != missing_item]]
+                    operands = [
+                        total_item,
+                        *[part for part in parts if part != missing_item],
+                    ]
             except (KeyError, TypeError, ValueError):
                 continue
 
             target = by_item[missing_item]
-            confidences = [
-                float(by_item[item].get("confidence"))
-                for item in operands
-                if isinstance(by_item[item].get("confidence"), (int, float))
-            ]
+            confidences = []
+            for item in operands:
+                confidence = by_item[item].get("confidence")
+                if isinstance(confidence, (int, float)):
+                    confidences.append(float(confidence))
             identity = f"{total_item} = {' + '.join(parts)}"
             prior_evidence = str(target.get("evidence") or "").strip()
             derivation_evidence = f"Deterministically derived from schema identity: {identity}."
-            target.update({
-                "answer_m_usd": round(derived, 9),
-                "confidence": min(confidences) if confidences else 0.8,
-                "accepted": False,
-                "source_label": target.get("source_label") or f"Calculated: {identity}",
-                "evidence": f"{prior_evidence} {derivation_evidence}".strip(),
-            })
-            derivations.append({
-                "item": missing_item,
-                "value": round(derived, 9),
-                "identity": identity,
-            })
+            target.update(
+                {
+                    "answer_m_usd": round(derived, 9),
+                    "confidence": min(confidences) if confidences else 0.8,
+                    "accepted": False,
+                    "source_label": target.get("source_label") or f"Calculated: {identity}",
+                    "evidence": f"{prior_evidence} {derivation_evidence}".strip(),
+                }
+            )
+            derivations.append(
+                {
+                    "item": missing_item,
+                    "value": round(derived, 9),
+                    "identity": identity,
+                }
+            )
             changed = True
 
     return completed, derivations
@@ -108,7 +112,7 @@ def _leaf_count(item: str) -> int:
     return sum(_leaf_count(part) for part in parts) if parts else 1
 
 
-def _values(rows: list[dict]) -> dict[str, Optional[float]]:
+def _values(rows: list[dict]) -> dict[str, float | None]:
     """
     Map item -> the extracted value, regardless of model confidence.
 
@@ -116,7 +120,7 @@ def _values(rows: list[dict]) -> dict[str, Optional[float]]:
     validation must inspect the actual returned values or it will skip valid
     identities solely because a model assigned itself 0.79 instead of 0.80.
     """
-    out: dict[str, Optional[float]] = {}
+    out: dict[str, float | None] = {}
     for row in rows or []:
         if not isinstance(row, dict) or "item" not in row:
             continue
@@ -141,18 +145,20 @@ def reconcile(rows: list[dict], *, value_quantum: float = 0.0) -> dict[str, Any]
         part_values = [values.get(p) for p in parts]
 
         if stated is None or any(v is None for v in part_values):
-            missing = [p for p, v in zip(parts, part_values) if v is None]
+            missing = [p for p, v in zip(parts, part_values, strict=True) if v is None]
             if stated is None:
                 missing.append(total_item)
-            checks.append({
-                "identity": f"{total_item} = {' + '.join(parts)}",
-                "total_item": total_item,
-                "status": "skipped",
-                "reason": f"no extracted value for {', '.join(missing)}",
-                "stated": stated,
-                "computed": None,
-                "delta": None,
-            })
+            checks.append(
+                {
+                    "identity": f"{total_item} = {' + '.join(parts)}",
+                    "total_item": total_item,
+                    "status": "skipped",
+                    "reason": f"no extracted value for {', '.join(missing)}",
+                    "stated": stated,
+                    "computed": None,
+                    "delta": None,
+                }
+            )
             continue
 
         computed = sum(part_values)  # type: ignore[arg-type]
@@ -168,16 +174,18 @@ def reconcile(rows: list[dict], *, value_quantum: float = 0.0) -> dict[str, Any]
             if value_quantum > 0
             else TOLERANCE
         )
-        checks.append({
-            "identity": f"{total_item} = {' + '.join(parts)}",
-            "total_item": total_item,
-            "status": "ok" if abs(delta) <= tolerance else "failed",
-            "reason": None,
-            "stated": stated,
-            "computed": computed,
-            "delta": round(delta, 2),
-            "tolerance": round(tolerance, 6),
-        })
+        checks.append(
+            {
+                "identity": f"{total_item} = {' + '.join(parts)}",
+                "total_item": total_item,
+                "status": "ok" if abs(delta) <= tolerance else "failed",
+                "reason": None,
+                "stated": stated,
+                "computed": computed,
+                "delta": round(delta, 2),
+                "tolerance": round(tolerance, 6),
+            }
+        )
 
     evaluated = [c for c in checks if c["status"] != "skipped"]
     passed = [c for c in evaluated if c["status"] == "ok"]

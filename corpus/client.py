@@ -7,16 +7,17 @@ import random
 import re
 import threading
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import requests
 
 try:  # Linux/macOS production and development hosts.
-    import fcntl
+    import fcntl as fcntl_module
 except ImportError:  # pragma: no cover - Windows is not a supported worker host
-    fcntl = None
+    fcntl_module = None  # type: ignore[assignment]
 
 
 class FirecrawlError(RuntimeError):
@@ -45,7 +46,7 @@ def _markdown_http_links(markdown: str) -> list[tuple[str, str, int]]:
             cursor += 1
         if destination_end is None:
             continue
-        destination = match.group(2) + markdown[match.end(2):destination_end]
+        destination = match.group(2) + markdown[match.end(2) : destination_end]
         anchors.append((match.group(1).strip(), destination.strip(), match.start()))
     return anchors
 
@@ -85,13 +86,13 @@ class FirecrawlRateGate:
         deliberately outside the corpus manifest: it is runtime coordination,
         not benchmark data.
         """
-        if not self._state_path or fcntl is None:
+        if not self._state_path or fcntl_module is None:
             with self._lock:
                 yield None
             return
         lock_path = self._state_path.with_suffix(self._state_path.suffix + ".lock")
         with lock_path.open("a+", encoding="utf-8") as lock_handle:
-            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+            fcntl_module.flock(lock_handle.fileno(), fcntl_module.LOCK_EX)
             try:
                 try:
                     next_allowed = float(self._state_path.read_text(encoding="utf-8") or 0)
@@ -103,7 +104,7 @@ class FirecrawlRateGate:
                 temporary.write_text(str(state["next_allowed_at"]), encoding="utf-8")
                 temporary.replace(self._state_path)
             finally:
-                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+                fcntl_module.flock(lock_handle.fileno(), fcntl_module.LOCK_UN)
 
     def wait(self) -> float:
         """Reserve the next request slot, sleeping until it is available."""
@@ -159,11 +160,13 @@ class FirecrawlClient:
         self.on_retry = on_retry
         self.rate_gate = rate_gate or _GLOBAL_RATE_GATE
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {api_key.strip()}",
-            "Content-Type": "application/json",
-            "User-Agent": "LedgerCorpusBuilder/1.0",
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {api_key.strip()}",
+                "Content-Type": "application/json",
+                "User-Agent": "LedgerCorpusBuilder/1.0",
+            }
+        )
 
     def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
@@ -182,15 +185,24 @@ class FirecrawlClient:
                     return body
                 message = body.get("error") or body.get("message") or response.text[:300]
                 last_error = f"HTTP {response.status_code}: {message}"
-                retryable = response.status_code in {408, 409, 425, 429, 500, 502, 503, 504}
+                retryable = response.status_code in {
+                    408,
+                    409,
+                    425,
+                    429,
+                    500,
+                    502,
+                    503,
+                    504,
+                }
                 retry_after = response.headers.get("Retry-After")
 
             if not retryable or attempt >= self.max_attempts:
                 raise FirecrawlError(last_error)
             try:
-                delay = float(retry_after) if retry_after else min(30.0, 2 ** attempt)
+                delay = float(retry_after) if retry_after else min(30.0, 2**attempt)
             except (TypeError, ValueError):
-                delay = min(30.0, 2 ** attempt)
+                delay = min(30.0, 2**attempt)
             delay += random.uniform(0, 0.75)
             self.rate_gate.defer(delay)
             if self.on_retry:
@@ -217,28 +229,34 @@ class FirecrawlClient:
         return data if isinstance(data, dict) else {}
 
     def search(self, query: str, *, limit: int = 10, country: str = "US") -> list[dict[str, Any]]:
-        body = self._post("search", {
-            "query": query,
-            "limit": max(1, min(limit, 100)),
-            "sources": ["web"],
-            "country": country,
-            "timeout": 60000,
-            "ignoreInvalidURLs": True,
-        })
+        body = self._post(
+            "search",
+            {
+                "query": query,
+                "limit": max(1, min(limit, 100)),
+                "sources": ["web"],
+                "country": country,
+                "timeout": 60000,
+                "ignoreInvalidURLs": True,
+            },
+        )
         data = body.get("data") or {}
         results = data.get("web") if isinstance(data, dict) else data
         return [item for item in (results or []) if isinstance(item, dict)]
 
     def map(self, url: str, *, search: str = "annual report", limit: int = 5000) -> list[dict[str, Any]]:
-        body = self._post("map", {
-            "url": url,
-            "search": search,
-            "sitemap": "include",
-            "includeSubdomains": True,
-            "ignoreQueryParameters": True,
-            "limit": max(1, min(limit, 100000)),
-            "timeout": 60000,
-        })
+        body = self._post(
+            "map",
+            {
+                "url": url,
+                "search": search,
+                "sitemap": "include",
+                "includeSubdomains": True,
+                "ignoreQueryParameters": True,
+                "limit": max(1, min(limit, 100000)),
+                "timeout": 60000,
+            },
+        )
         links = body.get("links") or []
         normalized = []
         for item in links:
@@ -255,12 +273,15 @@ class FirecrawlClient:
         the visible Japanese/English filing label that often carries the
         fiscal year even when a disclosure CDN URL does not.
         """
-        body = self._post("scrape", {
-            "url": url,
-            "formats": ["markdown", "links"],
-            "onlyMainContent": False,
-            "timeout": 60000,
-        })
+        body = self._post(
+            "scrape",
+            {
+                "url": url,
+                "formats": ["markdown", "links"],
+                "onlyMainContent": False,
+                "timeout": 60000,
+            },
+        )
         data = body.get("data") or {}
         if not isinstance(data, dict):
             return []
@@ -276,7 +297,7 @@ class FirecrawlClient:
             # example 有価証券報告書) beneath a year heading.  Carry the nearest
             # preceding year into the candidate so discovery can assign the
             # CDN URL to the correct fiscal year.
-            nearby = markdown[max(0, match_start - 180):match_start]
+            nearby = markdown[max(0, match_start - 180) : match_start]
             nearby_years = re.findall(r"(?:FY\s*)?(20\d{2})(?:年|\b)", nearby, re.I)
             if nearby_years and nearby_years[-1] not in title:
                 title = f"{nearby_years[-1]} {title}".strip()

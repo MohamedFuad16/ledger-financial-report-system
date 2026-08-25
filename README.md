@@ -105,7 +105,7 @@ model JSON
   → score only when an authoritative or SHA-bound human-approved golden set exists
 ```
 
-The answer key is never model input. A low-confidence value remains visible, is checked arithmetically, and is prioritized for review; confidence does not decide correctness. The assignment-provided 3M FY2022 table is the only built-in assignment key. Separately maintained review fixtures bind gold to the exact PDF SHA-256, legal entity, fiscal year and currency. The current Bakuraku cohort contains 40 client companies checked by two source-reading routes; condensed statutory disclosures score only directly supported rows and explicitly mark every unavailable schema row unscorable. Ordinary model-mapped candidates remain unverified until a reviewer checks them against the pinned source and approves them. Human review never starts from a blank form: Ledger first runs the configured LLM semantic mapping and prefills the complete schema, shows the searchable pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
+The answer key is never model input. A low-confidence value remains visible, is checked arithmetically, and is prioritized for review; confidence does not decide correctness. The assignment-provided 3M FY2022 table is the only built-in assignment key. Separately maintained review fixtures bind gold to the exact PDF SHA-256, legal entity, fiscal year and currency. Condensed statutory disclosures score only directly supported rows and explicitly mark every unavailable schema row unscorable. Ordinary model-mapped candidates remain unverified until a reviewer checks them against the pinned source and approves them. Human review never starts from a blank form: Ledger first runs the configured LLM semantic mapping and prefills the complete schema, shows the searchable pinned PDF beside the table, and lets the reviewer correct the provisional values before Save & Approve.
 
 | Metric | Meaning |
 |---|---|
@@ -116,7 +116,7 @@ The answer key is never model input. A low-confidence value remains visible, is 
 
 ## Annual Report corpus
 
-The corpus is frozen for benchmarking: 99 SHA-pinned reports across 38 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. The public UI shows the acquisition provenance and the library; it no longer exposes discovery controls. Owner-driven acquisition remains available through the CLI worker and the research scripts. During acquisition, Firecrawl found candidate official URLs (map/search only); Ledger downloaded each PDF directly, verified and screened it, then stored it as:
+The cloud corpus is frozen for benchmarking: 81 SHA-pinned reports across 35 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. Gemini 3.7 Flash Strategy 3 completed all 81 documents at 99.16% document-macro and 99.16% row-micro exact accuracy (1,181/1,191 exact rows). The public UI shows the library and lets users select stored reports for extraction. Dataset PDFs and the manifest live only on persistent cloud storage; they are ignored by Git and are not bundled with the repository.
 
 ```text
 corpus_dataset/
@@ -125,7 +125,7 @@ corpus_dataset/
         └── <company>_annual_report_<year>.pdf
 ```
 
-`corpus_dataset/corpus_manifest.json` records provenance, review state and SHA-256 identities. A successful recrawl atomically replaces the canonical company/year PDF; a failed download or screening pass leaves the previous file intact. Discovery and answer verification are deliberately separate: Firecrawl finds a public candidate, while opening **Review answers** runs one configured-LLM semantic-mapping pass over the pinned PDF and displays its 27 provisional rows beside the searchable source. A failed mapping shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically. Public gazette mirrors are labelled as mirrors rather than official company domains, and their condensed sheets score only source-supported fields. Firecrawl may reuse caller-authorized headers, cookies or browser state, but it does not grant access to private documents or bypass source authorization.
+The cloud manifest records provenance, review state and SHA-256 identities. Set `LEDGER_CORPUS_ROOT` to that persistent directory in the backend environment. Opening **Review answers** runs one configured-LLM semantic-mapping pass over the pinned PDF and displays its 27 provisional rows beside the searchable source. A failed mapping shows Retry rather than an empty manual-entry table. Candidate answers are never promoted to gold automatically.
 
 ## Tech stack
 
@@ -135,7 +135,7 @@ corpus_dataset/
 | API | Flask, Gunicorn, Server-Sent Events |
 | PDF parsing | PyPDF, PyMuPDF4LLM, pdf-inspector, Docling |
 | Validation | Pydantic plus deterministic normalization/reconciliation |
-| Model gateways | OpenRouter, Z.AI, OpenAI and custom OpenAI-compatible endpoints |
+| Model gateways | OpenRouter, OpenAI and custom OpenAI-compatible endpoints |
 | Corpus discovery | Firecrawl v2 |
 | Frontend hosting | Vercel |
 | Backend hosting | AWS EC2, Caddy, Systems Manager |
@@ -150,7 +150,6 @@ deploy/aws/              EC2 bootstrap and HTTPS configuration
 docs/CURRENT_STATUS.md   code-backed architecture and extraction report
 ROADMAP.md               Strategy 3 design and acceptance contract
 intelligent_scan.py      deterministic complete-page scoring and selection
-research/bakuraku/       evidence-backed corpus seed companies
 extraction.py            parser implementations
 prompts.py               shared prompt assembly
 models.py                exact output contract
@@ -160,6 +159,8 @@ pipeline.py              end-to-end extraction and persistence
 api_client.py            provider calls, retry and cache accounting
 server.py                Flask API and SSE routes
 traffic.py               private visit log and HTML email notification
+pyproject.toml            Ruff, mypy, pytest and coverage policy
+scripts/verify_project.sh one-command local quality gate
 ```
 
 ## Getting started
@@ -170,8 +171,9 @@ Requires Python 3.11+ and Node.js 20+.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-npm --prefix frontend install
+npm --prefix frontend ci
 npm --prefix frontend run build
 python server.py
 ```
@@ -189,11 +191,12 @@ Copy `.env.example` to `.env`, then use **Settings** to test and save the provid
 ## Verification
 
 ```bash
-.venv/bin/python test_contract.py
-.venv/bin/python -m unittest test_traffic.py test_corpus_manifest.py
-npm --prefix frontend test
-npm --prefix frontend run build
+scripts/verify_project.sh
 ```
+
+The gate runs Ruff lint/format, mypy, 118 backend unit tests, the standalone
+contract checks, pip-audit, Bandit (medium/high), 31 Vitest checks, TypeScript,
+npm audit, and a production Vite build.
 
 ## Deployment
 
@@ -211,12 +214,11 @@ The assignment API has no browser access token. CORS limits approved browser ori
 ## Documentation
 
 - [Current architecture and detailed extraction status](docs/CURRENT_STATUS.md)
-- [Evaluation dataset notes](test_dataset/README.md)
 - [Agent-maintained architecture index](agent/agent.md)
 
 ## Security
 
-Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, Upstash and email credentials are backend-only. Visit notifications use a fixed verified recipient; browser input cannot choose a destination or read connector settings.
+Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, Upstash and email credentials are backend-only. Credential status never reveals key fragments. Uploads must be real PDFs, are bounded per workspace, and expire after two hours; failed staging is removed immediately. Responses set CSP, frame-denial, MIME-sniffing and referrer protections. Visit notifications use a fixed verified recipient; browser input cannot choose a destination or read connector settings.
 
 ## License
 

@@ -20,7 +20,7 @@
 | GET/DELETE | `/api/runs/<run_id>` | Read or remove one run |
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |
-| GET | `/api/corpus` | Read the pinned local corpus manifest, screening summary, and exactly 100 evidence-backed company targets; research seeds are explicitly distinct from stored reports |
+| GET | `/api/corpus` | Read the pinned cloud corpus manifest and screening summary; targets contain only companies with stored reports |
 | GET/PUT | `/api/corpus/<sha256>/verification` | Read extracted review rows or save the reviewer's SHA-bound approval |
 | POST | `/api/corpus/<sha256>/verification/extract` | Ensure a legacy/missing review sheet is extracted and prefilled from the pinned PDF before editing |
 | GET | `/api/corpus/<sha256>/pdf` | Serve the pinned source PDF inside the review workspace |
@@ -30,7 +30,6 @@
 | POST | `/api/corpus/jobs` | Start a background company/year discovery and download job |
 | GET | `/api/corpus/jobs` | List recent durable discovery jobs for route/reload rehydration |
 | GET | `/api/corpus/jobs/<job_id>` | Poll background corpus job events and results |
-| GET | `/api/bakuraku/customers` | Return the 112-company evidence-backed research seed list |
 
 The assignment API has no browser access-token layer. The client assigns one
 random anonymous `X-Ledger-Workspace` ID per browser storage profile so staged
@@ -45,7 +44,7 @@ revisited before a multi-tenant or quota-bearing public product launch.
 ## External services
 
 OpenAI-compatible chat-completions providers configured in `providers.py`:
-OpenRouter, OpenAI, Z.AI, Z.AI Coding, or a custom endpoint. Authentication uses
+OpenRouter, OpenAI, or a custom OpenAI-compatible endpoint. Authentication uses
 an API key from local environment settings. No credentials belong in this file.
 
 Firecrawl v2 map/search is used only for official-report link discovery. The

@@ -9,7 +9,6 @@ from typing import Any
 
 from extraction import extract_with_pypdf
 
-
 PAGE_MARKER = re.compile(r"^--- PAGE (\d+) ---$", re.M)
 BALANCE_SHEET = re.compile(
     r"(?:consolidated\s+)?balance\s+sheets?"
@@ -19,7 +18,10 @@ BALANCE_SHEET = re.compile(
     re.I,
 )
 YEAR_PATTERNS = (
-    re.compile(r"(?:at|as\s+of)\s+(?:december|january|september|june|march)[^\n]{0,45}\b((?:19|20)\d{2})\b", re.I),
+    re.compile(
+        r"(?:at|as\s+of)\s+(?:december|january|september|june|march)[^\n]{0,45}\b((?:19|20)\d{2})\b",
+        re.I,
+    ),
     re.compile(r"for\s+the\s+year\s+ended[^\n]{0,45}\b((?:19|20)\d{2})\b", re.I),
     re.compile(r"fiscal\s+year\s+((?:19|20)\d{2})", re.I),
     # Japanese securities reports identify the filing period on their cover as
@@ -63,19 +65,12 @@ def _company_identity_variants(company: str) -> set[str]:
     variants = {raw}
     variants.add(re.split(r"[（(]", raw, maxsplit=1)[0])
     variants.update(part for part in re.split(r"[／/・]", raw) if part)
-    return {
-        normalized
-        for variant in variants
-        if len(normalized := _normalized_identity(variant)) >= 3
-    }
+    return {normalized for variant in variants if len(normalized := _normalized_identity(variant)) >= 3}
 
 
 def _company_identity_confirmed(text: str, expected_company: str) -> bool:
     normalized_text = _normalized_identity(text)
-    return any(
-        identity in normalized_text
-        for identity in _company_identity_variants(expected_company)
-    )
+    return any(identity in normalized_text for identity in _company_identity_variants(expected_company))
 
 
 # Japanese statutory filings identify their own type on the cover with the
@@ -118,7 +113,7 @@ def _balance_sheet_page(text: str) -> int | None:
     candidates: list[tuple[float, int]] = []
     for index, marker in enumerate(markers):
         end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
-        page = text[marker.end():end]
+        page = text[marker.end() : end]
         financial_terms = sum(
             any(re.search(term, page, re.I) for term in alternatives)
             for alternatives in FINANCIAL_TERM_GROUPS
@@ -147,24 +142,29 @@ def _page_text(text: str, page_number: int | None) -> str:
     if not marker:
         return text
     following = PAGE_MARKER.search(text, marker.end())
-    return text[marker.end():following.start() if following else len(text)]
+    return text[marker.end() : following.start() if following else len(text)]
 
 
 def _statement_years(text: str, balance_page: int | None) -> list[int]:
     """Return calendar years printed on the selected balance-sheet page."""
     statement = _page_text(text, balance_page)
-    return sorted({
-        int(year)
-        for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", statement)
-    })
+    return sorted({int(year) for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", statement)})
 
 
 def _statement_currency(text: str, balance_page: int | None) -> str:
     """Detect the currency of the audited statement, not any translated note."""
     statement = _page_text(text, balance_page)
-    if re.search(r"yen\s+in\s+(?:thousands|millions)|Japanese\s+yen|(?:単位\s*[:：]?\s*)?(?:千円|百万円)|日本円", statement, re.I):
+    if re.search(
+        r"yen\s+in\s+(?:thousands|millions)|Japanese\s+yen|(?:単位\s*[:：]?\s*)?(?:千円|百万円)|日本円",
+        statement,
+        re.I,
+    ):
         return "JPY"
-    if re.search(r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars", statement, re.I):
+    if re.search(
+        r"(?:U\.S\.\s*)?dollars|\$\s*in\s+millions|millions\s+of\s+dollars",
+        statement,
+        re.I,
+    ):
         return "USD"
     return "unknown"
 
@@ -182,21 +182,13 @@ def screen_pdf(
     statement_years = _statement_years(extracted.text, balance_page)
     reporting_year = max(statement_years, default=None)
     year_confirmed = (
-        reporting_year == expected_year
-        if reporting_year is not None
-        else str(expected_year) in mentions
+        reporting_year == expected_year if reporting_year is not None else str(expected_year) in mentions
     )
     currency = _statement_currency(extracted.text, balance_page)
     company_identity_confirmed = (
-        _company_identity_confirmed(extracted.text, expected_company)
-        if expected_company
-        else None
+        _company_identity_confirmed(extracted.text, expected_company) if expected_company else None
     )
-    annual_document_confirmed = (
-        _is_annual_document(extracted.text)
-        if require_annual_document
-        else None
-    )
+    annual_document_confirmed = _is_annual_document(extracted.text) if require_annual_document else None
 
     reasons: list[str] = []
     if not year_confirmed:

@@ -15,14 +15,27 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any, Optional
+from typing import Any
 
 from models import CANONICAL_ITEMS
 
 # Tokens a model may emit instead of a number when a field is absent.
 _NULL_TOKENS = {
-    "", "-", "--", "—", "–", "n/a", "na", "n.a.", "none", "null", "nil",
-    "not found", "not disclosed", "not applicable", "not presented",
+    "",
+    "-",
+    "--",
+    "—",
+    "–",
+    "n/a",
+    "na",
+    "n.a.",
+    "none",
+    "null",
+    "nil",
+    "not found",
+    "not disclosed",
+    "not applicable",
+    "not presented",
 }
 
 # Item-name variants seen from models, keyed by normalized form.
@@ -60,7 +73,7 @@ for _alias, _target in _ITEM_ALIASES.items():
     _BY_FOLDED.setdefault(_fold(_alias), _target)
 
 
-def canonical_item(name: Any) -> Optional[str]:
+def canonical_item(name: Any) -> str | None:
     """Canonical schema name for ``name``, or None if it is not recognizable."""
     return _BY_FOLDED.get(_fold(name))
 
@@ -208,7 +221,11 @@ def normalize_payload(payload: Any) -> tuple[Any, list[str]]:
             renamed.append(f"{row.get('item')!r}→{canonical!r}")
             row["item"] = canonical
 
-        for key, parser in (("answer_m_usd", parse_money), ("confidence", parse_confidence), ("source_page", parse_page)):
+        for key, parser in (
+            ("answer_m_usd", parse_money),
+            ("confidence", parse_confidence),
+            ("source_page", parse_page),
+        ):
             if key in row:
                 before = row[key]
                 after = parser(before)
@@ -232,10 +249,9 @@ def normalize_payload(payload: Any) -> tuple[Any, list[str]]:
     # missing row behind a confusing order error.
     order = {item: index for index, item in enumerate(CANONICAL_ITEMS)}
     items = [r.get("item") for r in normalized_rows if isinstance(r, dict)]
-    if len(items) == len(normalized_rows) and set(items) == set(CANONICAL_ITEMS):
-        if items != CANONICAL_ITEMS:
-            normalized_rows.sort(key=lambda r: order[r["item"]])
-            repairs.append("reordered rows into TARGET_SCHEMA order")
+    if len(items) == len(normalized_rows) and set(items) == set(CANONICAL_ITEMS) and items != CANONICAL_ITEMS:
+        normalized_rows.sort(key=lambda r: order[r["item"]])
+        repairs.append("reordered rows into TARGET_SCHEMA order")
 
     payload["rows"] = normalized_rows
     return payload, repairs

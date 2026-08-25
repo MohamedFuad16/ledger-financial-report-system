@@ -79,8 +79,9 @@ class PdfInspectorAdaptiveOcrTests(unittest.TestCase):
             ocr_calls.append({"image_bytes": image_bytes, **kwargs})
             return "Local OCR page two"
 
-        with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction, "_local_ocr_markdown", side_effect=fake_ocr
+        with (
+            patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}),
+            patch.object(extraction, "_local_ocr_markdown", side_effect=fake_ocr),
         ):
             result = extraction.extract_with_pdf_inspector_ocr(Path("annual-report.pdf"))
 
@@ -91,16 +92,20 @@ class PdfInspectorAdaptiveOcrTests(unittest.TestCase):
         self.assertIn("--- PAGE 1 ---\nNative Rust page one", result.text)
         self.assertIn("--- PAGE 2 ---\nLocal OCR page two", result.text)
         self.assertEqual(1, result.diagnostics["ocr_page_count"])
-        self.assertEqual("pdf_inspector_native_rust", result.diagnostics["page_provenance"][0]["source"])
+        self.assertEqual(
+            "pdf_inspector_native_rust",
+            result.diagnostics["page_provenance"][0]["source"],
+        )
         self.assertEqual("rapidocr_local", result.diagnostics["page_provenance"][1]["source"])
         self.assertEqual(200, result.diagnostics["page_provenance"][1]["render_dpi"])
 
     def test_text_only_pdf_does_not_require_an_ocr_api_key(self):
         pages = [types.SimpleNamespace(page=0, markdown="Readable native text", needs_ocr=False)]
         inspector, pymupdf, matrices = self._modules(pages)
-        with patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}), patch.object(
-            extraction, "_local_ocr_markdown"
-        ) as ocr:
+        with (
+            patch.dict(sys.modules, {"pdf_inspector": inspector, "pymupdf": pymupdf}),
+            patch.object(extraction, "_local_ocr_markdown") as ocr,
+        ):
             result = extraction.extract_with_pdf_inspector_ocr(Path("text-report.pdf"), ocr_context={})
 
         ocr.assert_not_called()

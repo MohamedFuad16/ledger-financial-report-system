@@ -1,10 +1,10 @@
 """
 Provider definitions.
 
-Every provider here speaks the OpenAI chat-completions shape, but they differ in
-two places that matter to this project:
+Every provider here speaks the OpenAI chat-completions shape, but compatible
+gateways can differ in two places that matter to this project:
 
-  * how reasoning is switched on — Z.AI uses ``thinking``, OpenRouter and
+  * how reasoning is switched on — some use ``thinking`` while OpenRouter and
     OpenAI-compatible endpoints use ``reasoning``;
   * how prompt caching is reported back in ``usage``.
 
@@ -13,8 +13,9 @@ Adding a provider means adding an entry here, not editing the client.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 # OpenRouter's unified reasoning levels, in the order a UI should offer them.
 # "none" disables reasoning entirely; "off" is our own label for that.
@@ -26,7 +27,7 @@ class Provider:
     key: str
     label: str
     base_url: str
-    #: "thinking" (Z.AI) or "reasoning" (OpenAI-compatible / OpenRouter)
+    #: "thinking" or "reasoning" (OpenAI-compatible / OpenRouter)
     reasoning_style: str
     default_model: str
     #: Models worth offering in the UI. Free-text entry is always allowed too.
@@ -63,24 +64,6 @@ PROVIDERS: dict[str, Provider] = {
         automatic_prompt_caching=True,
         docs="https://openrouter.ai/docs",
     ),
-    "zai": Provider(
-        key="zai",
-        label="Z.AI (GLM)",
-        base_url="https://api.z.ai/api/paas/v4",
-        reasoning_style="thinking",
-        default_model="glm-5.3",
-        suggested_models=["glm-5.3", "glm-5.2"],
-        docs="https://docs.z.ai",
-    ),
-    "zai-coding": Provider(
-        key="zai-coding",
-        label="Z.AI Coding Plan endpoint",
-        base_url="https://api.z.ai/api/coding/paas/v4",
-        reasoning_style="thinking",
-        default_model="glm-5.3",
-        suggested_models=["glm-5.3"],
-        docs="https://docs.z.ai",
-    ),
     "openai": Provider(
         key="openai",
         label="OpenAI",
@@ -108,7 +91,7 @@ def get_provider(key: str | None) -> Provider:
     return PROVIDERS.get((key or "").strip().lower(), PROVIDERS[DEFAULT_PROVIDER])
 
 
-def provider_for_base_url(base_url: str) -> Optional[Provider]:
+def provider_for_base_url(base_url: str) -> Provider | None:
     """Best-effort match of a saved base URL back onto a known provider."""
     url = (base_url or "").rstrip("/").lower()
     for provider in PROVIDERS.values():
@@ -128,7 +111,7 @@ def reasoning_payload(provider: Provider, effort: str) -> dict[str, Any]:
         effort = "medium"
 
     if provider.reasoning_style == "thinking":
-        # Z.AI only has on/off.
+        # Thinking-style gateways commonly expose an on/off switch.
         return {"thinking": {"type": "disabled" if effort == "none" else "enabled"}}
 
     if effort == "none":
@@ -140,9 +123,9 @@ def cache_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
     """
     Pull cache accounting out of a response's ``usage`` block.
 
-    OpenRouter, OpenAI and DeepSeek all report it under
-    ``prompt_tokens_details``; Z.AI does not report it at all, in which case
-    every field is simply absent.
+    OpenRouter, OpenAI and DeepSeek report it under
+    ``prompt_tokens_details``. Gateways that do not report caching simply leave
+    every cache field absent.
     """
     if not isinstance(usage, dict):
         return {}
@@ -164,10 +147,8 @@ def cache_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
     # from discarding an already-paid-for extraction when a gateway sends the
     # token counts as strings.
     if out.get("cached_tokens") is not None and prompt_tokens:
-        try:
+        with suppress(TypeError, ValueError, ZeroDivisionError):
             out["cache_hit_rate"] = round(float(out["cached_tokens"]) / float(prompt_tokens) * 100, 1)
-        except (TypeError, ValueError, ZeroDivisionError):
-            pass
     if usage.get("cost") is not None:
         out["cost_usd"] = usage["cost"]
     return out
