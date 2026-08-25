@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline import compute_metrics, iter_run_dirs, load_prediction, run_pipeline
+from pipeline import BENCHMARK_WORKSPACE_ID, compute_metrics, iter_run_dirs, load_prediction, run_pipeline
 from prompts import SYSTEM_PROMPT
 from reconcile import reconcile
 from schema import ASSIGNMENT_GOLDEN_SOURCE_SHA256, SOURCE_BOUND_GOLDEN_ANSWERS
@@ -309,7 +309,7 @@ def main() -> int:
                 company_hint=document["company"],
                 output_currency=document["currency"],
                 display_name=document["path"].name,
-                workspace_id="full-corpus-eval",
+                workspace_id=BENCHMARK_WORKSPACE_ID,
                 enable_reasoning=bool(settings.get("enable_reasoning", True)),
                 reasoning_effort=str(settings.get("reasoning_effort") or "medium"),
                 temperature=0.0,

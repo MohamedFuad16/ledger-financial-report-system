@@ -220,3 +220,42 @@ class CacheAccountingTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BenchmarkFeedIsolationTest(unittest.TestCase):
+    """A visitor's demo run must never move the published benchmark numbers."""
+
+    def test_feed_serves_only_the_benchmark_workspace(self):
+        import pipeline
+        from pipeline import BENCHMARK_WORKSPACE_ID
+
+        with TemporaryDirectory() as tmp:
+            runs = Path(tmp) / "runs"
+            sha = "a" * 64
+            rows = [{"item": "Total Assets", "answer_m_usd": 1.0, "confidence": 0.99}]
+
+            def write(run_id, workspace):
+                run = runs / "CompanyA" / "FY2024" / run_id
+                run.mkdir(parents=True)
+                (run / "prediction.json").write_text(json.dumps({
+                    "run_id": run_id, "strategy": "s3", "experiment": "intelligent_scan",
+                    "company": "CompanyA", "fiscal_year": "2024", "currency": "JPY",
+                    "source_pdf_sha256": sha, "rows": rows, "workspace_id": workspace,
+                }), encoding="utf-8")
+
+            write("S3_20260101T000000Z_001", BENCHMARK_WORKSPACE_ID)
+            write("S3_20260101T000000Z_002", "ws_visitor_browser_workspace")
+
+            with mock.patch.object(pipeline, "RUNS_DIR", runs):
+                pipeline._SUMMARY_CACHE.clear()
+                official = pipeline.list_runs(BENCHMARK_WORKSPACE_ID)
+                everyone = pipeline.list_runs(None)
+
+        self.assertEqual(["S3_20260101T000000Z_001"], [entry["run_id"] for entry in official])
+        self.assertEqual(2, len(everyone), "the visitor run still exists; it is only excluded from the feed")
+
+    def test_the_feed_endpoint_asks_for_the_benchmark_workspace(self):
+        source = Path("server.py").read_text(encoding="utf-8")
+        feed = source.split("def get_benchmark_runs")[1].split("@app.route")[0]
+        self.assertIn("list_runs(BENCHMARK_WORKSPACE_ID)", feed)
+        self.assertNotIn("list_runs(None)", feed)

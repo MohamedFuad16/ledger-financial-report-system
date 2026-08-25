@@ -36,6 +36,11 @@ from schema import (
 UPLOAD_DIR = Path("uploads")
 RUNS_DIR = Path("runs")
 
+# The workspace the corpus evaluation runner stamps on its runs. The published
+# benchmark feed serves only this workspace, so a visitor's demo extraction on
+# a corpus PDF can never move the numbers the dashboard reports.
+BENCHMARK_WORKSPACE_ID = "full-corpus-eval"
+
 # Values below this confidence are treated as "the model did not answer".
 #
 # 0.8, not 0.5, and the cut-off is measured rather than chosen. Across 824
@@ -1188,6 +1193,7 @@ def list_runs(workspace_id: str | None = None) -> list[dict[str, Any]]:
 
 __all__ = [
     "ASSET_SCHEMA",
+    "BENCHMARK_WORKSPACE_ID",
     "CONFIDENCE_THRESHOLD",
     "RUNS_DIR",
     "UPLOAD_DIR",

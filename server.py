@@ -39,6 +39,7 @@ from pipeline import (
     iter_run_dirs,
     ensure_dirs,
     evidence_table,
+    BENCHMARK_WORKSPACE_ID,
     invalidate_run_summaries,
     list_runs,
     load_prediction,
@@ -1508,10 +1509,13 @@ def get_runs():
 
 @app.route("/api/benchmark-runs", methods=["GET"])
 def get_benchmark_runs():
-    """Return safe summaries for source-verified corpus runs across workspaces.
+    """Return safe summaries for the operator's source-verified corpus runs.
 
-    Personal history remains workspace-isolated. The dashboard may compare
-    only runs whose exact source hash is bound to an audited corpus sheet.
+    Two independent conditions: the run must come from the benchmark workspace
+    that the corpus evaluation runner stamps, and its exact source hash must be
+    bound to an audited corpus sheet. Scoping to the workspace is what keeps a
+    visitor's demo extraction on a corpus PDF out of the published numbers —
+    the feed is read by everyone, so it must report only the operator's runs.
     """
     verified_hashes = {
         str(document.get("sha256") or "")
@@ -1521,7 +1525,7 @@ def get_benchmark_runs():
     }
     return jsonify({
         "runs": [
-            run for run in list_runs(None)
+            run for run in list_runs(BENCHMARK_WORKSPACE_ID)
             if str(run.get("source_pdf_sha256") or "") in verified_hashes
         ]
     })
