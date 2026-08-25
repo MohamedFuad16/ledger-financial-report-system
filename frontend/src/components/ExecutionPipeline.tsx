@@ -45,6 +45,11 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
 
   useEffect(() => {
     if (!running) return
+    // A new run must not inherit the previous run's clock. This component never
+    // unmounts between runs, and the fallback stamps were written once and kept
+    // forever, so re-running the same report showed the elapsed time since the
+    // FIRST run started.
+    startedAt.current = {}
     const timer = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(timer)
   }, [running])
@@ -64,11 +69,12 @@ export function ExecutionPipeline({ files, running }: { files: ExecutionFile[]; 
     const stored = pass.steps?.[step]?.durationSeconds
     if (stored != null) return formatDuration(stored)
     if (state !== 'running') return state === 'complete' ? tr('Done', '完了') : state === 'failed' ? tr('Stopped', '停止') : tr('Waiting', '待機')
+    // Prefer the event's own timestamp on every render rather than caching it:
+    // the cache is only a fallback for steps the backend has not stamped yet.
     const persistedStart = pass.steps?.[step]?.startedAt || pass.startedAt
-    if (!startedAt.current[key]) {
-      const restored = persistedStart ? Date.parse(persistedStart) : Number.NaN
-      startedAt.current[key] = Number.isFinite(restored) ? restored : Date.now()
-    }
+    const restored = persistedStart ? Date.parse(persistedStart) : Number.NaN
+    if (Number.isFinite(restored)) return formatDuration((now - restored) / 1000)
+    if (!startedAt.current[key]) startedAt.current[key] = Date.now()
     return formatDuration((now - startedAt.current[key]) / 1000)
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, Cable, CheckCircle2, Eye, EyeOff, ExternalLink, Flame, Gauge, KeyRound, Lock, Save, Server, Sparkles } from 'lucide-react'
 import { api } from '../lib/api'
 import type { ProviderInfo, SettingsData } from '../types'
@@ -74,9 +74,29 @@ export function SettingsPage({
   const providerCredentialSaved = Boolean(settings?.has_key && settings.provider === providerKey && settings.base_url.replace(/\/$/, '') === baseUrl.replace(/\/$/, ''))
   const finiteRate = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback
 
+  // Two independent cards, so two independent hydration effects. A single
+  // effect keyed on the `settings` object identity re-hydrated BOTH cards every
+  // time either was saved — and onSaved() always produces a new object — so
+  // saving the runtime slider silently discarded an unsaved Model ID, and
+  // vice versa. Each effect now re-hydrates only when its own server-side
+  // values actually changed.
+  const hydratedProvider = useRef('')
   useEffect(() => {
     if (!settings) return
-    setProviderKey(settings.provider); setModel(settings.model); setBaseUrl(settings.base_url); setReasoningEnabled(settings.reasoning_effort !== 'none'); setTemperature(settings.temperature); setMaxConcurrency(settings.max_concurrency); setAutoConcurrency(settings.auto_concurrency)
+    const signature = JSON.stringify([settings.provider, settings.model, settings.base_url, settings.reasoning_effort, settings.temperature])
+    if (signature === hydratedProvider.current) return
+    hydratedProvider.current = signature
+    setProviderKey(settings.provider); setModel(settings.model); setBaseUrl(settings.base_url)
+    setReasoningEnabled(settings.reasoning_effort !== 'none'); setTemperature(settings.temperature)
+  }, [settings])
+
+  const hydratedRuntime = useRef('')
+  useEffect(() => {
+    if (!settings) return
+    const signature = JSON.stringify([settings.max_concurrency, settings.auto_concurrency])
+    if (signature === hydratedRuntime.current) return
+    hydratedRuntime.current = signature
+    setMaxConcurrency(settings.max_concurrency); setAutoConcurrency(settings.auto_concurrency)
   }, [settings])
 
   useEffect(() => {
@@ -87,6 +107,10 @@ export function SettingsPage({
     // The merged GLM tile keeps the currently selected GLM endpoint and
     // defaults new selections to the Coding Plan endpoint.
     const resolved = key === 'glm' ? (isGlmSelected ? providerKey : 'zai-coding') : key
+    // Re-clicking the tile that is already selected must not reset the fields:
+    // it used to silently replace a hand-typed Model ID and Base URL with the
+    // provider defaults, with no confirmation.
+    if (resolved === providerKey) return
     const next = providers.find((item) => item.key === resolved)
     setProviderKey(resolved)
     if (next) { setModel(next.default_model); setBaseUrl(next.base_url) }

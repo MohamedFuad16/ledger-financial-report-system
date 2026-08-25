@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api } from './lib/api'
 import type { PanelKey, ProviderInfo, RunSummary, SchemaRow, SettingsData } from './types'
 import { Sidebar } from './components/Sidebar'
@@ -18,23 +18,41 @@ function panelFromHash(): PanelKey {
   return panels.includes(key) ? key : 'dashboard'
 }
 
+// Storage access throws outright when site data is blocked, in some embedded
+// webviews, and in third-party frame contexts. These run during render and in
+// effects, so an unguarded throw blanks the whole app. lib/i18n, lib/currency
+// and lib/benchmarkSource already guard their reads; App did not.
+function readStored(key: string): string | null {
+  try { return window.localStorage.getItem(key) } catch { return null }
+}
+
+function writeStored(key: string, value: string): void {
+  try { window.localStorage.setItem(key, value) } catch { /* storage unavailable */ }
+}
+
 export default function App() {
   const { tr } = useLocale()
   const [panel, setPanel] = useState<PanelKey>(panelFromHash)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => localStorage.getItem('ledger-theme') === 'dark' ? 'dark' : 'light')
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => readStored('ledger-theme') === 'dark' ? 'dark' : 'light')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('ledger-sidebar-collapsed') === 'true')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readStored('ledger-sidebar-collapsed') === 'true')
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [benchmarkRuns, setBenchmarkRuns] = useState<RunSummary[]>([])
   const [schema, setSchema] = useState<SchemaRow[]>([])
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [loading, setLoading] = useState(true)
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' }>({ message: '', tone: 'success' })
+  const [toast, setToast] = useState<{ id: number; message: string; tone: 'success' | 'error' }>({ id: 0, message: '', tone: 'success' })
+  const toastSequence = useRef(0)
 
   const notify = useCallback((message: string, tone: 'success' | 'error') => {
-    setToast({ message, tone })
-    window.setTimeout(() => setToast((current) => current.message === message ? { ...current, message: '' } : current), 5000)
+    // Each toast dismisses itself by identity, not by matching its own text.
+    // Matching on text meant a repeated message ("Run deleted.") let the first
+    // timer clear the second toast early, cutting it short by however long
+    // separated the two.
+    const id = (toastSequence.current += 1)
+    setToast({ id, message, tone })
+    window.setTimeout(() => setToast((current) => current.id === id ? { ...current, message: '' } : current), 5000)
   }, [])
 
   const refreshRuns = useCallback(async () => {
@@ -72,16 +90,36 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    localStorage.setItem('ledger-theme', theme)
+    writeStored('ledger-theme', theme)
   }, [theme])
 
   useEffect(() => {
+    // Telemetry is best-effort and must never be able to take the app down.
+    // crypto.randomUUID is secure-context only, so it is undefined when the
+    // dev server is reached over plain http on a LAN address — the obvious way
+    // to demo this. lib/api.ts guards the same call; this one did not.
     const reportedKey = 'ledger-visit-reported'
-    if (window.sessionStorage.getItem(reportedKey)) return
     const sessionKey = 'ledger-visit-session'
-    const sessionId = window.sessionStorage.getItem(sessionKey) || window.crypto.randomUUID()
-    window.sessionStorage.setItem(sessionKey, sessionId)
-    window.sessionStorage.setItem(reportedKey, 'pending')
+    let stored: Storage
+    try {
+      stored = window.sessionStorage
+      if (stored.getItem(reportedKey)) return
+    } catch { return }
+    const randomId = () => (
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    )
+    let sessionId: string
+    try {
+      sessionId = stored.getItem(sessionKey) || randomId()
+      stored.setItem(sessionKey, sessionId)
+      stored.setItem(reportedKey, 'pending')
+    } catch { return }
+    const mark = (value: string | null) => {
+      try { value === null ? stored.removeItem(reportedKey) : stored.setItem(reportedKey, value) }
+      catch { /* storage went away mid-flight */ }
+    }
     void api.trackVisit({
       session_id: sessionId,
       path: `${window.location.pathname}${window.location.hash}`,
@@ -90,13 +128,11 @@ export default function App() {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       viewport: `${window.innerWidth}x${window.innerHeight}`,
       user_agent: navigator.userAgent,
-    }).then(() => window.sessionStorage.setItem(reportedKey, 'sent')).catch(() => {
-      window.sessionStorage.removeItem(reportedKey)
-    })
+    }).then(() => mark('sent')).catch(() => mark(null))
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('ledger-sidebar-collapsed', String(sidebarCollapsed))
+    writeStored('ledger-sidebar-collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
 
   useEffect(() => {
@@ -115,7 +151,13 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      // Never steal the shortcut from a field the user is typing in: Cmd+K
+      // inside the system-prompt textarea used to navigate away and discard
+      // the unsaved prompt.
+      const target = event.target as HTMLElement | null
+      const isEditing = !!target && (target.isContentEditable
+        || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+      if (!isEditing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         navigate('strategy1')
       }
@@ -141,11 +183,21 @@ export default function App() {
 
   const deleteRuns = async (targets: RunSummary[]) => {
     if (!targets.length || !window.confirm(tr(`Delete ${targets.length} selected runs and their stored artifacts?`, `選択した${targets.length}件の実行と保存成果物を削除しますか？`))) return
-    try {
-      await Promise.all(targets.map((run) => api.deleteRun(run.run_id)))
-      await refreshRuns()
-      notify(tr(`${targets.length} runs deleted.`, `${targets.length}件の実行を削除しました。`), 'success')
-    } catch (error) { notify(error instanceof Error ? error.message : tr('Could not delete the selected runs.', '選択した実行を削除できませんでした。'), 'error') }
+    // allSettled, not all: Promise.all rejects on the first failure and skipped
+    // the refresh, so the runs that WERE deleted stayed on screen and the next
+    // click 404'd on ghosts. Always resync, then report honestly.
+    const results = await Promise.allSettled(targets.map((run) => api.deleteRun(run.run_id)))
+    await refreshRuns()
+    const failed = results.filter((result) => result.status === 'rejected').length
+    const deleted = targets.length - failed
+    if (!failed) {
+      notify(tr(`${deleted} runs deleted.`, `${deleted}件の実行を削除しました。`), 'success')
+    } else {
+      notify(tr(
+        `${deleted} of ${targets.length} runs deleted; ${failed} could not be removed.`,
+        `${targets.length}件中${deleted}件を削除しました。${failed}件は削除できませんでした。`,
+      ), 'error')
+    }
   }
 
   const deleteAllRuns = async () => {

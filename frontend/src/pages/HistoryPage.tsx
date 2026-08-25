@@ -16,7 +16,11 @@ export function HistoryPage({ runs, onDeleteRun, onDeleteRuns, onDeleteAllRuns }
     const haystack = `${run.run_id} ${run.pdf_file} ${run.fiscal_year} FY${run.fiscal_year} ${run.model}`.toLowerCase()
     return matchesParser && haystack.includes(query.toLowerCase())
   }), [runs, parser, query])
-  useEffect(() => setSelectedRunIds((current) => current.filter((id) => runs.some((run) => run.run_id === id))), [runs])
+  // Prune against the VISIBLE rows, not the full run list. Pruning only against
+  // `runs` let a selection survive a filter change, so "Delete selected (3)"
+  // could destroy three runs that were no longer on screen and that the confirm
+  // dialog named only by count.
+  useEffect(() => setSelectedRunIds((current) => current.filter((id) => filtered.some((run) => run.run_id === id))), [filtered])
 
   return (
     <div className="page">
@@ -27,7 +31,7 @@ export function HistoryPage({ runs, onDeleteRun, onDeleteRuns, onDeleteAllRuns }
           <label className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('Search file, year, model, or run ID', 'ファイル、年度、モデル、実行IDを検索')} /></label>
           <label className="select-field"><SlidersHorizontal size={15} /><select value={parser} onChange={(event) => setParser(event.target.value)}><option value="all">{tr('All parsers', 'すべてのパーサー')}</option>{Object.entries(parserMeta).map(([key, meta]) => <option key={key} value={key}>{meta.short}</option>)}</select></label>
           <div className="history-bulk-actions">
-            <Button variant="ghost" disabled={!selectedRunIds.length} onClick={() => onDeleteRuns(runs.filter((run) => selectedRunIds.includes(run.run_id)))}><Trash2 size={14} /> {tr(`Delete selected (${selectedRunIds.length})`, `選択項目を削除（${selectedRunIds.length}）`)}</Button>
+            <Button variant="ghost" disabled={!selectedRunIds.length} onClick={() => onDeleteRuns(filtered.filter((run) => selectedRunIds.includes(run.run_id)))}><Trash2 size={14} /> {tr(`Delete selected (${selectedRunIds.length})`, `選択項目を削除（${selectedRunIds.length}）`)}</Button>
             <Button variant="ghost" disabled={!runs.length} onClick={onDeleteAllRuns}><Trash2 size={14} /> {tr('Delete all runs', 'すべての実行を削除')}</Button>
           </div>
         </div>
