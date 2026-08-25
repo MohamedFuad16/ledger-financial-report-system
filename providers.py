@@ -158,8 +158,16 @@ def cache_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
             out["cached_tokens"] = details["cached_tokens"]
         if details.get("cache_write_tokens") is not None:
             out["cache_write_tokens"] = details["cache_write_tokens"]
-    if out.get("cached_tokens") and prompt_tokens:
-        out["cache_hit_rate"] = round(out["cached_tokens"] / prompt_tokens * 100, 1)
+    # `is not None`, not truthiness: a real cached_tokens of 0 is a measured
+    # cache miss and must be reported as 0.0%, not silently omitted as though
+    # the provider reported nothing. The try/except keeps an accounting helper
+    # from discarding an already-paid-for extraction when a gateway sends the
+    # token counts as strings.
+    if out.get("cached_tokens") is not None and prompt_tokens:
+        try:
+            out["cache_hit_rate"] = round(float(out["cached_tokens"]) / float(prompt_tokens) * 100, 1)
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
     if usage.get("cost") is not None:
         out["cost_usd"] = usage["cost"]
     return out

@@ -23,7 +23,11 @@ def _reasoning_effort_from_env() -> str:
     effort = (os.getenv("LLM_REASONING_EFFORT") or "").strip().lower()
     if effort in REASONING_EFFORTS:
         return effort
-    legacy = (os.getenv("GLM_ENABLE_REASONING") or os.getenv("LLM_ENABLE_REASONING") or "").strip().lower()
+    # LLM_* is the current generation and must win over the legacy GLM_* name,
+    # matching every other setting in this module. Reading GLM_* first meant a
+    # .env carrying both resolved to the stale value and silently billed
+    # reasoning tokens against an explicit LLM_ENABLE_REASONING=false.
+    legacy = (os.getenv("LLM_ENABLE_REASONING") or os.getenv("GLM_ENABLE_REASONING") or "").strip().lower()
     if legacy in ("false", "0", "no"):
         return "none"
     if legacy in ("true", "1", "yes"):

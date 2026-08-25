@@ -1,6 +1,7 @@
 """Regression tests for the 2026-08-24 backend audit fixes."""
 import json
 import math
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -110,6 +111,111 @@ class ReadOnlyGateTest(unittest.TestCase):
         finally:
             os.environ.pop("LEDGER_PUBLIC_READONLY", None)
             importlib.reload(server_module)
+
+
+class QuotaClassificationTest(unittest.TestCase):
+    """A transient 429 must never be read as an exhausted allowance.
+
+    _quota_message used to match its markers against the whole serialized error
+    dict, so a request id containing "1308", a key named "quota_reset_at", or
+    the word "credits" in prose all raised QuotaExhaustedError. The callers in
+    server.py then stop scheduling every remaining file, abandoning a paid batch.
+    """
+
+    def test_transient_429_is_not_mistaken_for_exhausted_quota(self):
+        from api_client import _quota_message
+        for label, body in {
+            "request id containing the quota code": {
+                "error": {"message": "Too Many Requests", "request_id": "req_a1308bf2"}
+            },
+            "a key name containing 'quota'": {
+                "error": {"message": "Too Many Requests", "metadata": {"quota_reset_at": "later"}}
+            },
+            "'credits' used in marketing prose": {
+                "error": {"message": "Rate limit; upgrade for more credits"}
+            },
+            "a bare rate limit": {"error": {"message": "Too Many Requests"}},
+        }.items():
+            with self.subTest(label):
+                self.assertIsNone(_quota_message(body))
+
+    def test_genuine_exhaustion_is_still_detected(self):
+        from api_client import _quota_message
+        self.assertEqual(_quota_message({"error": {"message": "usage limit reached"}}), "usage limit reached")
+        self.assertEqual(_quota_message({"error": {"message": "Insufficient balance"}}), "Insufficient balance")
+        # The numeric code is matched on the code field, not as a substring.
+        self.assertEqual(_quota_message({"error": {"code": "1308", "message": "Spent"}}), "Spent")
+
+
+class CodeFenceTest(unittest.TestCase):
+    """A fence sharing a line with the payload must not delete the payload.
+
+    Dropping the first line wholesale returned "" for ```json {...} on one line,
+    so a valid 27-row reply was reported as "Model output was not valid JSON"
+    and burned a contract-repair call.
+    """
+
+    def test_fence_variants_all_yield_the_payload(self):
+        from api_client import _strip_code_fence
+        for label, raw in {
+            "payload on the opening fence line": '```json {"a": 1}\n```',
+            "conventional multi-line fence": '```json\n{"a": 1}\n```',
+            "fence with no language tag": '```\n{"a": 1}\n```',
+            "no fence at all": '{"a": 1}',
+        }.items():
+            with self.subTest(label):
+                self.assertEqual(_strip_code_fence(raw), '{"a": 1}')
+
+    def test_closing_fence_glued_to_the_payload(self):
+        from api_client import _strip_code_fence
+        self.assertEqual(_strip_code_fence('```json {"a":1}```'), '{"a":1}')
+
+
+class OversizedNumberTest(unittest.TestCase):
+    """An integer too large for a double must fail the contract, not the run.
+
+    json.loads keeps an oversized literal as an arbitrary-precision int, and
+    float() on it raises OverflowError — not a ValidationError — so it escaped
+    validate_extraction uncaught and bypassed the bounded repair path.
+    """
+
+    def test_oversized_integer_raises_a_contract_error(self):
+        import models
+        rows = [
+            {"item": item, "answer_m_usd": 1.0, "confidence": 0.9}
+            for item in models.CANONICAL_ITEMS
+        ]
+        rows[0]["answer_m_usd"] = json.loads("1" + "0" * 400)
+        with self.assertRaises(models.SchemaValidationError):
+            models.validate_extraction({"detected_fiscal_year": "2022", "rows": rows})
+
+
+class ReasoningPrecedenceTest(unittest.TestCase):
+    """LLM_* must win over the legacy GLM_* name, as it does for every other setting."""
+
+    def test_current_generation_name_wins_over_legacy(self):
+        import settings
+        with mock.patch.dict(
+            os.environ,
+            {"GLM_ENABLE_REASONING": "true", "LLM_ENABLE_REASONING": "false"},
+            clear=False,
+        ):
+            os.environ.pop("LLM_REASONING_EFFORT", None)
+            self.assertEqual(settings._reasoning_effort_from_env(), "none")
+
+
+class CacheAccountingTest(unittest.TestCase):
+    """An accounting helper must not discard an already-paid-for extraction."""
+
+    def test_zero_cached_tokens_is_reported_rather_than_omitted(self):
+        from providers import cache_usage
+        usage = {"prompt_tokens": 100, "prompt_tokens_details": {"cached_tokens": 0}}
+        self.assertEqual(cache_usage(usage)["cache_hit_rate"], 0.0)
+
+    def test_string_token_counts_do_not_raise(self):
+        from providers import cache_usage
+        usage = {"prompt_tokens": "100", "prompt_tokens_details": {"cached_tokens": "40"}}
+        self.assertEqual(cache_usage(usage)["cache_hit_rate"], 40.0)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -32,8 +33,31 @@ class QuotaExhaustedError(GLMError):
     """
 
 
-# Provider codes / phrases that mean "allowance spent", not "slow down".
-_QUOTA_MARKERS = ("1308", "usage limit reached", "quota", "insufficient balance", "credit")
+# Phrases that mean "allowance spent", not "slow down". Matched against the
+# provider's message text only.
+#
+# These are deliberately specific. Misreading an ordinary 429 as an exhausted
+# quota is the expensive direction of error: the caller stops scheduling every
+# remaining file in the batch (server.py run_file / worker), so one transient
+# throttle would abandon a paid run. A missed quota signal only costs a retry.
+# Bare "quota" and "credit" used to be markers and are not: they match
+# "Rate limit; upgrade for more credits" and, when the whole error dict was
+# serialized, even key names such as "quota_reset_at".
+_QUOTA_PHRASES = (
+    "usage limit reached",
+    "quota exceeded",
+    "quota exhausted",
+    "exceeded your quota",
+    "insufficient balance",
+    "insufficient credit",
+    "out of credits",
+    "credit balance",
+)
+
+# Provider-specific numeric codes, compared against the error's code field
+# exactly — never as a substring, or any request id containing the digits
+# would trip it.
+_QUOTA_CODES = frozenset({"1308"})
 
 
 def _quota_message(body: Any) -> str | None:
@@ -41,12 +65,16 @@ def _quota_message(body: Any) -> str | None:
     if not isinstance(body, dict):
         return None
     error = body.get("error", body)
-    text = json.dumps(error) if isinstance(error, dict) else str(error)
-    lowered = text.lower()
-    if any(marker in lowered for marker in _QUOTA_MARKERS):
-        if isinstance(error, dict):
-            return str(error.get("message") or text)
-        return text
+    if not isinstance(error, dict):
+        text = str(error)
+        return text if any(phrase in text.lower() for phrase in _QUOTA_PHRASES) else None
+
+    code = str(error.get("code") or error.get("type") or "").strip()
+    message = str(error.get("message") or "").strip()
+    if code in _QUOTA_CODES:
+        return message or f"Provider reported quota code {code}."
+    if any(phrase in message.lower() for phrase in _QUOTA_PHRASES):
+        return message
     return None
 
 
@@ -346,14 +374,29 @@ def parse_assistant_json(raw_response: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+_FENCE_OPENER = re.compile(r"^```[ \t]*[A-Za-z0-9_+-]*[ \t]*")
+
+
 def _strip_code_fence(text: str) -> str:
-    """Remove a surrounding ```/```json fence if the model added one."""
+    """Remove a surrounding ```/```json fence if the model added one.
+
+    The opening fence may carry the payload on its own line (```json {"rows":…),
+    and the closing fence may be glued to the last content line. Dropping the
+    first line wholesale — as this used to — deleted the entire reply in the
+    single-line case and reported a valid 27-row extraction as invalid JSON.
+    """
     if not text.startswith("```"):
         return text
-    lines = text.splitlines()[1:]
+    lines = text.splitlines()
+    opener = _FENCE_OPENER.match(lines[0])
+    head = lines[0][opener.end():] if opener else lines[0]
+    lines = ([head] if head.strip() else []) + lines[1:]
     if lines and lines[-1].strip().startswith("```"):
         lines = lines[:-1]
-    return "\n".join(lines).strip()
+    stripped = "\n".join(lines).strip()
+    if stripped.endswith("```"):
+        stripped = stripped[:-3].rstrip()
+    return stripped
 
 
 def _first_json_value(text: str) -> Any:

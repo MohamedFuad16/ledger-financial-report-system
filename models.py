@@ -72,8 +72,22 @@ class AssetRow(BaseModel):
     @classmethod
     def _answer_must_be_number_or_null(cls, value: Any) -> Any:
         if value is None or isinstance(value, (int, float)) and not isinstance(value, bool):
-            if value is not None and not math.isfinite(float(value)):
-                raise ValueError("must be a finite JSON number or null; NaN and infinities are rejected.")
+            if value is not None:
+                try:
+                    finite = math.isfinite(float(value))
+                except (OverflowError, ValueError) as exc:
+                    # json.loads keeps an oversized integer literal as an
+                    # arbitrary-precision int, and float() on it raises
+                    # OverflowError. That is not a ValidationError, so without
+                    # this it escaped validate_extraction uncaught and killed
+                    # the run instead of triggering the bounded repair call.
+                    raise ValueError(
+                        "must be a finite JSON number or null; this value is too large to represent."
+                    ) from exc
+                if not finite:
+                    raise ValueError(
+                        "must be a finite JSON number or null; NaN and infinities are rejected."
+                    )
             return value
         raise ValueError(
             f"must be a JSON number or null, got {type(value).__name__} ({value!r}). "
