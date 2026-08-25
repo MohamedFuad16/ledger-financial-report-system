@@ -170,3 +170,51 @@ identity or job-budget boundary.
 - Cause: ADR-0031 moved confidence to review-priority metadata (display and export every returned value) and the backend was migrated, but RunDrawer's display and export conditionals predate the ADR and were never revisited — UI drift across roughly ten commits.
 - Resolution: Both conditionals removed; every returned value renders and exports, with the dimmed is-rejected style and the accepted-count badge preserved as the review signal. A regression test pins the sub-0.80 display path. Also made summary input tokens the sum of the main, repair, and evidence-retry calls (with output tokens surfaced), and a failed evidence retry now contributes its real wall-clock to the run timing.
 - First seen: 2026-08-24
+
+## Transient 429s were classified as exhausted quota and abandoned paid batches (resolved)
+- Symptom: An extraction batch stopped scheduling every remaining file after a single provider throttle, reporting "Skipped — <quota message>" for work that was never attempted.
+- Cause: `api_client._quota_message` matched `_QUOTA_MARKERS` against `json.dumps(error)` — the whole serialized error dict, keys included. A request id containing `1308`, a key named `quota_reset_at`, or the word "credits" in prose all matched, and `QuotaExhaustedError` is raised before any retry, which both batch runners treat as terminal.
+- Resolution: Phrases match the `message` field only and are narrowed (`quota exceeded`, `insufficient balance`, …); the numeric code is compared against `error.code`/`error.type` exactly. A missed quota signal only costs a retry, a false one costs a batch, so the classifier now errs toward retrying. Regression tests pin four false-positive shapes and three genuine ones.
+- First seen: 2026-08-25
+
+## A code fence sharing a line with the payload deleted the whole reply (resolved)
+- Symptom: Valid 27-row replies were reported as "Model output was not valid JSON" and burned a contract-repair call.
+- Cause: `_strip_code_fence` dropped `splitlines()[0]` unconditionally. For a single-line fence (```json {"rows": …), the payload *is* the first line, so the function returned "" and the `_first_json_value` salvage path had nothing left to scan.
+- Resolution: The opener is parsed with a regex so any payload on the fence line survives, and a closing fence glued to the last content line is stripped too. Four fence shapes are pinned by tests.
+- First seen: 2026-08-25
+
+## An oversized integer escaped the contract as OverflowError (resolved)
+- Symptom: A run died after the paid model call instead of attempting its one bounded repair.
+- Cause: `json.loads` keeps a long digit run as an arbitrary-precision `int`; `float()` on it raises `OverflowError`, which is not a `ValidationError`, so `models.validate_extraction` never converted it and `pipeline`'s `except (GLMError, SchemaValidationError)` never caught it.
+- Resolution: The finiteness check catches `OverflowError`/`ValueError` and raises the contract error, so the repair path engages normally.
+- First seen: 2026-08-25
+
+## Legacy GLM_ENABLE_REASONING outranked the current LLM_ name (resolved)
+- Symptom: A `.env` carrying both names billed reasoning tokens against an explicit `LLM_ENABLE_REASONING=false`.
+- Cause: `settings._reasoning_effort_from_env` read `GLM_*` before `LLM_*`, inverting the precedence every other setting in the module uses.
+- Resolution: `LLM_*` first, matching the rest of the module. Pinned by a regression test.
+- First seen: 2026-08-25
+
+## A bulk selection survived a filter change and deleted invisible runs (resolved)
+- Symptom: "Delete selected (3)" destroyed runs that were no longer on screen; the confirm dialog names only a count, so nothing warned the user.
+- Cause: `HistoryPage` pruned `selectedRunIds` against the full `runs` list, never against the filtered rows, and the delete handler resolved ids against `runs` too.
+- Resolution: Selection prunes against the visible rows and the handler passes those. Two regression tests, verified to fail against the unfixed component.
+- First seen: 2026-08-25
+
+## Re-running a report showed the first run's elapsed time (resolved)
+- Symptom: A second run of the same PDF opened with a live timer already reading minutes.
+- Cause: `ExecutionPipeline`'s `startedAt` ref was written once per key and never cleared, and the component never unmounts between runs, so the fallback stamp from the first run kept counting.
+- Resolution: The ref is cleared when a run starts, and the backend's own step timestamp is preferred on every render instead of being cached at first sight.
+- First seen: 2026-08-25
+
+## One hydration effect served two Settings cards and discarded unsaved edits (resolved)
+- Symptom: Saving the concurrency slider wiped an unsaved Model ID; saving the provider snapped the slider back.
+- Cause: A single `useEffect` keyed on the `settings` object identity re-hydrated every field, and `onSaved()` always produces a new object.
+- Resolution: Two effects, each re-hydrating only when its own server-side values change. Separately, re-clicking the already-selected provider tile no longer resets a hand-typed Model ID and Base URL.
+- First seen: 2026-08-25
+
+## Security exposures on the public deployment (documented, not fixed — owner decision 2026-08-25)
+- Symptom: none observed; found by audit. Recorded so the decision stays revisitable.
+- Findings, ranked: (1) HIGH — no inbound rate limiting and no authentication on the paid endpoints; `ratelimit.py` governs *outbound* LLM concurrency only, and the "(rate-limited)" comment at `server.py:122` is inaccurate, so any visitor can spend the operator's LLM budget without bound. (2) MEDIUM — no security headers anywhere (no CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, HSTS) on Flask, `vercel.json`, or the Caddyfile; the app is clickjackable. (3) MEDIUM — `GET /api/settings` returns `mask_key` output, exposing the first and last four characters of the LLM and Firecrawl keys to any anonymous request. (4) MEDIUM — `STAGED` and `uploads/` are unbounded on an unauthenticated endpoint, with no TTL or cap. (5) MEDIUM — no PDF magic-byte or content-type validation; untrusted bytes are written to disk and then fed to `pypdf`, `pymupdf`, `docling` and the native-Rust `pdf-inspector`. (6) MEDIUM — `ACTIVE_PROMPT` is process-global, so one visitor's system prompt becomes every visitor's. (7) `debug=True` in the `__main__` block (dev only; production uses gunicorn). (8) 500 responses echo `str(exc)`, leaking absolute server paths.
+- Resolution: Deliberately none on this deployment — the owner chose to leave the live site unchanged rather than add spend controls that would gate the public demo. Every one of these is fixed in the standalone submission package instead.
+- First seen: 2026-08-25
