@@ -48,7 +48,12 @@ class WorkspaceIsolationTests(unittest.TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(["safe"], [run["run_id"] for run in response.get_json()["runs"]])
-        list_runs.assert_called_once_with(None)
+        # 2026-08-25: this asserted list_runs(None) — every workspace — which is
+        # precisely how a visitor's demo extraction on a corpus PDF entered the
+        # published benchmark. The feed serves the operator's benchmark
+        # workspace only; the source-hash filter above is the second condition,
+        # not the only one.
+        list_runs.assert_called_once_with(server.BENCHMARK_WORKSPACE_ID)
 
     def test_bulk_delete_removes_only_predictions_owned_by_the_caller(self):
         owned = Path("runs/example/FY2024/owned")
