@@ -1,6 +1,6 @@
 # Project state
 
-> Last updated: 2026-08-26 · HEAD: 5245b28
+> Last updated: 2026-08-26 · deployed release: 94d624d
 
 ## Current state summary
 
@@ -11,6 +11,8 @@ The corpus keeps one atomic company/year PDF, uses cross-process manifest lockin
 Anonymous browser workspace IDs isolate staged files, jobs, run history and run deletion between ordinary public visitors without pretending to be authentication. The public dashboard uses a separate exact-source benchmark feed and reports three equal-weight experiment means—no OCR, OCR enabled and intelligent scanning—without exposing private visitor history. The localized corpus library groups the manifest-backed fiscal years below each of the 35 stored companies; stale research prospects are no longer mixed into the runtime library. Values default to a USD display conversion while extraction, gold and exact scoring remain in the filing currency. Vercel serves the bilingual responsive client; Tokyo EC2/Caddy/Gunicorn serves the API and persistent encrypted-EBS artifacts. Provider, Firecrawl, Upstash and SES credentials remain backend-only.
 
 ## Recent changes (latest first — keep ~15)
+
+- 2026-08-26 — Pushed release `94d624d` to `main` and deployed it to the Tokyo EC2 service. Verified the exact environment-free health contract, an active Gunicorn service, and the live corpus response at 81 documents / 35 companies with none of the three retired cohorts. Moved the former checkout-local corpus and root-owned report assets into the dated server backup area; `/var/lib/ledger/corpus` is now the only active corpus root. Verified the Vercel bundle contains Gemini 3.7 Flash, GPT-5 Mini, and DeepSeek V4 Flash 0731; desktop Settings exposes all three, field and temperature typography resolve to the same Inter 12 px treatment, English/Japanese copy renders, and the browser console is clean — by: Codex — session: release deployment and browser QA
 
 - 2026-08-26 — Renamed the parent workspace to `bakurok assignment_main`; removed Cursor metadata, stale research tooling/data, the in-repo assignment/report artifacts, tracked test PDFs, Z.AI provider artwork/direct endpoints, and tests whose removed research utilities were their only subject. Kept corpus-review and lifecycle tests because those cloud features remain active. Moved corpus storage behind `LEDGER_CORPUS_ROOT` and excluded the complete dataset directory from Git. Removed ダイニチ工業株式会社, 株式会社ストライダーズ, and 株式会社プレイド as full six-year cohorts, yielding 35 companies / 81 documents and verified Gemini Strategy 3 accuracy of 99.16% macro and micro. Added the official DeepSeek V4 Flash 0731 OpenRouter choice, retained GPT-5 Mini, kept Gemini 3.7 Flash as default, and normalized Settings typography/toast sizing in both the main and clean-submission UIs. Local gates currently pass 118 backend unit tests, the standalone contract gate, 31 main Vitest tests, and 25 submission Vitest tests — by: Codex — session: cloud-only corpus and final repository cleanup
 
