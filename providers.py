@@ -101,7 +101,7 @@ PROVIDERS: dict[str, Provider] = {
     ),
 }
 
-DEFAULT_PROVIDER = "zai"
+DEFAULT_PROVIDER = "openrouter"
 
 
 def get_provider(key: str | None) -> Provider:

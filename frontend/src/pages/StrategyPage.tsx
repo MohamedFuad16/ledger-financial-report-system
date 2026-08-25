@@ -323,7 +323,8 @@ export function StrategyPage({
         upload_ids: usable.map((file) => file.id),
         strategies: selectedParsers,
         system_prompt: prompt,
-        reasoning_effort: reasoningEnabled ? 'high' : 'none',
+        // Matches the published benchmark configuration (Gemini 3.7 Flash medium).
+        reasoning_effort: reasoningEnabled ? 'medium' : 'none',
         enable_reasoning: reasoningEnabled,
       })
       window.localStorage.setItem(storageKey, job.job_id)
