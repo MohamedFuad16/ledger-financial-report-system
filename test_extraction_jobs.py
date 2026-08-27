@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -12,6 +13,106 @@ import server
 
 
 class ExtractionJobPersistenceTests(unittest.TestCase):
+    def test_three_workspaces_share_two_pipeline_slots_without_mixing_jobs(self):
+        release = threading.Event()
+        two_entered = threading.Event()
+        counter_lock = threading.Lock()
+        counters = {"active": 0, "entered": 0, "max_active": 0}
+
+        def fake_pipeline(**kwargs):
+            with counter_lock:
+                counters["active"] += 1
+                counters["entered"] += 1
+                counters["max_active"] = max(counters["max_active"], counters["active"])
+                if counters["entered"] >= 2:
+                    two_entered.set()
+            try:
+                self.assertTrue(release.wait(timeout=2.0))
+                return {
+                    "run_id": f"S3_{kwargs['workspace_id']}",
+                    "fiscal_year": "2022",
+                    "page_count": 10,
+                    "approx_input_tokens": 1000,
+                    "api_elapsed_seconds": 0.2,
+                    "extract_seconds": 0.1,
+                    "total_seconds": 0.3,
+                    "metrics": {"accuracy": 1.0, "coverage": 1.0, "consistency": 1.0},
+                    "warnings": [],
+                    "contract_repairs": [],
+                }
+            finally:
+                with counter_lock:
+                    counters["active"] -= 1
+
+        workspaces = ["workspace_a", "workspace_b", "workspace_c"]
+        staged = {
+            f"upload-{index}": {
+                "id": f"upload-{index}",
+                "name": f"report-{index}.pdf",
+                "path": str(Path(tempfile.gettempdir()) / f"report-{index}.pdf"),
+                "pages": 10,
+                "approx_tokens": 1000,
+                "workspace_id": workspace,
+            }
+            for index, workspace in enumerate(workspaces)
+        }
+
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(server, "EXTRACTION_JOBS_ROOT", Path(temp_dir)),
+            patch.object(server, "PIPELINE_GATE", threading.BoundedSemaphore(2)),
+            patch.object(
+                server,
+                "current_settings",
+                return_value={
+                    "api_key": "test",
+                    "max_concurrency": 1,
+                    "auto_concurrency": False,
+                    "temperature": 0.0,
+                    "enable_reasoning": False,
+                },
+            ),
+            patch.dict(server.STAGED, staged, clear=True),
+            patch.object(server, "run_pipeline", side_effect=fake_pipeline) as pipeline_mock,
+        ):
+            jobs = []
+            for index, workspace in enumerate(workspaces):
+                response = server.app.test_client().post(
+                    "/api/extraction/jobs",
+                    json={"upload_ids": [f"upload-{index}"], "strategies": ["s3"]},
+                    headers={"X-Ledger-Workspace": workspace},
+                )
+                self.assertEqual(response.status_code, 202)
+                jobs.append((workspace, response.get_json()["job_id"]))
+
+            self.assertTrue(two_entered.wait(timeout=1.0))
+            time.sleep(0.05)
+            with counter_lock:
+                self.assertEqual(counters["entered"], 2)
+                self.assertEqual(counters["max_active"], 2)
+
+            release.set()
+            completed = []
+            for workspace, job_id in jobs:
+                state = None
+                for _ in range(100):
+                    state = (
+                        server.app.test_client()
+                        .get(
+                            f"/api/extraction/jobs/{job_id}",
+                            headers={"X-Ledger-Workspace": workspace},
+                        )
+                        .get_json()
+                    )
+                    if state["status"] in {"complete", "failed"}:
+                        break
+                    time.sleep(0.01)
+                completed.append(state)
+
+            self.assertEqual(pipeline_mock.call_count, 3)
+            self.assertTrue(all(state["status"] == "complete" for state in completed))
+            self.assertTrue(all(state["succeeded"] == 1 for state in completed))
+
     def test_corpus_page_preview_renders_one_exact_pdf_page(self):
         import pymupdf
 

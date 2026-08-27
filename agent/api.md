@@ -42,6 +42,13 @@ JSON body, and never returns connector details. CORS is not authentication:
 direct API callers can still reach mutation routes, so this boundary must be
 revisited before a multi-tenant or quota-bearing public product launch.
 
+All extraction entry points share one process-wide two-slot admission gate for
+local PDF parsing, rendering and OCR. On the current single-worker production
+runtime, a third simultaneous workspace remains isolated and waits for one of
+those slots; outbound OpenRouter calls continue to use their independent
+adaptive limiter. This is a host-capacity control, not an authentication or
+per-user quota mechanism.
+
 ## External services
 
 OpenAI-compatible chat-completions providers configured in `providers.py`:

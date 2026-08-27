@@ -84,6 +84,11 @@ CORPUS_WORKER_INSTANCE_ID = uuid.uuid4().hex
 EXTRACTION_JOBS_ROOT = RUNS_DIR / "_extraction_jobs"
 EXTRACTION_JOBS_LOCK = threading.RLock()
 WORKSPACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+# The production t3.medium can safely parse/OCR two annual reports at once.
+# Request threads remain available for a third visitor, whose extraction waits
+# here instead of creating another raster/OCR pipeline and exhausting memory.
+PIPELINE_CAPACITY = 2
+PIPELINE_GATE = threading.BoundedSemaphore(PIPELINE_CAPACITY)
 
 ensure_dirs()
 CORPUS_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
@@ -91,6 +96,17 @@ EXTRACTION_JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 load_local_env()
 migrate_corpus_layout()
 LIMITER.resize(current_settings().get("max_concurrency", 6))
+
+
+def run_pipeline_bounded(**kwargs: Any) -> dict:
+    """Run one extraction inside the process-wide CPU/memory admission gate.
+
+    The adaptive limiter separately governs outbound model calls. This gate
+    covers the heavier local PDF parsing, rendering and OCR phases shared by
+    every endpoint and every anonymous workspace.
+    """
+    with PIPELINE_GATE:
+        return run_pipeline(**kwargs)
 
 
 def _allowed_origin(origin: str) -> str | None:
@@ -719,7 +735,7 @@ def extract_pipeline():
     try:
         workspace_id = request_workspace_id()
         pdf_path = save_upload(file)
-        prediction = run_pipeline(
+        prediction = run_pipeline_bounded(
             pdf_path=pdf_path,
             settings=settings,
             display_name=file.filename,
@@ -986,7 +1002,7 @@ def extract_corpus_verification(document_id):
             {"error": "PDF answer extraction is unavailable until the model API key is configured."}
         ), 400
     try:
-        prediction = run_pipeline(
+        prediction = run_pipeline_bounded(
             pdf_path=Path(str(document.get("local_path") or "")),
             settings=settings,
             strategy_key="s2",
@@ -1427,7 +1443,7 @@ def start_extraction_job():
                             "output_currency": str(staged.get("currency") or "USD"),
                         }
                     )
-                prediction = run_pipeline(
+                prediction = run_pipeline_bounded(
                     pdf_path=Path(staged["path"]),
                     settings=settings,
                     strategy_key=key,
@@ -1675,7 +1691,7 @@ def extract_stream():
                         "output_currency": str(job.get("currency") or "USD"),
                     }
                 )
-            prediction = run_pipeline(
+            prediction = run_pipeline_bounded(
                 pdf_path=Path(job["path"]),
                 settings=settings,
                 strategy_key=key,
@@ -1843,7 +1859,7 @@ def batch_extract():
 
     def process_single(filename: str, pdf_path):
         try:
-            prediction = run_pipeline(
+            prediction = run_pipeline_bounded(
                 pdf_path=pdf_path,
                 settings=settings,
                 display_name=filename,
