@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api } from './lib/api'
-import type { PanelKey, ProviderInfo, RunSummary, SchemaRow, SettingsData } from './types'
+import type { BenchmarkSummary, PanelKey, ProviderInfo, RunSummary, SchemaRow, SettingsData } from './types'
 import { Sidebar } from './components/Sidebar'
 import { Toast } from './components/ui'
 import { DashboardPage } from './pages/DashboardPage'
@@ -38,6 +38,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readStored('ledger-sidebar-collapsed') === 'true')
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [benchmarkRuns, setBenchmarkRuns] = useState<RunSummary[]>([])
+  const [benchmarkSummary, setBenchmarkSummary] = useState<BenchmarkSummary | null>(null)
   const [schema, setSchema] = useState<SchemaRow[]>([])
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -59,6 +60,7 @@ export default function App() {
     try {
       setRuns(await api.runs())
       setBenchmarkRuns(await api.benchmarkRuns())
+      setBenchmarkSummary(await api.benchmarkSummary())
     }
     catch (error) { notify(error instanceof Error ? error.message : tr('Could not load run history.', '実行履歴を読み込めませんでした。'), 'error') }
   }, [notify])
@@ -74,6 +76,7 @@ export default function App() {
     Promise.all([
       api.runs().then(setRuns),
       api.benchmarkRuns().then(setBenchmarkRuns),
+      api.benchmarkSummary().then(setBenchmarkSummary),
       api.schema().then(setSchema),
       api.settings().then(setSettings),
       api.providers().then((data) => setProviders(data.providers)),
@@ -86,6 +89,7 @@ export default function App() {
   useEffect(() => {
     if (panel !== 'dashboard') return
     api.benchmarkRuns().then(setBenchmarkRuns).catch(() => { /* keep the last loaded feed */ })
+    api.benchmarkSummary().then(setBenchmarkSummary).catch(() => { /* keep the last loaded summary */ })
   }, [panel])
 
   useEffect(() => {
@@ -213,7 +217,7 @@ export default function App() {
     <div className={`app-shell${sidebarCollapsed ? ' sidebar-is-collapsed' : ''}`}>
       <Sidebar active={panel} onNavigate={navigate} theme={theme} onThemeToggle={() => setTheme((current) => current === 'light' ? 'dark' : 'light')} open={sidebarOpen} onOpenChange={setSidebarOpen} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <main className="main-content">
-        {panel === 'dashboard' && <DashboardPage runs={benchmarkRuns} loading={loading} onNavigate={navigate} />}
+        {panel === 'dashboard' && <DashboardPage runs={benchmarkRuns} benchmarkSummary={benchmarkSummary} loading={loading} onNavigate={navigate} />}
         {panel === 'strategy1' && <StrategyPage kind="s1" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
         {panel === 'strategy2' && <StrategyPage kind="s2" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}
         {panel === 'strategy3' && <StrategyPage kind="s3" runs={runs} onRefreshRuns={refreshRuns} onNotify={notify} />}

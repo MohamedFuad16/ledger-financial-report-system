@@ -1,5 +1,5 @@
 import { ArrowRight, Gauge, Layers3, SearchCheck } from 'lucide-react'
-import type { PanelKey, RunSummary } from '../types'
+import type { BenchmarkSummary, PanelKey, RunSummary } from '../types'
 import { formatDuration, formatMetric, groupExperimentStats, reportCohortKey } from '../lib/format'
 import { AccuracySpeedChart, CoverageDonut, ParserAccuracyChart, SpeedBenchmarkChart, TokenAccuracyChart } from '../components/Charts'
 import { Badge, Button, Card, MetricCard, SectionHeading } from '../components/ui'
@@ -8,10 +8,12 @@ import { benchmarkSource, benchmarkSourceMeta, runMatchesSource } from '../lib/b
 
 export function DashboardPage({
   runs,
+  benchmarkSummary,
   loading,
   onNavigate,
 }: {
   runs: RunSummary[]
+  benchmarkSummary: BenchmarkSummary | null
   loading: boolean
   onNavigate: (key: PanelKey) => void
 }) {
@@ -24,6 +26,7 @@ export function DashboardPage({
   const s3Runs = benchmarkRuns.filter((run) => run.experiment === 'intelligent_scan')
   const s3Stat = stats.find((entry) => entry.key === 'intelligent_scan') || null
   const s3ReportCount = new Set(s3Runs.map(reportCohortKey)).size
+  const finalStrategy3 = source === 'gemini' ? benchmarkSummary : null
   // Real OpenRouter list pricing for google/gemini-3.7-flash standard routing;
   // cost is shown only for the Gemini source (GLM runs on a flat-rate plan).
   const GEMINI_STD_PRICING = { inputPerM: 0.375, outputPerM: 1.875 }
@@ -83,8 +86,8 @@ export function DashboardPage({
       </header>
 
       <div className="metric-grid">
-        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
-        <MetricCard label={tr('Mean field coverage', '平均フィールドカバレッジ')} value={formatMetric(disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
+        <MetricCard label={tr('Best exact accuracy', '最高完全一致率')} value={formatMetric(finalStrategy3?.row_micro_accuracy ?? s3Stat?.accuracy ?? accuracyLeader?.accuracy)} detail={finalStrategy3 ? tr(`Final Strategy 3 validation · ${finalStrategy3.exact_rows.toLocaleString()}/${finalStrategy3.scored_rows.toLocaleString()} exact rows`, `最終Strategy 3検証・${finalStrategy3.exact_rows.toLocaleString()}/${finalStrategy3.scored_rows.toLocaleString()}行が完全一致`) : s3Stat ? `${s3Stat.label} · ${s3Stat.passes} ${tr('successful passes', '成功パス')}` : tr('Awaiting source-verified runs', '元資料検証済み実行を待っています')} />
+        <MetricCard label={tr('Final field coverage', '最終フィールドカバレッジ')} value={formatMetric(finalStrategy3?.field_coverage ?? disclosedCoverage ?? s3Stat?.coverage ?? average('coverage'))} detail={finalStrategy3 ? tr(`${finalStrategy3.documents} SHA-pinned reports · ${finalStrategy3.companies} companies · all gold-backed fields returned`, `SHA固定レポート${finalStrategy3.documents}件・${finalStrategy3.companies}社・ゴールド対象項目をすべて返却`) : tr('Share of the fields each source actually discloses that intelligent scanning answered', '各資料が実際に開示している項目のうちインテリジェントスキャンが回答した割合')} />
         <MetricCard label={tr('Cost per report', 'レポート単価')} value={costPerReport ? `$${costPerReport.toFixed(3)}` : '—'} detail={benchmarkCost ? tr(`$${benchmarkCost.toFixed(2)} for the whole corpus — all three strategies at Gemini medium, priced from actual token usage`, `コーパス全体で$${benchmarkCost.toFixed(2)}（3戦略・Gemini medium・実トークン使用量から算出）`) : tr('Cost is shown for the Gemini source, priced from each run\u2019s actual token usage', '費用はGeminiソース選択時に実トークン使用量から表示されます')} />
         <MetricCard label={tr('Benchmark corpus', 'ベンチマークコーパス')} value={corpusCompanies ? `${corpusCompanies} ${tr('companies', '社')}` : '—'} detail={corpusCompanies ? tr(`${(s3ReportCount || completeReportCount).toLocaleString()} SHA-pinned annual reports · FY2020–FY2025, every one gold-backed`, `SHA固定の年次報告書${(s3ReportCount || completeReportCount).toLocaleString()}件・FY2020〜FY2025・全件ゴールド照合済み`) : tr('Waiting for the benchmark feed', 'ベンチマークフィードを待機中')} />
       </div>
@@ -115,7 +118,7 @@ export function DashboardPage({
           {loading ? <div className="chart-skeleton" /> : <SpeedBenchmarkChart runs={benchmarkRuns} />}
         </Card>
         <Card className="chart-card coverage-card">
-          <SectionHeading eyebrow={tr('Quality composition', '品質構成')} title={tr('Accuracy versus coverage', '正確度とカバレッジ')} description={tr('Coverage says a field was returned; exact accuracy says it matched the gold value.', 'カバレッジは項目の取得率、完全一致率は正解値との一致を示します。')} />
+          <SectionHeading eyebrow={tr('Historical comparison runs', '履歴比較実行')} title={tr('Accuracy versus coverage', '正確度とカバレッジ')} description={tr('Coverage says a field was returned; exact accuracy says it matched the gold value. The headline cards above use the final retained-cohort validation.', 'カバレッジは項目の取得率、完全一致率は正解値との一致を示します。上部カードは最終の保持コホート検証を表示します。')} />
           {loading ? <div className="chart-skeleton" /> : <CoverageDonut runs={s3Runs.length ? s3Runs : benchmarkRuns} />}
         </Card>
       </div>

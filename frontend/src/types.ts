@@ -24,6 +24,23 @@ export interface RunMetrics {
   gold_status?: 'assignment_supplied' | 'human_verified' | 'human_review_required' | 'unavailable' | string
 }
 
+export interface BenchmarkSummary {
+  measurement: string
+  model: string
+  reasoning_effort: string
+  strategy: 'intelligent_scan'
+  companies: number
+  documents: number
+  exact_rows: number
+  scored_rows: number
+  row_micro_accuracy: number
+  document_macro_accuracy: number
+  field_coverage: number
+  exact_documents: number
+  generated_at: string
+  note: string
+}
+
 export interface RunSummary extends RunMetrics {
   run_id: string
   timestamp?: string

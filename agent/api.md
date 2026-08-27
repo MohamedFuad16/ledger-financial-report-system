@@ -17,6 +17,7 @@
 | GET | `/api/extraction/jobs/<job_id>` | Poll persisted job state and replay unseen execution events by offset |
 | GET | `/api/runs` | List stored predictions |
 | GET | `/api/benchmark-runs` | List only exact-source-verified run summaries for the shared public dashboard; private workspace history remains separate |
+| GET | `/api/benchmark-summary` | Return the row-free, final retained-cohort Strategy 3 aggregate used by the Gemini dashboard headline |
 | GET/DELETE | `/api/runs/<run_id>` | Read or remove one run |
 | GET/POST | `/api/golden/<year>` | Read or save local benchmark values |
 | GET | `/api/schema` | Return the canonical 27-row schema |

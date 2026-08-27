@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "measurement": "fresh no-reuse validation, filtered to the owner-approved retained cohort",
+  "model": "google/gemini-3.7-flash",
+  "reasoning_effort": "medium",
+  "strategy": "intelligent_scan",
+  "companies": 34,
+  "documents": 75,
+  "exact_rows": 1099,
+  "scored_rows": 1099,
+  "row_micro_accuracy": 100.0,
+  "document_macro_accuracy": 100.0,
+  "field_coverage": 100.0,
+  "exact_documents": 75,
+  "generated_at": "2026-08-27",
+  "note": "This is the final retained-cohort result. It is intentionally separate from older stored comparison runs, which remain available for historical speed and parser charts."
+}

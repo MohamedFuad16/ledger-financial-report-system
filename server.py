@@ -68,6 +68,7 @@ app.config["MAX_CONTENT_LENGTH"] = 256 * 1024 * 1024  # a batch of annual report
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 ACTIVE_PROMPT = SYSTEM_PROMPT
+CURRENT_STRATEGY3_SUMMARY_PATH = Path("benchmark_data/current_strategy3_summary.json")
 
 # PDFs staged by /api/uploads, waiting to be run. Keyed by a short id so the
 # browser uploads each file once, not again for the actual run.
@@ -130,6 +131,25 @@ def safe_client_error(exc: Exception, fallback: str = "The operation failed.") -
     message = re.sub(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b", "[redacted]", message)
     message = re.sub(r"(?:/Users|/home|/var|/tmp|/opt)/[^\s,:;]+", "[local path]", message)
     return message[:500] or fallback
+
+
+def load_current_strategy3_summary() -> dict[str, Any] | None:
+    """Load the published final-cohort aggregate without exposing row-level gold."""
+    try:
+        payload = json.loads(CURRENT_STRATEGY3_SUMMARY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    required = {
+        "companies",
+        "documents",
+        "exact_rows",
+        "scored_rows",
+        "row_micro_accuracy",
+        "document_macro_accuracy",
+        "field_coverage",
+        "exact_documents",
+    }
+    return payload if isinstance(payload, dict) and required.issubset(payload) else None
 
 
 def request_json_object() -> dict | None:
@@ -1894,6 +1914,15 @@ def get_benchmark_runs():
             ]
         }
     )
+
+
+@app.route("/api/benchmark-summary", methods=["GET"])
+def get_benchmark_summary():
+    """Return the latest source-controlled aggregate for the retained cohort."""
+    summary = load_current_strategy3_summary()
+    if summary is None:
+        return jsonify({"summary": None}), 503
+    return jsonify({"summary": summary})
 
 
 @app.route("/api/runs/all", methods=["DELETE"])

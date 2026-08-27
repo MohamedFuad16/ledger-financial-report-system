@@ -1,4 +1,5 @@
 import type {
+  BenchmarkSummary,
   ProviderInfo,
   CorpusJob,
   CorpusManifest,
@@ -75,6 +76,7 @@ export const api = {
     jsonRequest<{ ok: boolean; system_prompt: string }>('/api/prompt', { method: 'DELETE' }),
   runs: async () => (await jsonRequest<{ runs: RunSummary[] }>('/api/runs')).runs,
   benchmarkRuns: async () => (await jsonRequest<{ runs: RunSummary[] }>('/api/benchmark-runs')).runs,
+  benchmarkSummary: async () => (await jsonRequest<{ summary: BenchmarkSummary }>('/api/benchmark-summary')).summary,
   run: (id: string) => jsonRequest<RunDetail>(`/api/runs/${encodeURIComponent(id)}`),
   deleteRun: (id: string) =>
     jsonRequest<{ ok: boolean }>(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' }),

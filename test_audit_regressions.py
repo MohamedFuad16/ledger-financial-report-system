@@ -156,6 +156,21 @@ class ReadOnlyGateTest(unittest.TestCase):
             importlib.reload(server_module)
 
 
+class BenchmarkSummaryTest(unittest.TestCase):
+    def test_final_strategy3_summary_is_available_without_row_level_gold(self):
+        import server as server_module
+
+        response = server_module.app.test_client().get("/api/benchmark-summary")
+        self.assertEqual(response.status_code, 200)
+        summary = response.get_json()["summary"]
+        self.assertEqual(summary["companies"], 34)
+        self.assertEqual(summary["documents"], 75)
+        self.assertEqual(summary["exact_rows"], summary["scored_rows"])
+        self.assertEqual(summary["row_micro_accuracy"], 100.0)
+        self.assertEqual(summary["field_coverage"], 100.0)
+        self.assertNotIn("rows", summary)
+
+
 class QuotaClassificationTest(unittest.TestCase):
     """A transient 429 must never be read as an exhausted allowance.
 

@@ -18,6 +18,7 @@
 - Corpus selections are staged by durable file reference rather than copied; extraction outputs remain under `runs/<company>/FY<year>/<run_id>/` and `/api/corpus` reports that output directory and its completed-run count.
 - Deleting a pinned corpus entry removes only its manifest-owned PDF and empty company/year folders; existing run artifacts are preserved.
 - Verified benchmark sources include the official 3M FY2022 filing, the existing Bakuraku-client annual-report cohorts, and 27 exact-entity public-gazette balance sheets in `benchmark_data/bakuraku_statutory_gold.json`. Non-assignment gold is bound to exact PDF SHA-256, company, fiscal year and currency through an explicit fixture allowlist. Condensed statutory filings score only directly disclosed and twice-transcribed fields (currently Total Assets); unsupported rows remain explicitly unscorable and every partial fixture partitions all 27 schema rows between answers and omissions.
+- `benchmark_data/current_strategy3_summary.json` contains only the final retained-cohort aggregate (34 companies, 75 documents and score totals), never PDFs, row answers or other gold data. `/api/benchmark-summary` serves that aggregate for the Gemini dashboard headline.
 - Provider defaults: `.env` (gitignored).
 - Visit telemetry: Upstash keys `ledger:traffic:visits` (bounded to the newest
   2,000 metadata events), `ledger:traffic:count`, `ledger:traffic:daily`, and
