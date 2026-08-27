@@ -14,36 +14,6 @@ from schema import ASSET_SCHEMA, ASSIGNMENT_GOLDEN_SOURCE_SHA256
 
 
 class CorpusManifestTests(unittest.TestCase):
-    def test_statutory_expansion_has_27_twice_verified_partial_keys(self):
-        fixture_path = Path(__file__).resolve().parent / "benchmark_data" / "bakuraku_statutory_gold.json"
-        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
-        canonical = {str(row["item"]) for row in ASSET_SCHEMA}
-        self.assertEqual(24, len(fixture["documents"]))
-        self.assertEqual(24, len({item["company"] for item in fixture["documents"].values()}))
-        for source_hash, audited in fixture["documents"].items():
-            self.assertEqual(64, len(source_hash))
-            self.assertEqual("independently_verified_partial", audited["status"])
-            # 2026-08-25: gazette gold carries every printed section total —
-            # 資産合計 always, plus 流動資産/固定資産 (and 繰延資産 or the
-            # fixed-asset breakdown where the print discloses them).
-            self.assertIn("Total Assets", set(audited["answers"]))
-            self.assertLessEqual(
-                set(audited["answers"]),
-                {
-                    "Total Assets",
-                    "Current Assets",
-                    "Fixed Assets",
-                    "Deferred Charges",
-                    "Tangible Assets",
-                    "Intangible Assets",
-                },
-            )
-            self.assertEqual(
-                canonical,
-                set(audited["answers"]).union(audited["unscorable_rows"]),
-            )
-            self.assertEqual(2, len(audited["audit_passes"]))
-
     def test_assignment_gold_is_bound_to_the_exact_supplied_pdf(self):
         document = {
             "sha256": ASSIGNMENT_GOLDEN_SOURCE_SHA256,

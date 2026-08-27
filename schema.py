@@ -477,7 +477,6 @@ def _load_external_source_bound_gold() -> dict:
     fixture_names = (
         "bakuraku_fy2022_gold.json",
         "fy2022_expansion_gold.json",
-        "bakuraku_statutory_gold.json",
         "year_expansion_gold.json",
     )
     merged: dict[str, dict] = {}

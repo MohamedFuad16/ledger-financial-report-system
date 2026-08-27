@@ -163,12 +163,37 @@ class BenchmarkSummaryTest(unittest.TestCase):
         response = server_module.app.test_client().get("/api/benchmark-summary")
         self.assertEqual(response.status_code, 200)
         summary = response.get_json()["summary"]
-        self.assertEqual(summary["companies"], 34)
-        self.assertEqual(summary["documents"], 75)
-        self.assertEqual(summary["exact_rows"], summary["scored_rows"])
-        self.assertEqual(summary["row_micro_accuracy"], 100.0)
-        self.assertEqual(summary["field_coverage"], 100.0)
+        # Cohort size is data, not a contract: pinning it here made the suite
+        # fail whenever the corpus legitimately changed, and it would not have
+        # caught the real defect, which was a summary asserting figures no run
+        # supported. Assert the invariants that make the number trustworthy.
+        for key in (
+            "companies",
+            "documents",
+            "exact_rows",
+            "scored_rows",
+            "row_micro_accuracy",
+            "document_macro_accuracy",
+            "field_coverage",
+            "exact_documents",
+        ):
+            self.assertIn(key, summary)
+        self.assertGreater(summary["documents"], 0)
+        self.assertGreaterEqual(summary["documents"], summary["companies"])
+        self.assertLessEqual(summary["exact_documents"], summary["documents"])
+        self.assertLessEqual(summary["exact_rows"], summary["scored_rows"])
+        for metric in ("row_micro_accuracy", "document_macro_accuracy", "field_coverage"):
+            self.assertGreaterEqual(summary[metric], 0.0)
+            self.assertLessEqual(summary[metric], 100.0)
+        # The headline must agree with its own row counts.
+        self.assertAlmostEqual(
+            summary["row_micro_accuracy"],
+            summary["exact_rows"] / summary["scored_rows"] * 100,
+            places=3,
+        )
+        # The endpoint publishes aggregates only; row-level gold never leaves it.
         self.assertNotIn("rows", summary)
+        self.assertNotIn("answers", summary)
 
 
 class QuotaClassificationTest(unittest.TestCase):

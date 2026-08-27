@@ -19,3 +19,4 @@ graphify-out/
 .vercel
 .env.local
 ~$*.docx
+.env*
