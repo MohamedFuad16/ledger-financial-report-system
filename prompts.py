@@ -25,6 +25,8 @@ RULES
    rate. Record any scale conversion in the evidence field.
    Preserve the precision disclosed by the report after scaling; do not round a
    thousands-based source to one decimal million.
+   Unit conversion is positional: divide a 千円 / thousand-yen figure by 1,000
+   to obtain M JPY. For example, 4,676,003千円 = 4,676.003 M JPY.
 5. Pay careful attention to:
    - fiscal-year columns,
    - table row and column relationships,
@@ -63,6 +65,14 @@ MAPPING GUIDANCE (general, not company-specific)
 - The property, plant and equipment note usually carries the gross breakdown
   (land, buildings, machinery, construction in progress) and the accumulated
   depreciation that the face of the balance sheet reports only as a net figure.
+  When that note discloses gross cost and accumulated depreciation, return the
+  PPE component rows on that gross-cost basis and return Accumulated Depreciation
+  separately as a negative value. Do not copy net face-statement component values
+  and then report Accumulated Depreciation as zero.
+  Land and Construction in Progress are normally non-depreciable: when the face
+  statement prints either one, return that supported value directly even if the
+  note needed to gross up the depreciable Buildings, Plant & Machinery, or Other
+  Equipment rows is absent from the packet.
 - Right-of-use and similar long-lived operating assets that are not separately
   requested belong in the schema's catch-all Other Equipment row. Do not add
   them to Buildings merely because the underlying leases include facilities.
@@ -75,6 +85,14 @@ MAPPING GUIDANCE (general, not company-specific)
   row, and never split one printed securities line across both rows.
 - A single "other assets" line often has to be split across Financial Assets and
   Other Fixed Assets using the corresponding note.
+- For any subtotal or total row, a directly printed balance-sheet amount is
+  authoritative for that row. Preserve it exactly after unit scaling even when
+  rounded components add to a slightly different amount. Use component arithmetic
+  to diagnose the discrepancy; never replace the printed subtotal with the sum.
+- When a residual calculation conflicts with a complete quantified list of the
+  row's direct components, prefer the directly disclosed components. A broader
+  financial subtotal may contain instruments that the selected schema rows do not
+  exhaust, so subtracting it can create a false residual.
 - Classify long-lived financial claims by economic substance: pension or
   postretirement assets, insurance receivables, cash surrender values of life
   insurance, deposits, loans, and investments belong in Financial Assets.
@@ -109,6 +127,12 @@ MAPPING GUIDANCE (general, not company-specific)
   in the section — a small negative Other Financial Assets balance is the
   correct result. Do not move the allowance into residual Other Current Assets
   or Other Fixed Assets unless the report explicitly ties it there.
+- リース投資資産 (lease investment assets) is a lease receivable. Include it
+  in Accounts Receivable - Trade, net of its related current allowance when
+  applicable; do not classify it as Other Quick Assets.
+- 預け金 is not Cash & Cash Equivalents merely because it is liquid or appears
+  beside 現金預金. Put it in Other Quick Assets unless the report explicitly
+  identifies it as an immediately available cash equivalent.
 - Deferred Charges means a separately presented deferred-assets/deferred-charges
   category (for example Japanese 繰延資産). Prepaid expenses and long-term prepaid
   expenses (長期前払費用) remain in Other Current Assets or Other Fixed Assets;
@@ -257,23 +281,87 @@ def build_evidence_retry_prompt(
     *,
     additional_pages_text: str,
     missing_items: list[str],
+    first_pass_rows: list[dict] | None = None,
+    failed_identity_checks: list[dict] | None = None,
     detected_fiscal_year: str = "",
     output_currency: str = "USD",
     original_packet_text: str = "",
     verification_note: str = "",
 ) -> str:
     """
-    Second bounded Strategy 3 pass: the first semantic mapping left specific
-    schema rows without a value, so additional ranked pages are supplied and
-    only those rows are re-asked. Contains schema labels and parser output
-    only — never any expected value.
+    Second bounded Strategy 3 pass: compare the first semantic mapping for the
+    permitted rows with the retry's existing bounded report evidence. Contains
+    first-pass answers, schema labels and parser output only — never any
+    expected value.
     """
     schema_json = json.dumps(ASSET_SCHEMA, ensure_ascii=False, indent=2)
     currency = str(output_currency or "USD").strip().upper()
     if not currency or not currency.replace("_", "").isalnum():
         currency = "USD"
     output_unit = f"M {currency}"
-    items_list = "\n".join(f"- {item}" for item in missing_items)
+    permitted_items = list(dict.fromkeys(str(item) for item in missing_items))
+    permitted_set = set(permitted_items)
+    items_list = "\n".join(f"- {item}" for item in permitted_items)
+
+    def compact_text(value: object, maximum: int = 500) -> str | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        return text if len(text) <= maximum else text[: maximum - 1].rstrip() + "…"
+
+    first_pass_by_item = {
+        str(row.get("item")): row
+        for row in first_pass_rows or []
+        if isinstance(row, dict) and str(row.get("item")) in permitted_set
+    }
+    baseline: list[dict] = []
+    for item in permitted_items:
+        source = first_pass_by_item.get(item, {})
+        entry: dict[str, object] = {
+            "item": item,
+            "first_pass_value": source.get("answer_m_usd"),
+            "unit_currency": output_unit,
+            "confidence": source.get("confidence"),
+        }
+        source_page = source.get("source_page")
+        source_label = compact_text(source.get("source_label"), 200)
+        evidence = compact_text(source.get("evidence"))
+        if source_page is not None:
+            entry["source_page"] = source_page
+        if source_label is not None:
+            entry["source_label"] = source_label
+        if evidence is not None:
+            entry["evidence"] = evidence
+        baseline.append(entry)
+
+    arithmetic_failures: list[dict] = []
+    for check in failed_identity_checks or []:
+        if not isinstance(check, dict) or check.get("status") not in {None, "failed"}:
+            continue
+        identity = compact_text(check.get("identity"), 500)
+        if not identity:
+            continue
+        stated = check.get("stated")
+        computed = check.get("computed")
+        discrepancy = None
+        if isinstance(stated, (int, float)) and isinstance(computed, (int, float)):
+            discrepancy = computed - stated
+        arithmetic_failures.append(
+            {
+                "identity": identity,
+                "stated_total": stated,
+                "computed_parts_sum": computed,
+                "discrepancy_parts_minus_total": discrepancy,
+                "tolerance": check.get("tolerance"),
+                "unit_currency": output_unit,
+            }
+        )
+    baseline_json = json.dumps(baseline, ensure_ascii=False, separators=(",", ":"))
+    failures_json = (
+        json.dumps(arithmetic_failures, ensure_ascii=False, separators=(",", ":"))
+        if arithmetic_failures
+        else "[]"
+    )
     fy_note = (
         f"The first pass detected fiscal year {detected_fiscal_year.strip()}.\n"
         if detected_fiscal_year and detected_fiscal_year.strip()
@@ -310,20 +398,34 @@ Use the report's own currency and scale. No foreign-exchange conversion is autho
 EVIDENCE RETRY
 A first extraction pass over other pages of the same Annual Report either could
 not establish values for the rows listed below or produced values that failed a
-deterministic balance-sheet identity check. {fy_note}Additional complete pages
-from the same report follow. Re-derive ONLY these rows from the additional
-evidence:
+deterministic balance-sheet identity check. {fy_note}Compare the first-pass
+mapping with the supplied report evidence. You may propose changes ONLY to
+these permitted rows:
 
 {items_list}
+
+FIRST-PASS BASELINE — PERMITTED ROWS ONLY
+This is the mapping to verify, not an answer key. Keep a first-pass value when
+the evidence supports it; change it only when stronger supplied evidence does.
+{baseline_json}
+
+FAILED ARITHMETIC IDENTITIES
+Each discrepancy is computed_parts_sum minus stated_total in {output_unit}.
+{failures_json}
 
 {verification_note}
 
 {packet_section}{additional_section}
 
 Return the full required JSON for all {EXPECTED_ROW_COUNT} TARGET_SCHEMA rows,
-including detected_fiscal_year and a confidence score per row. For the listed
-rows, supply a value only when these pages provide traceable evidence, following
-the same null/zero rules as before; check that related subtotals reconcile. For
-every row NOT listed above, return null; those rows are already answered and
-will not be read from this reply.
+including detected_fiscal_year and a confidence score per row. Preserve every
+non-permitted row: do not re-derive or propose a change to it. Because the JSON
+contract still requires all rows, return answer_m_usd null and confidence 0.0
+for every non-permitted row; the application treats that null as "no proposal"
+and preserves its first-pass row unchanged. For each permitted row, ground every
+proposed non-null value in the supplied report evidence and provide its source
+page plus a precise source label or evidence excerpt. Follow the same null/zero
+rules as before and check the listed arithmetic discrepancy. Do not change a
+value merely to force arithmetic closure when the report evidence does not
+support the change.
 """

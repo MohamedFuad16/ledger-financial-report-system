@@ -78,6 +78,79 @@ def canonical_item(name: Any) -> str | None:
     return _BY_FOLDED.get(_fold(name))
 
 
+def _is_lease_investment_only_label(value: Any) -> bool:
+    """Whether a source label identifies only a lease-investment receivable."""
+    label = unicodedata.normalize("NFKC", str(value or "")).strip().lower()
+    if re.fullmatch(r"リース投資資産(?:\s*\([^)]*\))?", label):
+        return True
+    return label in {"lease investment asset", "lease investment assets"}
+
+
+def apply_schema_mapping_conventions(rows: list[dict]) -> tuple[list[dict], list[str]]:
+    """Apply narrow, evidence-explicit semantic conventions across rows.
+
+    This is intentionally stricter than prompt guidance. A value is moved only
+    when the model labels the *entire* Other Quick Assets row as lease
+    investment assets; composite or ambiguous labels are left untouched for
+    human review. Every change is returned to the caller's repair audit trail.
+    """
+    mapped = [dict(row) for row in rows]
+    by_item = {str(row.get("item")): row for row in mapped if isinstance(row, dict) and row.get("item")}
+    receivables = by_item.get("Accounts Receivable - Trade")
+    other_quick = by_item.get("Other Quick Assets")
+    if not receivables or not other_quick:
+        return mapped, []
+
+    receivables_value = receivables.get("answer_m_usd")
+    lease_value = other_quick.get("answer_m_usd")
+    if (
+        not isinstance(receivables_value, (int, float))
+        or isinstance(receivables_value, bool)
+        or not isinstance(lease_value, (int, float))
+        or isinstance(lease_value, bool)
+        or float(lease_value) <= 0
+        or not _is_lease_investment_only_label(other_quick.get("source_label"))
+    ):
+        return mapped, []
+
+    lease_amount = float(lease_value)
+    receivables["answer_m_usd"] = float(receivables_value) + lease_amount
+    other_quick["answer_m_usd"] = 0.0
+    confidences = [
+        float(value)
+        for value in (receivables.get("confidence"), other_quick.get("confidence"))
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    ]
+    if confidences:
+        receivables["confidence"] = min(confidences)
+        other_quick["confidence"] = min(confidences)
+    if receivables.get("source_page") is None:
+        receivables["source_page"] = other_quick.get("source_page")
+
+    convention = (
+        "Deterministic schema convention: リース投資資産 is a lease receivable "
+        "included in Accounts Receivable - Trade, not Other Quick Assets."
+    )
+    receivables["source_label"] = " + ".join(
+        part for part in (str(receivables.get("source_label") or "").strip(), "リース投資資産") if part
+    )
+    receivables["evidence"] = " ".join(
+        part for part in (str(receivables.get("evidence") or "").strip(), convention) if part
+    )
+    other_quick["evidence"] = " ".join(
+        part
+        for part in (
+            str(other_quick.get("evidence") or "").strip(),
+            f"{convention} Moved {lease_amount:g} from this row.",
+        )
+        if part
+    )
+    return mapped, [
+        f"moved {lease_amount:g} of lease investment assets from Other Quick Assets "
+        "to Accounts Receivable - Trade"
+    ]
+
+
 def parse_money(value: Any) -> Any:
     """
     Turn a monetary cell into a float, or None, or return it unchanged.

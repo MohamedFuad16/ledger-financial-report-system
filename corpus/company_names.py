@@ -47,7 +47,6 @@ COMPANY_EN: dict[str, str] = {
     "株式会社レスタス": "Lestas Inc.",
     "株式会社伊豆シャボテン公園": "Izu Shaboten Resort Co., Ltd.",
     "株式会社帝国ホテル": "Imperial Hotel, Ltd.",
-    "西尾レントオール株式会社": "Nishio Rent All Co., Ltd.",
 }
 
 _LEGAL_SUFFIXES = re.compile(r"(?:,?\s+(?:Inc|inc|Corp|Corporation|Co|Ltd|LTD|CO|K\.K)\.?,?)+\s*$")

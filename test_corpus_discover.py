@@ -190,7 +190,7 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
     def test_download_screen_rejects_a_shareholder_meeting_notice(self):
         extracted = SimpleNamespace(
             text=(
-                "--- PAGE 1 ---\n西尾レントオール株式会社 第62回定時株主総会招集ご通知 2020年\n"
+                "--- PAGE 1 ---\nExample株式会社 第62回定時株主総会招集ご通知 2020年\n"
                 "--- PAGE 2 ---\n貸借対照表 2020年 流動資産 現金預金 棚卸資産 資産合計 負債合計\n"
             ),
             readable_pages=2,
@@ -205,7 +205,7 @@ class JapaneseCorpusDiscoveryTests(unittest.TestCase):
             verdict = screen_pdf(
                 Path(directory) / "candidate.pdf",
                 2020,
-                expected_company="西尾レントオール株式会社",
+                expected_company="Example株式会社",
                 require_annual_document=True,
             )
         self.assertEqual("review", verdict["screened"])

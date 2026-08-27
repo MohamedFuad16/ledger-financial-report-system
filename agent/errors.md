@@ -1,5 +1,10 @@
 # Errors, gotchas & known issues
 
+## Strategy 3 retry lacked a first-pass comparison baseline (resolved)
+- Symptom: A bounded evidence retry could see the permitted row names and report pages but not the first-pass values, sources, or confidence it was meant to verify. It could therefore remap a row without explicitly comparing the proposal to the original evidence-backed answer.
+- Resolution: Supply a compact baseline for permitted rows only plus the exact failed identity, stated total, computed parts, discrepancy, tolerance, and unit. Require evidence grounding and explicitly preserve all non-permitted rows. Because the 27-row contract requires numeric confidence even when the answer is null, the retry prompt explicitly requires `confidence: 0.0` for non-permitted rows; a live Gemini 3.7 Flash run exposed this ambiguity before the clarification. Keep replacement acceptance deterministic and block-level: failed reconciliation must strictly improve.
+- First seen: 2026-08-27
+
 ## Browser upload staging retained invalid or unbounded files (resolved)
 - Symptom: non-PDF bytes could be written before parser validation, failed estimates left files behind, and in-memory staged records had no expiry or workspace storage ceiling.
 - Resolution: validate filename and `%PDF-` magic before persistence; cap each PDF at 128 MB and each workspace at 50 files/512 MB; delete failed staging immediately; expire temporary uploads after two hours without deleting corpus-owned PDFs; cover the lifecycle with regressions.

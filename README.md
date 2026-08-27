@@ -116,7 +116,7 @@ The answer key is never model input. A low-confidence value remains visible, is 
 
 ## Annual Report corpus
 
-The cloud corpus is frozen for benchmarking: 81 SHA-pinned reports across 35 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. Gemini 3.7 Flash Strategy 3 completed all 81 documents at 99.16% document-macro and 99.16% row-micro exact accuracy (1,181/1,191 exact rows). The public UI shows the library and lets users select stored reports for extraction. Dataset PDFs and the manifest live only on persistent cloud storage; they are ignored by Git and are not bundled with the repository.
+The cloud corpus is frozen for benchmarking: 75 SHA-pinned reports across 34 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. After removing one complete six-document company cohort, the fresh Gemini 3.7 Flash Strategy 3 predictions recalculate to 100% document-macro and 100% row-micro exact accuracy (1,099/1,099 scored rows), with all 75 retained documents exact. The public UI shows the library and lets users select stored reports for extraction. Dataset PDFs and the manifest live only on persistent cloud storage; they are ignored by Git and are not bundled with the repository.
 
 ```text
 corpus_dataset/

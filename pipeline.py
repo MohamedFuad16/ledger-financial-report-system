@@ -27,9 +27,15 @@ from models import (
     rows_as_dicts,
     validate_extraction,
 )
-from normalize import normalize_payload
+from normalize import apply_schema_mapping_conventions, normalize_payload
 from prompts import build_evidence_retry_prompt, build_user_prompt
-from reconcile import derive_identity_values, reconcile, reconciliation_summary
+from reconcile import (
+    derive_identity_values,
+    detect_ppe_measurement_basis_issue,
+    detect_source_fidelity_issues,
+    reconcile,
+    reconciliation_summary,
+)
 from schema import (
     ASSET_SCHEMA,
     ASSIGNMENT_GOLDEN_SOURCE_SHA256,
@@ -720,9 +726,13 @@ def _run_pipeline_inner(
         elapsed += repair_elapsed
         contract_repair_usage = response_usage(repaired_response)
         result, repairs = parse_and_validate(repaired_response)
+    # Apply only evidence-explicit cross-row schema conventions, recording each
+    # change in the same audit trail as representation repairs.
+    rows, mapping_repairs = apply_schema_mapping_conventions(rows_as_dicts(result))
+    repairs.extend(mapping_repairs)
     # Complete only algebraically unique nulls before applying the confidence
     # gate. This uses the public schema identities, never benchmark gold.
-    rows, deterministic_derivations = derive_identity_values(rows_as_dicts(result))
+    rows, deterministic_derivations = derive_identity_values(rows)
     # Apply the confidence gate once, here, so scoring and reconciliation below
     # agree on what counts as an answer.
     rows = apply_confidence_gate(rows)
@@ -740,9 +750,33 @@ def _run_pipeline_inner(
     source_value_quantum = detect_source_value_quantum(extracted.text)
     missing_items = [str(row.get("item")) for row in rows if row.get("answer_m_usd") is None]
     failed_identity_items: list[str] = []
+    measurement_basis_items: list[str] = []
+    measurement_basis_issue: dict[str, Any] | None = None
+    source_fidelity_items: list[str] = []
+    source_fidelity_issues: list[dict[str, Any]] = []
+    measurement_evidence = extracted.text
     pre_reconciliation: dict[str, Any] | None = None
     if strategy.experiment == "intelligent_scan" and getattr(extracted, "retained_pages", None):
         pre_reconciliation = reconcile(rows, value_quantum=source_value_quantum)
+        measurement_evidence = "\n\n".join(
+            [extracted.text, *[str(text) for _, text in extracted.retained_pages]]
+        )
+        measurement_basis_issue = detect_ppe_measurement_basis_issue(
+            rows,
+            measurement_evidence,
+            value_quantum=source_value_quantum,
+        )
+        if measurement_basis_issue:
+            measurement_basis_items = [str(item) for item in measurement_basis_issue.get("retry_items") or []]
+        source_fidelity_issues = detect_source_fidelity_issues(rows, value_quantum=source_value_quantum)
+        source_fidelity_items = list(
+            dict.fromkeys(
+                str(item)
+                for issue in source_fidelity_issues
+                for item in issue.get("retry_items") or [issue.get("item")]
+                if item
+            )
+        )
         failed_identity_names = set(pre_reconciliation.get("failed_identities") or [])
         if failed_identity_names:
             participants: list[str] = []
@@ -782,7 +816,12 @@ def _run_pipeline_inner(
         str(row.get("item")) == "Total Assets" and row.get("answer_m_usd") is not None for row in rows
     )
     verification_mode = (
-        complete_packet and not failed_identity_items and total_assets_answered and answered_row_count <= 3
+        complete_packet
+        and not failed_identity_items
+        and not measurement_basis_items
+        and not source_fidelity_items
+        and total_assets_answered
+        and answered_row_count <= 3
     )
     if verification_mode:
         # The both-sides verification derives the printed section totals on
@@ -795,10 +834,18 @@ def _run_pipeline_inner(
             "Deferred Charges",
         ]
     elif complete_packet:
-        retry_items = failed_identity_items
+        retry_items = failed_identity_items + measurement_basis_items + source_fidelity_items
     else:
-        retry_items = missing_items + failed_identity_items
-    if complete_packet and missing_items and not failed_identity_items and not verification_mode:
+        retry_items = missing_items + failed_identity_items + measurement_basis_items + source_fidelity_items
+    retry_items = list(dict.fromkeys(retry_items))
+    if (
+        complete_packet
+        and missing_items
+        and not failed_identity_items
+        and not measurement_basis_items
+        and not source_fidelity_items
+        and not verification_mode
+    ):
         evidence_retry = {
             "attempted": False,
             "reason": "packet covers the complete readable document; remaining nulls are decided absences",
@@ -821,7 +868,9 @@ def _run_pipeline_inner(
         if retry_pages or extracted.text.strip():
             progress(
                 "validate",
-                f"{len(missing_items)} rows unanswered, {len(failed_identity_items)} in failed identities "
+                f"{len(missing_items)} rows unanswered, {len(failed_identity_items)} in failed identities, "
+                f"{len(measurement_basis_items)} in a PPE measurement-basis check, "
+                f"{len(source_fidelity_items)} in source-fidelity checks "
                 + (
                     "· retrying with pages " + ", ".join(str(page) for page, _ in retry_pages)
                     if retry_pages
@@ -831,28 +880,62 @@ def _run_pipeline_inner(
             retry_prompt = build_evidence_retry_prompt(
                 additional_pages_text="\n\n".join(f"[page {page}]\n{text}" for page, text in retry_pages),
                 missing_items=retry_items,
+                first_pass_rows=rows,
+                failed_identity_checks=[
+                    check
+                    for check in (pre_reconciliation or {}).get("checks", [])
+                    if check.get("status") == "failed"
+                ],
                 detected_fiscal_year=result.detected_fiscal_year or "",
                 output_currency=output_currency,
-                # A failed identity often means a figure in the original packet
-                # was misread — and when no unsent pages remain the packet IS
-                # the complete readable report — so the second look re-reads it
-                # alongside any additional pages.
-                original_packet_text=(
-                    extracted.text if (failed_identity_items or verification_mode or not retry_pages) else ""
-                ),
+                # The retry compares against the first-pass mapping, so it must
+                # retain the exact original evidence packet. It may add no more
+                # than three unsent pages; it never substitutes those pages for
+                # the evidence that produced the baseline being reviewed.
+                original_packet_text=extracted.text,
                 verification_note=(
-                    (
-                        "VERIFICATION: the first pass committed a Total Assets figure from a "
-                        "condensed balance-sheet summary where no other row can cross-check it. "
-                        "Re-derive Total Assets independently from BOTH sides of the printed "
-                        "statement: it must equal the sum of the printed asset components AND "
-                        "equal liabilities plus net assets computed from the printed equity "
-                        "components (capital, reserves, retained earnings/deficit, share "
-                        "warrants). The largest printed figure is often a capital reserve, not "
-                        "the total. Return the figure that reconciles on both sides."
+                    "\n\n".join(
+                        note
+                        for note in (
+                            (
+                                "VERIFICATION: the first pass committed a Total Assets figure from a "
+                                "condensed balance-sheet summary where no other row can cross-check it. "
+                                "Re-derive Total Assets independently from BOTH sides of the printed "
+                                "statement: it must equal the sum of the printed asset components AND "
+                                "equal liabilities plus net assets computed from the printed equity "
+                                "components (capital, reserves, retained earnings/deficit, share "
+                                "warrants). The largest printed figure is often a capital reserve, not "
+                                "the total. Return the figure that reconciles on both sides."
+                            )
+                            if verification_mode
+                            else "",
+                            (
+                                "PPE MEASUREMENT-BASIS VALIDATION FAILURE: the first pass "
+                                "reconciles only by using net carrying values in the PPE component "
+                                "rows and zero Accumulated Depreciation, while the supplied report "
+                                "contains a numeric accumulated-depreciation disclosure. Re-read "
+                                "the property, plant and equipment note. Preserve Tangible Assets "
+                                "as the net subtotal; return report-supported gross component "
+                                "values where disclosed and Accumulated Depreciation separately as "
+                                "a negative value. Do not allocate a total across components unless "
+                                "the supplied note discloses those gross component values."
+                            )
+                            if measurement_basis_items
+                            else "",
+                            (
+                                "SOURCE-FIDELITY VALIDATION FAILURES:\n"
+                                + "\n".join(
+                                    f"- {issue['item']}: {issue['reason']}"
+                                    for issue in source_fidelity_issues
+                                )
+                                + "\nRe-read the cited source and correct only the permitted rows. "
+                                "These checks come from the first pass's own citations, not an answer key."
+                            )
+                            if source_fidelity_items
+                            else "",
+                        )
+                        if note
                     )
-                    if verification_mode
-                    else ""
                 ),
             )
             retry_started = time.perf_counter()
@@ -888,7 +971,9 @@ def _run_pipeline_inner(
                         "Deferred Charges",
                     ]
                     if verification_mode
-                    else failed_identity_items
+                    else list(
+                        dict.fromkeys(failed_identity_items + measurement_basis_items + source_fidelity_items)
+                    )
                 )
                 merged_rows, recovered, replaced = merge_retry_rows(
                     rows, rows_as_dicts(retry_result), missing_items, replaceable_items
@@ -900,9 +985,30 @@ def _run_pipeline_inner(
                     # both-sides re-derivation is accepted as the answer.
                     trial = reconcile(merged_rows, value_quantum=source_value_quantum)
                     assert pre_reconciliation is not None
-                    improves = int(trial.get("failed") or 0) < int(
+                    arithmetic_improves = int(trial.get("failed") or 0) < int(
                         pre_reconciliation.get("failed") or 0
                     ) and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
+                    trial_measurement_issue = detect_ppe_measurement_basis_issue(
+                        merged_rows,
+                        measurement_evidence,
+                        value_quantum=source_value_quantum,
+                    )
+                    measurement_improves = (
+                        measurement_basis_issue is not None
+                        and trial_measurement_issue is None
+                        and int(trial.get("failed") or 0) <= int(pre_reconciliation.get("failed") or 0)
+                        and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
+                    )
+                    trial_source_issues = detect_source_fidelity_issues(
+                        merged_rows, value_quantum=source_value_quantum
+                    )
+                    source_fidelity_improves = (
+                        bool(source_fidelity_issues)
+                        and len(trial_source_issues) < len(source_fidelity_issues)
+                        and int(trial.get("failed") or 0) <= int(pre_reconciliation.get("failed") or 0)
+                        and int(trial.get("passed") or 0) >= int(pre_reconciliation.get("passed") or 0)
+                    )
+                    improves = arithmetic_improves or measurement_improves or source_fidelity_improves
                     if not improves:
                         merged_rows, recovered, replaced = merge_retry_rows(
                             rows, rows_as_dicts(retry_result), missing_items, []
@@ -915,6 +1021,21 @@ def _run_pipeline_inner(
                     "verification_mode": verification_mode,
                     "missing_rows": missing_items,
                     "failed_identity_rows": failed_identity_items,
+                    "measurement_basis_rows": measurement_basis_items,
+                    "measurement_basis_resolved": bool(
+                        measurement_basis_issue is not None
+                        and detect_ppe_measurement_basis_issue(
+                            rows,
+                            measurement_evidence,
+                            value_quantum=source_value_quantum,
+                        )
+                        is None
+                    ),
+                    "source_fidelity_rows": source_fidelity_items,
+                    "source_fidelity_resolved": bool(
+                        source_fidelity_issues
+                        and not detect_source_fidelity_issues(rows, value_quantum=source_value_quantum)
+                    ),
                     "pages_added": retry_diagnostics.get("retry_pages"),
                     "page_scores": retry_diagnostics.get("retry_scores"),
                     "recovered_rows": recovered,
@@ -946,6 +1067,8 @@ def _run_pipeline_inner(
                     "attempted": True,
                     "missing_rows": missing_items,
                     "failed_identity_rows": failed_identity_items,
+                    "measurement_basis_rows": measurement_basis_items,
+                    "source_fidelity_rows": source_fidelity_items,
                     "pages_added": retry_diagnostics.get("retry_pages"),
                     "recovered_rows": [],
                     "replaced_rows": [],
@@ -954,10 +1077,35 @@ def _run_pipeline_inner(
                 }
                 progress("validate", "Evidence retry failed — keeping first-pass values")
 
-    # Deterministic arithmetic check, separate from the type contract above and
-    # from scoring below. Needs no answer key, so it is the only quality signal
-    # that survives the move to companies we have no golden data for.
+    # Deterministic arithmetic and measurement-basis checks are separate from
+    # the type contract and benchmark scoring. Neither consults answer-key data.
     reconciliation = reconcile(rows, value_quantum=source_value_quantum)
+    final_measurement_issue = (
+        detect_ppe_measurement_basis_issue(
+            rows,
+            measurement_evidence,
+            value_quantum=source_value_quantum,
+        )
+        if strategy.experiment == "intelligent_scan"
+        else None
+    )
+    measurement_basis_validation = final_measurement_issue or {
+        "status": "ok",
+        "code": "ppe_measurement_basis_supported_or_not_applicable",
+    }
+    if final_measurement_issue:
+        extracted.warnings.append(str(final_measurement_issue["reason"]))
+    final_source_fidelity_issues = (
+        detect_source_fidelity_issues(rows, value_quantum=source_value_quantum)
+        if strategy.experiment == "intelligent_scan"
+        else []
+    )
+    source_fidelity_validation = {
+        "status": "failed" if final_source_fidelity_issues else "ok",
+        "issues": final_source_fidelity_issues,
+    }
+    for issue in final_source_fidelity_issues:
+        extracted.warnings.append(str(issue["reason"]))
     progress("validate", reconciliation_summary(reconciliation), done=True)
 
     pinned_year = (fiscal_year_hint or "").strip()
@@ -1021,6 +1169,8 @@ def _run_pipeline_inner(
         "evidence_retry": evidence_retry,
         "deterministic_derivations": deterministic_derivations,
         "reconciliation": reconciliation,
+        "measurement_basis_validation": measurement_basis_validation,
+        "source_fidelity_validation": source_fidelity_validation,
         "schema_rows": EXPECTED_ROW_COUNT,
         "metrics": metrics,
         "rows": rows,

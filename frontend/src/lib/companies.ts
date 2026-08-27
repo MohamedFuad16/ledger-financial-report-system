@@ -34,7 +34,6 @@ export const englishCompanyNames: Record<string, string> = {
   '株式会社レスタス': 'Lestas Inc.',
   '株式会社伊豆シャボテン公園': 'Izu Shaboten Resort Co., Ltd.',
   '株式会社帝国ホテル': 'Imperial Hotel, Ltd.',
-  '西尾レントオール株式会社': 'Nishio Rent All Co., Ltd.',
 }
 
 export function companyDisplayName(company: string, locale: 'en' | 'ja'): string {
@@ -53,7 +52,6 @@ export const showcaseDomains: Record<string, string> = {
   '株式会社帝国ホテル': 'imperialhotel.co.jp',
   '株式会社ベルク': 'belc.jp',
   'ファインディ株式会社': 'findy.co.jp',
-  '西尾レントオール株式会社': 'nishio-rent.co.jp',
   'リソルホールディングス株式会社': 'resol.jp',
   'クラスター株式会社': 'cluster.mu',
 }

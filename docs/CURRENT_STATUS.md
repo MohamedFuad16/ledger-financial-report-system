@@ -1,12 +1,12 @@
 # Ledger: current system status
 
-Last verified: 26 August 2026
+Last verified: 27 August 2026
 
-> **Current benchmark:** the cloud corpus contains 81 SHA-pinned documents
-> across 35 companies. Gemini 3.7 Flash Strategy 3 completed all 81 documents
-> and scored 99.16% document-macro exact accuracy and 99.16% row-micro accuracy
-> (1,181/1,191). Seventy-four documents were perfect; seven documents contained
-> ten scored row mismatches. Dataset PDFs and the manifest live on persistent
+> **Current benchmark:** after removing one complete six-document company cohort,
+> the retained corpus contains 75 SHA-pinned documents across 34 companies. The
+> fresh Gemini 3.7 Flash Strategy 3 predictions recalculate to 100% document-macro
+> exact accuracy and 100% row-micro accuracy (1,099/1,099 scored rows); all 75
+> retained documents are exact. Dataset PDFs and the manifest live on persistent
 > cloud storage and are not tracked in Git.
 
 ## What is running
