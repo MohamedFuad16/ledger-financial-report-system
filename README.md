@@ -1,51 +1,75 @@
-<p align="center">
-  <img src="frontend/public/ledger-icon.png" width="96" alt="Ledger logo" />
-</p>
+<div align="center">
 
-<h1 align="center">Ledger</h1>
+<img src="frontend/public/ledger-icon.png" width="96" alt="Ledger logo" />
 
-<p align="center">
-  Extract, verify and benchmark the asset side of Annual Report balance sheets.
-</p>
+# Ledger
 
-<p align="center">
-  <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827" />
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
-  <img alt="Flask" src="https://img.shields.io/badge/Flask-Python-000000?logo=flask&logoColor=white" />
-  <img alt="AWS" src="https://img.shields.io/badge/Backend-AWS_EC2-FF9900?logo=amazonwebservices&logoColor=white" />
-  <img alt="Vercel" src="https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel&logoColor=white" />
-</p>
+**Reads a 100-page annual report, finds the few pages that matter, and returns a checked balance sheet.**
 
-<p align="center">
-  <a href="https://assignment.mohamedfuad.com">Open Ledger</a>
-  ·
-  <a href="docs/CURRENT_STATUS.md">Architecture report</a>
-  ·
-  <a href="ROADMAP.md">Strategy roadmap</a>
-</p>
+[![Live App](https://img.shields.io/badge/Live-assignment.mohamedfuad.com-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://assignment.mohamedfuad.com)
+[![Python](https://img.shields.io/badge/Python_3.11-Flask-3776AB?style=for-the-badge&logo=python&logoColor=white)](#tech-stack)
+[![React](https://img.shields.io/badge/React_19-TypeScript-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](#tech-stack)
+[![AWS](https://img.shields.io/badge/Backend-AWS_EC2-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)](#deployment)
+
+<img src="https://raw.githubusercontent.com/MohamedFuad16/portfolio-mine/32d8ec630d54e703e65db9dafb3224bcf7648e3c/public/media/projects/ledger-en.jpg" alt="Ledger overview dashboard with benchmark accuracy, field coverage and extraction strategies" width="100%" />
+
+</div>
 
 ---
 
 ## Overview
 
-Ledger is a bilingual Annual Report benchmark workspace. It converts a PDF into a fixed 27-row asset-side balance-sheet contract, calls an OpenAI-compatible model for semantic mapping, validates the result, flags low-confidence rows for review and benchmarks the extracted values against maintained golden answers.
+Ledger turns an annual report PDF into the asset side of its balance sheet and
+checks the result before it is scored. Annual reports run past a hundred
+pages, but the balance sheet is only a few of them. Ledger finds those pages
+locally, sends only the best three to five to the model, maps the answer to a
+fixed 27-row schema, and checks it arithmetically.
 
-The current assignment uses 3M reports as the initial benchmark, while the corpus pipeline is company-independent and supports official FY2020–FY2025 reports.
+**Live:** <https://assignment.mohamedfuad.com>
+
+It is also a benchmark workspace in English and Japanese. The same report can go
+through four PDF parsers, with and without OCR, so every strategy is compared on
+the same prompt, model settings, output contract and scoring path.
+
+## Results
+
+From the published Strategy 3 summary (`/api/benchmark-summary`, generated
+2026-08-28 from stored run artifacts, Gemini 3.7 Flash):
+
+| Measure | Value |
+| ------- | ----- |
+| Corpus | 47 annual reports from 10 companies, FY2020 to FY2025 |
+| Exact rows | 966 of 966 scored rows (100%) |
+| Exact documents | 47 of 47 |
+| Field coverage | 100% |
+
+On the 46 reports every strategy processed, the page gate averages 31.0 s and
+about 8.9k input tokens per report, against 36.7 s and 92.9k tokens for the
+whole report without OCR. A 132-page 3M report shrinks to 5 pages and about
+8,500 tokens.
 
 ## Features
 
-- **Two active extraction strategies** — the same four selectable parsers without OCR (Strategy 1) and with OCR (Strategy 2).
-- **Strategy 3 intelligent scanning gate** — pdf-inspector performs native page extraction and OCR routing, Ledger replaces only routed pages with OCR Markdown, then a deterministic gate sends the top three to five complete pages to the same 27-row semantic mapper.
-- **Four parser passes** — PyPDF, PyMuPDF4LLM, pdf-inspector and Docling can be selected individually or together.
-- **Fixed output contract** — exactly 27 canonical rows, normalized and validated before use.
-- **Truthful evaluation** — exact accuracy, field coverage and precision are separate metrics.
-- **Live execution** — real Server-Sent Events drive each timed task capsule.
-- **Official-report corpus** — Firecrawl discovery, direct PDF download, health screening and SHA-256 manifesting.
-- **Upload or corpus input** — stage one report or a searchable company/year batch.
-- **Adaptive concurrency** — shared rate-limit feedback, `Retry-After` handling and gradual recovery.
-- **English and Japanese** — locale-aware navigation, result tables and exports.
-- **Private visit reporting** — bounded Upstash events and a structured owner-only SES email.
-- **Responsive interface** — desktop collapsible rail and mobile navigation drawer.
+- **Page gate (Strategy 3)**: pdf-inspector extracts native text and routes only
+  broken pages to local OCR. A deterministic scorer then picks the three to five
+  complete pages most likely to hold the balance sheet.
+- **Parser comparison (Strategies 1 and 2)**: PyPDF, PyMuPDF4LLM, pdf-inspector
+  and Docling, each run without OCR and with OCR, individually or together.
+- **Fixed output contract**: exactly 27 canonical rows, normalized and validated
+  with Pydantic, then checked against balance-sheet identities.
+- **Separate metrics**: exact accuracy, field coverage, precision and
+  consistency are reported apart, and low-confidence values are flagged for
+  review, never hidden.
+- **Pinned gold answers**: gold values are bound to each PDF by SHA-256 and
+  never reach the model.
+- **Official-report corpus**: Firecrawl discovery, direct PDF download, health
+  screening and a SHA-256 manifest.
+- **Live execution**: Server-Sent Events drive each timed task in the UI.
+- **Adaptive concurrency**: shared rate-limit feedback, `Retry-After` handling
+  and gradual recovery.
+- **English and Japanese**: locale-aware navigation, result tables and exports.
+- **Private visit reporting**: bounded Upstash events and an owner-only SES
+  email.
 
 ## How it works
 
@@ -114,9 +138,14 @@ The answer key is never model input. A low-confidence value remains visible, is 
 | Precision | Share of returned, comparable values that are correct |
 | Consistency | Share of testable arithmetic identities that hold |
 
+
 ## Annual Report corpus
 
-The cloud corpus is frozen for benchmarking: 75 SHA-pinned reports across 34 companies (FY2020–FY2025), every one gold-backed by either the assignment key, a human audit, or a dual-pass derived answer sheet. After removing one complete six-document company cohort, the fresh Gemini 3.7 Flash Strategy 3 predictions recalculate to 100% document-macro and 100% row-micro exact accuracy (1,099/1,099 scored rows), with all 75 retained documents exact. The public UI shows the library and lets users select stored reports for extraction. Dataset PDFs and the manifest live only on persistent cloud storage; they are ignored by Git and are not bundled with the repository.
+The published corpus holds 47 SHA-pinned reports from 10 companies (3M and nine
+Japanese companies), covering FY2020 to FY2025, and all 47 are marked
+verified. The public UI shows the library and lets users select stored reports
+for extraction. Dataset PDFs and the manifest live only on persistent cloud
+storage; they are ignored by Git and are not bundled with the repository.
 
 ```text
 corpus_dataset/
@@ -178,13 +207,18 @@ npm --prefix frontend run build
 python server.py
 ```
 
-Open `http://localhost:5000`.
+Open the URL the server prints, normally `http://127.0.0.1:5000`. If port 5000 is
+taken (macOS AirPlay Receiver often holds it), the server falls back to 5001,
+5050, 8000 or 8080, or you can set `PORT`.
 
 For React development with Flask running separately:
 
 ```bash
 npm --prefix frontend run dev
 ```
+
+The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to
+`http://127.0.0.1:5000`, so run Flask on port 5000 in this mode.
 
 Copy `.env.example` to `.env`, then use **Settings** to test and save the provider and Firecrawl credentials. Saved keys remain server-side and are never returned to the browser or written into run artifacts.
 
@@ -194,9 +228,9 @@ Copy `.env.example` to `.env`, then use **Settings** to test and save the provid
 scripts/verify_project.sh
 ```
 
-The gate runs Ruff lint/format, mypy, 118 backend unit tests, the standalone
-contract checks, pip-audit, Bandit (medium/high), 31 Vitest checks, TypeScript,
-npm audit, and a production Vite build.
+The gate runs Ruff lint and format checks, mypy, the backend unit tests, the
+standalone contract checks, pip-audit, Bandit (medium and high), the Vitest
+suite, the TypeScript check, npm audit and a production Vite build.
 
 ## Deployment
 
@@ -224,8 +258,9 @@ Do not commit `.env`, downloaded reports or run artifacts. Provider, Firecrawl, 
 
 Built as a technical assignment and benchmark prototype. Add an explicit license before third-party reuse.
 
+
 ---
 
-<p align="center">
-  Built by <a href="https://www.mohamedfuad.com/">Mohamed Fuad</a>
-</p>
+<div align="center">
+Built by <a href="https://github.com/MohamedFuad16">Mohamed Fuad</a> · <a href="https://www.mohamedfuad.com">mohamedfuad.com</a>
+</div>
