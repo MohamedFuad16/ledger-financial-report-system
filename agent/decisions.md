@@ -49,3 +49,12 @@
 - Context: Workspace isolation and per-job executors kept user data separate but did not impose one host-wide limit on CPU- and memory-heavy PDF parsing, rendering and OCR. Three visitors could therefore start three heavy pipelines on a two-vCPU, 3.7-GiB production host even though outbound model calls had their own limiter.
 - Decision: Wrap every `pipeline.run_pipeline` entry in one process-wide `BoundedSemaphore(2)`. Keep the existing one-worker, ten-thread Gunicorn runtime so the gate is host-wide on the current deployment. Let a third extraction wait for a slot while request threads continue serving status polling; keep the adaptive OpenRouter limiter independent.
 - Consequences: Three simultaneous workspaces are supported with at most two heavy local pipelines active and no state mixing. The third job may have queue latency. If production later adds Gunicorn workers or multiple instances, replace this in-process gate with a shared durable work queue or distributed semaphore.
+
+## ADR-0006 — Send visit notifications through Azure Communication Services Email
+
+- Date: 2026-10-02
+- Status: Accepted
+- Context: The backend moved from AWS EC2 to Azure. Visit emails were sent through SES using the EC2 instance role, so the host move left them without credentials, and keeping SES would have needed a long-lived AWS key on an Azure VM.
+- Decision: `traffic.py` sends through ACS Email (`azure-communication-email`) using `ACS_EMAIL_CONNECTION_STRING`, with the Azure-managed sender domain in `TRAFFIC_FROM_EMAIL`. With no connection string set the notification is skipped and visit tracking is unaffected. `boto3` is removed.
+- Consequences: One cloud, one billing relationship, and no cross-cloud credential. The sender is a `*.azurecomm.net` address until a custom domain is verified.
+

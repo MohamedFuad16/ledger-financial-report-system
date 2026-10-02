@@ -244,3 +244,10 @@ identity or job-budget boundary.
 - Cause: Workspace identifiers isolated state and each batch bounded its own worker pool, but no admission gate spanned all endpoints and workspaces. The adaptive limiter covered outbound model requests only.
 - Resolution: Route every pipeline entry through one process-wide two-slot semaphore. A regression stages jobs in three workspaces, proves only two enter concurrently, releases them, and confirms all three finish without state mixing. The current single Gunicorn worker makes the limit host-wide; a future multi-worker deployment must use a shared queue or distributed semaphore.
 - First seen: 2026-08-28
+
+## Visit email stopped after leaving AWS (resolved)
+- Symptom: Moving the backend off EC2 would have silently stopped the "Ledger visit" emails; no error reaches the API, because delivery runs in a background thread.
+- Cause: SES authenticated through the EC2 instance role, which does not exist on the Azure VM.
+- Resolution: Switched to Azure Communication Services Email (ADR-0006) and tested through `traffic._email_visit`.
+- First seen: 2026-10-02
+

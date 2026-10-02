@@ -37,8 +37,7 @@ pretty = true
 
 [[tool.mypy.overrides]]
 module = [
-    "boto3.*",
-    "botocore.*",
+    "azure.*",
     "docling.*",
     "dotenv",
     "flask",

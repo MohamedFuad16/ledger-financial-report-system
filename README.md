@@ -68,8 +68,8 @@ whole report without OCR. A 132-page 3M report shrinks to 5 pages and about
 - **Adaptive concurrency**: shared rate-limit feedback, `Retry-After` handling
   and gradual recovery.
 - **English and Japanese**: locale-aware navigation, result tables and exports.
-- **Private visit reporting**: bounded Upstash events and an owner-only SES
-  email.
+- **Private visit reporting**: bounded Upstash events and an owner-only notification email
+  sent through Azure Communication Services.
 
 ## How it works
 
@@ -168,7 +168,7 @@ The cloud manifest records provenance, review state and SHA-256 identities. Set 
 | Corpus discovery | Firecrawl v2 |
 | Frontend hosting | Vercel |
 | Backend hosting | AWS EC2, Caddy, Systems Manager |
-| Private telemetry | Upstash Redis REST, AWS SES |
+| Private telemetry | Upstash Redis REST, Azure Communication Services Email |
 
 ## Project structure
 

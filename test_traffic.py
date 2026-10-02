@@ -170,16 +170,16 @@ class TrafficTests(unittest.TestCase):
                 {
                     "TRAFFIC_NOTIFY_EMAIL": "owner@example.com",
                     "TRAFFIC_FROM_EMAIL": "owner@example.com",
-                    "AWS_REGION": "ap-northeast-1",
+                    "ACS_EMAIL_CONNECTION_STRING": "endpoint=https://example.communication.azure.com/;accesskey=test",
                 },
                 clear=False,
             ),
-            patch.object(traffic, "_ses_client") as ses_client,
+            patch.object(traffic, "_email_client") as email_client,
         ):
             self.assertTrue(traffic._email_visit(event))
 
-        content = ses_client.return_value.send_email.call_args.kwargs["Content"]["Simple"]
-        html_body = content["Body"]["Html"]["Data"]
+        message = email_client.return_value.begin_send.call_args.args[0]
+        html_body = message["content"]["html"]
         self.assertIn("<table", html_body)
         self.assertIn("Access time", html_body)
         self.assertIn("ledger-icon.png", html_body)

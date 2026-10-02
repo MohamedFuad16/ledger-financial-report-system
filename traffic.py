@@ -1,4 +1,4 @@
-"""Private visit telemetry persisted in Upstash and delivered through AWS SES."""
+"""Private visit telemetry persisted in Upstash and delivered through Azure Communication Services Email."""
 
 from __future__ import annotations
 
@@ -14,10 +14,9 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-import boto3
 import requests
-from botocore.config import Config
-from botocore.exceptions import ClientError
+from azure.communication.email import EmailClient
+from azure.core.exceptions import AzureError
 
 LOGGER = logging.getLogger(__name__)
 UPSTASH_TIMEOUT_SECONDS = 5
@@ -25,8 +24,9 @@ VISIT_RETENTION = 2_000
 SESSION_TTL_SECONDS = 6 * 60 * 60
 MAX_FIELD_LENGTH = 1_000
 
-_SES_CLIENTS: dict[str, Any] = {}
-_SES_CLIENTS_LOCK = threading.Lock()
+_EMAIL_CLIENT: EmailClient | None = None
+_EMAIL_CLIENT_LOCK = threading.Lock()
+EMAIL_SEND_TIMEOUT_SECONDS = 30
 
 
 def _clean(value: Any, *, limit: int = MAX_FIELD_LENGTH) -> str:
@@ -84,28 +84,25 @@ def _upstash_pipeline(commands: list[list[Any]]) -> list[Any]:
     return [item.get("result") for item in payload]
 
 
-def _ses_client(region: str):
-    with _SES_CLIENTS_LOCK:
-        if region not in _SES_CLIENTS:
-            _SES_CLIENTS[region] = boto3.client(
-                "sesv2",
-                region_name=region,
-                config=Config(
-                    retries={"total_max_attempts": 3, "mode": "adaptive"},
-                    connect_timeout=4,
-                    read_timeout=8,
-                ),
-            )
-        return _SES_CLIENTS[region]
+def _email_client() -> EmailClient | None:
+    """Return the shared ACS Email client, or None when no connection string is set."""
+    global _EMAIL_CLIENT
+    connection_string = os.environ.get("ACS_EMAIL_CONNECTION_STRING", "").strip()
+    if not connection_string:
+        return None
+    with _EMAIL_CLIENT_LOCK:
+        if _EMAIL_CLIENT is None:
+            _EMAIL_CLIENT = EmailClient.from_connection_string(connection_string)
+        return _EMAIL_CLIENT
 
 
 def _email_visit(event: dict[str, str]) -> bool:
     recipient = os.environ.get("TRAFFIC_NOTIFY_EMAIL", "").strip()
     sender = os.environ.get("TRAFFIC_FROM_EMAIL", "").strip() or recipient
-    if not recipient or not sender:
+    client = _email_client()
+    if not recipient or not sender or client is None:
         return False
 
-    region = os.environ.get("AWS_REGION", "ap-northeast-1").strip()
     accessed_at = datetime.fromisoformat(event["accessed_at"]).astimezone(ZoneInfo("Asia/Tokyo"))
     subject = f"Ledger visit · {accessed_at:%Y-%m-%d %H:%M:%S JST}"
     fields = [
@@ -156,23 +153,15 @@ def _email_visit(event: dict[str, str]) -> bool:
     </div>
   </body>
 </html>"""
+    message = {
+        "senderAddress": sender,
+        "recipients": {"to": [{"address": recipient}]},
+        "content": {"subject": subject, "plainText": body, "html": html_body},
+    }
     try:
-        _ses_client(region).send_email(
-            FromEmailAddress=sender,
-            Destination={"ToAddresses": [recipient]},
-            Content={
-                "Simple": {
-                    "Subject": {"Data": subject, "Charset": "UTF-8"},
-                    "Body": {
-                        "Text": {"Data": body, "Charset": "UTF-8"},
-                        "Html": {"Data": html_body, "Charset": "UTF-8"},
-                    },
-                }
-            },
-        )
-    except ClientError as exc:
-        error_code = exc.response.get("Error", {}).get("Code", "Unknown")
-        LOGGER.warning("Visit email delivery failed with SES code %s.", error_code)
+        client.begin_send(message).result(timeout=EMAIL_SEND_TIMEOUT_SECONDS)
+    except AzureError as exc:
+        LOGGER.warning("Visit email delivery failed (%s).", type(exc).__name__)
         return False
     return True
 
